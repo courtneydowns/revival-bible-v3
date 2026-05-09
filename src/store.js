@@ -31,6 +31,8 @@ export const useRevivalStore = create((set, get) => ({
   decisions: [],
   questions: [],
   timelineEvents: [],
+  canonTags: [],
+  entityTagsByKey: {},
   livingDocs: initialLivingDocs,
   searchOpen: false,
   settingsOpen: false,
@@ -226,6 +228,15 @@ export const useRevivalStore = create((set, get) => ({
     set({ timelineEvents: timelineEvents || [], activeTimelineEventId });
     return timelineEvents || [];
   },
+  loadCanonTags: async () => {
+    const [canonTags, entityTagLinks] = await Promise.all([
+      window.revival?.canon.getTags(),
+      window.revival?.canon.getEntityTagLinks()
+    ]);
+    const entityTagsByKey = groupEntityTags(entityTagLinks || []);
+    set({ canonTags: canonTags || [], entityTagsByKey });
+    return entityTagsByKey;
+  },
   selectTimelineEvent: async (timelineEventId) => {
     if (!timelineEventId) return;
     set({
@@ -295,11 +306,6 @@ export const useRevivalStore = create((set, get) => ({
         await get().selectTimelineEvent(result.entity_id);
         break;
       case 'bible_section': {
-        const nodeTree = get().nodeTree.length ? get().nodeTree : await get().loadNodeTree();
-        const parentIds = getNodeParentIds(nodeTree || [], result.entity_id);
-        set((state) => ({
-          expandedNodes: [...new Set([...state.expandedNodes, 'story-bible', ...parentIds])]
-        }));
         await get().selectNode(result.entity_id);
         break;
       }
@@ -307,13 +313,16 @@ export const useRevivalStore = create((set, get) => ({
         break;
     }
 
+    set((state) => ({
+      expandedNodes: state.expandedNodes.filter((nodeId) => nodeId !== 'story-bible')
+    }));
     get().closeSearch();
   },
   hydratePhaseOneData: async () => {
     const api = window.revival;
     if (!api) return;
 
-    const [databaseInfo, nodeTree, episodes, characters, decisions, questions, livingRows, timelineEvents, characterRelationshipCount] = await Promise.all([
+    const [databaseInfo, nodeTree, episodes, characters, decisions, questions, livingRows, timelineEvents, canonTags, entityTagLinks, characterRelationshipCount] = await Promise.all([
       api.app.getDatabaseInfo(),
       api.nodes.getTree(),
       api.episodes.getAll(),
@@ -322,12 +331,15 @@ export const useRevivalStore = create((set, get) => ({
       api.questions.getAll(),
       api.living.getAll(),
       api.timeline.getEvents(),
+      api.canon.getTags(),
+      api.canon.getEntityTagLinks(),
       api.characters.getRelationshipCount()
     ]);
 
     const livingDocs = groupLivingDocs(livingRows || []);
+    const entityTagsByKey = groupEntityTags(entityTagLinks || []);
 
-    set({ databaseInfo, nodeTree, episodes, characters, decisions, questions, livingDocs, timelineEvents: timelineEvents || [], characterRelationshipCount });
+    set({ databaseInfo, nodeTree, episodes, characters, decisions, questions, livingDocs, timelineEvents: timelineEvents || [], canonTags: canonTags || [], entityTagsByKey, characterRelationshipCount });
   }
 }));
 
@@ -347,6 +359,15 @@ function groupLivingDocs(rows) {
   }
 
   return livingDocs;
+}
+
+function groupEntityTags(rows) {
+  return rows.reduce((groups, row) => {
+    const key = `${row.entity_type}:${row.entity_id}`;
+    groups[key] = groups[key] || [];
+    groups[key].push(row);
+    return groups;
+  }, {});
 }
 
 function getNodeParentIds(nodeTree, nodeId) {

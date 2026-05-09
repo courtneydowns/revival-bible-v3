@@ -1,9 +1,10 @@
 import { app, BrowserWindow, ipcMain, screen, shell } from 'electron';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { closeDatabase, ensureSearchIndex, getCharacter, getCharacterRelationshipCount, getCharacterRelationships, getCharacters, getDatabaseInfo, getDecision, getDecisionBlockers, getDecisions, getEpisode, getEpisodes, getEpisodesBySeason, getLatestNodeContent, getLivingDocumentEntry, getLivingDocuments, getLivingDocumentsByType, getNode, getNodeTree, getQuestion, getQuestions, getTimelineEvent, getTimelineEvents, initDatabase } from './db.js';
+import { closeDatabase, ensureSearchIndex, getCanonTags, getCharacter, getCharacterRelationshipCount, getCharacterRelationships, getCharacters, getDatabaseInfo, getDecision, getDecisionBlockers, getDecisions, getEntityTagLinks, getEpisode, getEpisodes, getEpisodesBySeason, getLatestNodeContent, getLivingDocumentEntry, getLivingDocuments, getLivingDocumentsByType, getNode, getNodeTree, getQuestion, getQuestions, getTimelineEvent, getTimelineEvents, initDatabase } from './db.js';
 import { getPreferences, hasApiKey, setApiKey, setPreferences } from './config.js';
 import { seedBible } from './seed-bible.js';
+import { seedCanonTags } from './seed-canon-tags.js';
 import { seedCharacterRelationshipRefinement } from './seed-character-relationships.js';
 import { seedEpisodes } from './seed-episodes.js';
 import { seedPhase3B } from './seed-phase3b.js';
@@ -79,6 +80,8 @@ function registerCoreHandlers() {
   ipcMain.handle('living:get-entry', async (_event, id) => getLivingDocumentEntry(id));
   ipcMain.handle('timeline:get-events', async () => getTimelineEvents());
   ipcMain.handle('timeline:get-event', async (_event, id) => getTimelineEvent(id));
+  ipcMain.handle('canon:get-tags', async () => getCanonTags());
+  ipcMain.handle('canon:get-entity-tag-links', async () => getEntityTagLinks());
 }
 
 app.whenReady().then(() => {
@@ -93,6 +96,8 @@ app.whenReady().then(() => {
   console.info(`[Revival Bible v3] Phase 3B seed checked: ${JSON.stringify(phase3BSeedResult)}`);
   const timelineSeedResult = seedTimeline();
   console.info(`[Revival Bible v3] Phase 5A timeline seed checked: ${JSON.stringify(timelineSeedResult)}`);
+  const canonTagSeedResult = seedCanonTags();
+  console.info(`[Revival Bible v3] Phase 5C canon tag seed checked: ${JSON.stringify(canonTagSeedResult)}`);
   const searchIndexResult = ensureSearchIndex();
   console.info(`[Revival Bible v3] Search index checked: ${JSON.stringify(searchIndexResult)}`);
   registerCoreHandlers();

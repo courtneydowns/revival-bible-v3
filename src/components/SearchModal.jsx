@@ -16,6 +16,7 @@ const typeOrder = ['bible_section', 'episode', 'timeline_event', 'character', 'd
 
 export default function SearchModal() {
   const closeSearch = useRevivalStore((state) => state.closeSearch);
+  const canonTags = useRevivalStore((state) => state.canonTags);
   const navigateToSearchResult = useRevivalStore((state) => state.navigateToSearchResult);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -23,6 +24,7 @@ export default function SearchModal() {
   const [loading, setLoading] = useState(false);
 
   const groupedResults = useMemo(() => groupResults(results), [results]);
+  const searchableTags = useMemo(() => getSearchableTags(canonTags), [canonTags]);
 
   const runSearch = async (nextQuery) => {
     setQuery(nextQuery);
@@ -79,6 +81,18 @@ export default function SearchModal() {
           <label htmlFor="search-query">Query</label>
           <input autoFocus id="search-query" onChange={(event) => runSearch(event.target.value)} placeholder="Search Revival canon, episodes, decisions..." value={query} />
         </div>
+        {searchableTags.length ? (
+          <div className="searchable-tags" aria-label="Searchable tags">
+            <span>Searchable Tags</span>
+            <div className="searchable-tag-list">
+              {searchableTags.map((tag) => (
+                <button className={`searchable-tag color-${tag.color || 'default'}`} key={tag.slug} onClick={() => runSearch(tag.slug.replace(/-/g, ' '))} type="button">
+                  {tag.slug}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
         <div className="search-status">{loading ? 'Searching...' : status}</div>
 
         <div className="search-results" aria-live="polite">
@@ -93,6 +107,12 @@ export default function SearchModal() {
                       {result.section_path ? <small>{result.section_path}</small> : null}
                     </div>
                     <strong>{result.title}</strong>
+                    <MatchIndicator
+                      matchedByStatus={result.matched_by_status}
+                      matchedByTag={result.matched_by_tag}
+                      statuses={result.matched_statuses}
+                      tags={result.matched_tags}
+                    />
                     <p dangerouslySetInnerHTML={{ __html: sanitizeSnippet(result.snippet) }} />
                   </button>
                 ))}
@@ -105,6 +125,31 @@ export default function SearchModal() {
           <button className="secondary-button" onClick={closeSearch} type="button">Close</button>
         </div>
       </section>
+    </div>
+  );
+}
+
+function MatchIndicator({ matchedByStatus, matchedByTag, statuses = [], tags = [] }) {
+  const matchType = matchedByTag ? 'tag' : matchedByStatus ? 'status' : 'text';
+  const label = matchedByTag ? 'Tag Match' : matchedByStatus ? 'Status Match' : 'Text Match';
+
+  return (
+    <div className={`search-match-row ${matchType}`}>
+      <span>{label}</span>
+      {matchedByTag
+        ? tags.map((tag) => (
+          <mark className={`search-tag-match color-${tag.color || 'default'}`} key={`${tag.slug}-${tag.note || ''}`}>
+            {tag.label}
+          </mark>
+        ))
+        : null}
+      {!matchedByTag && matchedByStatus
+        ? statuses.map((status) => (
+          <mark className="search-status-match" key={status}>
+            {status}
+          </mark>
+        ))
+        : null}
     </div>
   );
 }
@@ -133,4 +178,10 @@ function sanitizeSnippet(value) {
     .replace(/>/g, '&gt;')
     .replace(/&lt;mark&gt;/g, '<mark>')
     .replace(/&lt;\/mark&gt;/g, '</mark>');
+}
+
+function getSearchableTags(tags) {
+  const preferredOrder = ['canon', 'character', 'relationship', 'timeline', 'episode', 'unresolved', 'contradiction-risk', 'decision', 'question', 'location'];
+  const bySlug = new Map(tags.map((tag) => [tag.slug, tag]));
+  return preferredOrder.map((slug) => bySlug.get(slug)).filter(Boolean);
 }

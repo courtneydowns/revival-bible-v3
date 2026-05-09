@@ -48,6 +48,10 @@ contextBridge.exposeInMainWorld('revival', {
     getEvents: () => invoke('timeline:get-events'),
     getEvent: (id) => invoke('timeline:get-event', id)
   },
+  canon: {
+    getTags: () => invoke('canon:get-tags'),
+    getEntityTagLinks: () => invoke('canon:get-entity-tag-links')
+  },
   search: {
     query: (query) => invoke('search:query', query),
     rebuildIndex: () => invoke('search:rebuild-index')

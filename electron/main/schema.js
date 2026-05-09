@@ -131,6 +131,27 @@ export function initializeSchema(db) {
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS canon_tags (
+      id INTEGER PRIMARY KEY,
+      slug TEXT UNIQUE NOT NULL,
+      label TEXT NOT NULL,
+      description TEXT,
+      color TEXT DEFAULT 'default',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS entity_tag_links (
+      id INTEGER PRIMARY KEY,
+      tag_id INTEGER NOT NULL,
+      entity_type TEXT NOT NULL,
+      entity_id TEXT NOT NULL,
+      note TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(tag_id, entity_type, entity_id),
+      FOREIGN KEY (tag_id) REFERENCES canon_tags(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS sessions (
       id INTEGER PRIMARY KEY,
       focus_type TEXT,
@@ -182,6 +203,7 @@ export function initializeSchema(db) {
   createUpdatedAtTrigger(db, 'questions');
   createUpdatedAtTrigger(db, 'living_documents');
   createUpdatedAtTrigger(db, 'timeline_events');
+  createUpdatedAtTrigger(db, 'canon_tags');
 }
 
 function createUpdatedAtTrigger(db, tableName) {

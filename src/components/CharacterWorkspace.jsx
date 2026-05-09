@@ -1,11 +1,13 @@
 import { useEffect } from 'react';
 import { useRevivalStore } from '../store.js';
+import CanonTagBadges from './CanonTagBadges.jsx';
 
 export default function CharacterWorkspace() {
   const activeCharacterId = useRevivalStore((state) => state.activeCharacterId);
   const characters = useRevivalStore((state) => state.characters);
   const selectedCharacter = useRevivalStore((state) => state.selectedCharacter);
   const relationships = useRevivalStore((state) => state.selectedCharacterRelationships);
+  const entityTagsByKey = useRevivalStore((state) => state.entityTagsByKey);
   const selectCharacter = useRevivalStore((state) => state.selectCharacter);
 
   useEffect(() => {
@@ -37,6 +39,7 @@ export default function CharacterWorkspace() {
             <>
               <div className="selection-kicker">Selected Character</div>
               <h2>{selectedCharacter.name}</h2>
+              <CanonTagBadges tags={entityTagsByKey[`character:${selectedCharacter.id}`] || []} />
               <dl className="metadata-grid">
                 <div>
                   <dt>Role</dt>

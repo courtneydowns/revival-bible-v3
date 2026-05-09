@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { useRevivalStore } from '../store.js';
+import CanonTagBadges from './CanonTagBadges.jsx';
 import StatusBadge from './StatusBadge.jsx';
 
 const urgencyLabels = {
@@ -12,6 +13,7 @@ const urgencyLabels = {
 export default function QuestionsLog() {
   const activeQuestionId = useRevivalStore((state) => state.activeQuestionId);
   const questions = useRevivalStore((state) => state.questions);
+  const entityTagsByKey = useRevivalStore((state) => state.entityTagsByKey);
   const loadQuestions = useRevivalStore((state) => state.loadQuestions);
   const selectQuestion = useRevivalStore((state) => state.selectQuestion);
   const selectedQuestion = useMemo(
@@ -68,6 +70,7 @@ export default function QuestionsLog() {
                 <div>
                   <div className="eyebrow">{urgencyLabels[selectedQuestion.urgency] || selectedQuestion.urgency}</div>
                   <h2>{selectedQuestion.question}</h2>
+                  <CanonTagBadges tags={entityTagsByKey[`question:${selectedQuestion.id}`] || []} />
                 </div>
                 <StatusBadge status={selectedQuestion.status} />
               </div>

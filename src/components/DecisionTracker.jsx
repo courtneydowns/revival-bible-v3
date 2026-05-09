@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { useRevivalStore } from '../store.js';
+import CanonTagBadges from './CanonTagBadges.jsx';
 import StatusBadge from './StatusBadge.jsx';
 
 const tierLabels = {
@@ -13,6 +14,7 @@ const tierLabels = {
 export default function DecisionTracker() {
   const activeDecisionId = useRevivalStore((state) => state.activeDecisionId);
   const decisions = useRevivalStore((state) => state.decisions);
+  const entityTagsByKey = useRevivalStore((state) => state.entityTagsByKey);
   const loadDecisions = useRevivalStore((state) => state.loadDecisions);
   const selectDecision = useRevivalStore((state) => state.selectDecision);
   const selectedDecision = useMemo(
@@ -39,7 +41,7 @@ export default function DecisionTracker() {
       <h1>Decision Tracker</h1>
       <p className="dashboard-lede">Phase 3B pre-writing decisions, blockers, and downstream dependencies.</p>
 
-      <div className="phase3b-workspace">
+      <div className="phase3b-workspace decision-workspace">
         <aside className="phase3b-list-panel">
           {Object.entries(tierLabels).map(([tier, label]) => (
             <section className="phase3b-group" key={tier}>
@@ -73,6 +75,7 @@ export default function DecisionTracker() {
                   <div className="selection-kicker">Selected Decision</div>
                   <div className="eyebrow">Decision #{selectedDecision.sequence_number}</div>
                   <h2>{selectedDecision.title}</h2>
+                  <CanonTagBadges tags={entityTagsByKey[`decision:${selectedDecision.id}`] || []} />
                 </div>
                 <StatusBadge status={selectedDecision.status} />
               </div>

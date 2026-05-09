@@ -598,6 +598,10 @@ h1 {
   max-height: calc(100vh - 210px);
 }
 
+.decision-workspace {
+  grid-template-columns: minmax(300px, 390px) minmax(0, 1fr);
+}
+
 .phase3b-list-panel,
 .phase3b-detail-panel,
 .living-document-panel {
@@ -915,12 +919,49 @@ h1 {
   font-size: 11px;
 }
 
+.status-badge::before {
+  content: "STATUS";
+  margin-right: 5px;
+  color: var(--text-dim);
+  font-size: 9px;
+}
+
 .status-badge.locked { color: var(--locked); }
 .status-badge.established { color: var(--established); }
 .status-badge.developing { color: var(--developing); }
 .status-badge.needed { color: var(--needed); }
 .status-badge.provisional { color: var(--provisional); }
 .status-badge.open { color: var(--established); }
+
+.canon-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 10px;
+}
+
+.canon-tag {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 3px 8px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.canon-tag.color-canon { color: var(--accent-strong); }
+.canon-tag.color-character { color: var(--established); }
+.canon-tag.color-timeline { color: var(--developing); }
+.canon-tag.color-location { color: var(--provisional); }
+.canon-tag.color-episode { color: var(--locked); }
+.canon-tag.color-relationship { color: var(--established); }
+.canon-tag.color-question { color: var(--needed); }
+.canon-tag.color-decision { color: var(--accent); }
+.canon-tag.color-unresolved,
+.canon-tag.color-risk { color: var(--danger); }
 
 .modal-backdrop {
   position: fixed;
@@ -987,6 +1028,46 @@ h1 {
   margin: 10px 0 14px;
   color: var(--text-muted);
   font-size: 13px;
+}
+
+.searchable-tags {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 12px;
+}
+
+.searchable-tags > span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.searchable-tag-list,
+.search-match-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.searchable-tag,
+.search-tag-match {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.2;
+  padding: 4px 8px;
+}
+
+.searchable-tag {
+  cursor: pointer;
+}
+
+.searchable-tag:hover {
+  background: var(--bg-soft);
 }
 
 .search-results {
@@ -1070,6 +1151,66 @@ h1 {
   color: var(--accent-strong);
   padding: 0 2px;
 }
+
+.search-match-row {
+  align-items: center;
+}
+
+.search-match-row > span {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 8px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.search-match-row.tag > span {
+  border-color: var(--established);
+  color: var(--established);
+}
+
+.search-match-row.status > span {
+  border-color: var(--developing);
+  color: var(--developing);
+}
+
+.search-match-row.text > span {
+  border-color: var(--line-strong);
+  color: var(--text-muted);
+}
+
+.search-tag-match {
+  background: rgb(107 167 215 / 12%);
+  color: var(--established);
+}
+
+.search-status-match {
+  background: rgb(216 180 95 / 12%);
+  color: var(--developing);
+}
+
+.searchable-tag.color-canon,
+.search-tag-match.color-canon { color: var(--accent-strong); }
+.searchable-tag.color-character,
+.search-tag-match.color-character { color: var(--established); }
+.searchable-tag.color-timeline,
+.search-tag-match.color-timeline { color: var(--developing); }
+.searchable-tag.color-location,
+.search-tag-match.color-location { color: var(--provisional); }
+.searchable-tag.color-episode,
+.search-tag-match.color-episode { color: var(--locked); }
+.searchable-tag.color-relationship,
+.search-tag-match.color-relationship { color: var(--established); }
+.searchable-tag.color-question,
+.search-tag-match.color-question { color: var(--needed); }
+.searchable-tag.color-decision,
+.search-tag-match.color-decision { color: var(--accent); }
+.searchable-tag.color-unresolved,
+.searchable-tag.color-risk,
+.search-tag-match.color-unresolved,
+.search-tag-match.color-risk { color: var(--danger); }
 
 .selected-detail-panel {
   border-color: var(--accent);
@@ -1172,6 +1313,10 @@ h1 {
   .timeline-metadata,
   .living-field-grid {
     grid-template-columns: 1fr;
+  }
+
+  .decision-workspace {
+    grid-template-columns: minmax(300px, 390px) minmax(0, 1fr);
   }
 }
 

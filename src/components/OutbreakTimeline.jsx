@@ -1,10 +1,12 @@
 import { useEffect, useMemo } from 'react';
 import { useRevivalStore } from '../store.js';
+import CanonTagBadges from './CanonTagBadges.jsx';
 import StatusBadge from './StatusBadge.jsx';
 
 export default function OutbreakTimeline() {
   const activeTimelineEventId = useRevivalStore((state) => state.activeTimelineEventId);
   const timelineEvents = useRevivalStore((state) => state.timelineEvents);
+  const entityTagsByKey = useRevivalStore((state) => state.entityTagsByKey);
   const loadTimelineEvents = useRevivalStore((state) => state.loadTimelineEvents);
   const selectTimelineEvent = useRevivalStore((state) => state.selectTimelineEvent);
   const groupedEvents = useMemo(() => groupByBucket(timelineEvents), [timelineEvents]);
@@ -45,6 +47,7 @@ export default function OutbreakTimeline() {
                       <StatusBadge status={event.status} />
                     </div>
                     <strong>{event.title}</strong>
+                    <CanonTagBadges tags={entityTagsByKey[`timeline_event:${event.id}`] || []} />
                     <p>{event.summary || 'Summary pending.'}</p>
                     <dl className="timeline-metadata">
                       <div>

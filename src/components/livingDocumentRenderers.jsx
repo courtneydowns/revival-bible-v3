@@ -1,6 +1,10 @@
+import { useRevivalStore } from '../store.js';
+import CanonTagBadges from './CanonTagBadges.jsx';
 import StatusBadge from './StatusBadge.jsx';
 
 export function LivingDocumentEntryList({ activeEntryId, entries = [], emptyLabel }) {
+  const entityTagsByKey = useRevivalStore((state) => state.entityTagsByKey);
+
   if (!entries.length) {
     return <div className="placeholder-block">{emptyLabel}</div>;
   }
@@ -13,6 +17,7 @@ export function LivingDocumentEntryList({ activeEntryId, entries = [], emptyLabe
             <span>Entry {entry.entry_number || entry.id}</span>
             <StatusBadge status={entry.status} />
           </div>
+          <CanonTagBadges tags={entityTagsByKey[`living_document:${entry.id}`] || []} />
           <div className="living-field-grid">
             {Object.entries(parseFields(entry.fields)).map(([key, value]) => (
               <div className="field-card" key={key}>

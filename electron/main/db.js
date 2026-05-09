@@ -245,13 +245,37 @@ export function getTimelineEvent(id) {
   return connection.prepare('SELECT * FROM timeline_events WHERE id = ?').get(id);
 }
 
+export function getCanonTags() {
+  return connection.prepare('SELECT * FROM canon_tags ORDER BY label').all();
+}
+
+export function getEntityTagLinks() {
+  return connection
+    .prepare(`
+      SELECT
+        etl.entity_type,
+        etl.entity_id,
+        etl.note,
+        ct.slug,
+        ct.label,
+        ct.description,
+        ct.color
+      FROM entity_tag_links etl
+      JOIN canon_tags ct ON ct.id = etl.tag_id
+      ORDER BY etl.entity_type, etl.entity_id, ct.label
+    `)
+    .all();
+}
+
 export function querySearchIndex(query) {
   const term = String(query || '').trim();
   if (!term) return [];
   const ftsQuery = buildSearchQuery(term);
   if (!ftsQuery) return [];
+  const tagLookup = getTagLookup();
+  const statusLookup = getSearchStatusLookup();
 
-  return connection
+  const rows = connection
     .prepare(`
       SELECT
         entity_type,
@@ -265,6 +289,21 @@ export function querySearchIndex(query) {
       LIMIT 25
     `)
     .all(ftsQuery);
+
+  return rows.map((row) => {
+    const tags = tagLookup.get(`${row.entity_type}:${row.entity_id}`) || [];
+    const matchedTags = getMatchedTags(tags, term);
+    const statuses = statusLookup.get(`${row.entity_type}:${row.entity_id}`) || [];
+    const matchedStatuses = getMatchedStatuses(statuses, term);
+    return {
+      ...row,
+      tags,
+      matched_tags: matchedTags,
+      matched_by_tag: matchedTags.length > 0,
+      matched_statuses: matchedStatuses,
+      matched_by_status: matchedStatuses.length > 0
+    };
+  });
 }
 
 export function clearSearchIndex() {
@@ -276,7 +315,7 @@ export function ensureSearchIndex() {
   const indexed = connection.prepare('SELECT COUNT(*) AS count FROM search_index').get().count;
   const expected = getSearchSourceCount();
 
-  if (indexed === expected && indexed > 0) {
+  if (indexed === expected && indexed > 0 && searchIndexHasCanonTagContent()) {
     return { rebuilt: false, indexed, expected };
   }
 
@@ -298,6 +337,7 @@ export function rebuildSearchIndex() {
       .map((node) => [node.id, node.title])
   );
   const rows = [];
+  const tagLookup = getTagLookup();
 
   for (const node of connection.prepare(`
     SELECT n.*, nc.content
@@ -335,7 +375,8 @@ export function rebuildSearchIndex() {
         character.what_they_wont,
         character.voice_notes,
         character.end_state,
-        character.notes
+        character.notes,
+        formatTagsForSearch(tagLookup, 'character', character.id)
       ]),
       section_path: character.role || 'Character'
     });
@@ -356,7 +397,8 @@ export function rebuildSearchIndex() {
         flattenJsonText(episode.acts),
         episode.flanagan_moment,
         episode.rewatch_notes,
-        episode.status
+        episode.status,
+        formatTagsForSearch(tagLookup, 'episode', episode.id)
       ]),
       section_path: `Season ${episode.season} / Episode ${episode.episode_number}`
     });
@@ -376,7 +418,8 @@ export function rebuildSearchIndex() {
         decision.answer,
         decision.status,
         decision.blocks,
-        decision.blocked_by
+        decision.blocked_by,
+        formatTagsForSearch(tagLookup, 'decision', decision.id)
       ]),
       section_path: `Tier ${decision.tier} / Decision #${decision.sequence_number}`
     });
@@ -394,7 +437,8 @@ export function rebuildSearchIndex() {
         question.answer,
         question.context,
         question.blocks,
-        question.blocked_by
+        question.blocked_by,
+        formatTagsForSearch(tagLookup, 'question', question.id)
       ]),
       section_path: formatUrgency(question.urgency)
     });
@@ -406,7 +450,7 @@ export function rebuildSearchIndex() {
       entity_type: 'living_document',
       entity_id: String(document.id),
       title: `${formatDocType(document.doc_type)} Entry ${document.entry_number || document.id}`,
-      content: compactText([formatDocType(document.doc_type), document.status, flattenJsonText(fields)]),
+      content: compactText([formatDocType(document.doc_type), document.status, flattenJsonText(fields), formatTagsForSearch(tagLookup, 'living_document', document.id)]),
       section_path: formatDocType(document.doc_type)
     });
   }
@@ -423,7 +467,8 @@ export function rebuildSearchIndex() {
         event.outbreak_phase,
         event.event_type,
         event.source_note,
-        event.status
+        event.status,
+        formatTagsForSearch(tagLookup, 'timeline_event', event.id)
       ]),
       section_path: formatTimelineLocation(event)
     });
@@ -748,14 +793,152 @@ export function seedTimelineEventsIfNeeded(timelineEvents) {
   };
 }
 
+export function seedCanonTagsIfNeeded({ tags, links }) {
+  const existingTagCount = connection.prepare('SELECT COUNT(*) AS count FROM canon_tags').get().count;
+  const existingLinkCount = connection.prepare('SELECT COUNT(*) AS count FROM entity_tag_links').get().count;
+  const findTag = connection.prepare('SELECT id FROM canon_tags WHERE slug = ?');
+  const insertTag = connection.prepare(`
+    INSERT INTO canon_tags (slug, label, description, color)
+    VALUES (@slug, @label, @description, @color)
+  `);
+  const insertLink = connection.prepare(`
+    INSERT INTO entity_tag_links (tag_id, entity_type, entity_id, note)
+    VALUES (@tag_id, @entity_type, @entity_id, @note)
+    ON CONFLICT(tag_id, entity_type, entity_id) DO NOTHING
+  `);
+
+  const transaction = connection.transaction(() => {
+    for (const tag of tags) {
+      if (!findTag.get(tag.slug)) {
+        insertTag.run(tag);
+      }
+    }
+
+    for (const link of links) {
+      const tag = findTag.get(link.tag);
+      const entityId = resolveTagEntityId(link);
+
+      if (!tag || !entityId) continue;
+
+      insertLink.run({
+        tag_id: tag.id,
+        entity_type: link.entity_type,
+        entity_id: String(entityId),
+        note: link.note || null
+      });
+    }
+  });
+
+  transaction();
+
+  const tagCount = connection.prepare('SELECT COUNT(*) AS count FROM canon_tags').get().count;
+  const linkCount = connection.prepare('SELECT COUNT(*) AS count FROM entity_tag_links').get().count;
+
+  return {
+    seeded: tagCount > existingTagCount || linkCount > existingLinkCount,
+    tags: tagCount,
+    links: linkCount,
+    expectedTags: tags.length,
+    expectedLinks: links.length
+  };
+}
+
 function buildSearchQuery(term) {
   return term
+    .replace(/-/g, ' ')
     .split(/\s+/)
     .map((part) => part.replace(/[^\p{L}\p{N}_]/gu, ''))
     .filter(Boolean)
     .slice(0, 8)
     .map((part) => `${part}*`)
     .join(' AND ');
+}
+
+function getTagLookup() {
+  const lookup = new Map();
+
+  for (const tag of getEntityTagLinks()) {
+    const key = `${tag.entity_type}:${tag.entity_id}`;
+    if (!lookup.has(key)) {
+      lookup.set(key, []);
+    }
+    lookup.get(key).push(tag);
+  }
+
+  return lookup;
+}
+
+function getSearchStatusLookup() {
+  const lookup = new Map();
+  const addRows = (entityType, rows) => {
+    for (const row of rows) {
+      if (!row.status) continue;
+      lookup.set(`${entityType}:${row.id}`, [String(row.status)]);
+    }
+  };
+
+  addRows('bible_section', connection.prepare('SELECT id, status FROM nodes').all());
+  addRows('episode', connection.prepare('SELECT id, status FROM episodes').all());
+  addRows('decision', connection.prepare('SELECT id, status FROM decisions').all());
+  addRows('question', connection.prepare('SELECT id, status FROM questions').all());
+  addRows('living_document', connection.prepare('SELECT id, status FROM living_documents').all());
+  addRows('timeline_event', connection.prepare('SELECT id, status FROM timeline_events').all());
+
+  return lookup;
+}
+
+function formatTagsForSearch(tagLookup, entityType, entityId) {
+  return (tagLookup.get(`${entityType}:${entityId}`) || [])
+    .map((tag) => `${tag.label} ${tag.slug} ${tag.slug.replace(/-/g, ' ')} ${tag.note || ''}`)
+    .join('\n');
+}
+
+function getMatchedTags(tags, term) {
+  const queryTokens = getSearchTokens(term);
+  if (!queryTokens.length) return [];
+
+  return tags.filter((tag) => {
+    const tagTokens = getSearchTokens(`${tag.label} ${tag.slug} ${tag.slug.replace(/-/g, ' ')} ${tag.note || ''}`);
+    return queryTokens.every((queryToken) => tagTokens.some((tagToken) => tagToken.startsWith(queryToken)));
+  });
+}
+
+function getMatchedStatuses(statuses, term) {
+  const queryTokens = getSearchTokens(term);
+  if (!queryTokens.length) return [];
+
+  return statuses.filter((status) => {
+    const statusTokens = getSearchTokens(status);
+    return queryTokens.every((queryToken) => statusTokens.some((statusToken) => statusToken.startsWith(queryToken)));
+  });
+}
+
+function getSearchTokens(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/-/g, ' ')
+    .split(/\s+/)
+    .map((part) => part.replace(/[^\p{L}\p{N}_]/gu, ''))
+    .filter(Boolean);
+}
+
+function resolveTagEntityId(link) {
+  switch (link.entity_type) {
+    case 'character':
+      return connection.prepare('SELECT id FROM characters WHERE name = ?').get(link.character)?.id;
+    case 'timeline_event':
+      return connection.prepare('SELECT id FROM timeline_events WHERE seed_key = ?').get(link.seed_key)?.id;
+    case 'decision':
+      return connection.prepare('SELECT id FROM decisions WHERE sequence_number = ?').get(link.sequence_number)?.id;
+    case 'question':
+      return connection.prepare('SELECT id FROM questions WHERE question = ?').get(link.question)?.id;
+    case 'living_document':
+      return connection.prepare('SELECT id FROM living_documents WHERE doc_type = ? AND entry_number = ?').get(link.doc_type, link.entry_number)?.id;
+    case 'episode':
+      return connection.prepare('SELECT id FROM episodes WHERE season = ? AND episode_number = ?').get(link.season, link.episode_number)?.id;
+    default:
+      return link.entity_id;
+  }
 }
 
 function getSearchSourceCount() {
@@ -768,6 +951,35 @@ function getSearchSourceCount() {
     'living_documents',
     'timeline_events'
   ].reduce((total, tableName) => total + connection.prepare(`SELECT COUNT(*) AS count FROM ${tableName}`).get().count, 0);
+}
+
+function searchIndexHasCanonTagContent() {
+  const linkedCanonTags = connection
+    .prepare(`
+      SELECT COUNT(*) AS count
+      FROM entity_tag_links etl
+      JOIN canon_tags ct ON ct.id = etl.tag_id
+      WHERE ct.slug = 'canon'
+    `)
+    .get().count;
+
+  if (!linkedCanonTags) return true;
+
+  return connection
+    .prepare(`
+      SELECT COUNT(*) AS count
+      FROM search_index
+      WHERE search_index MATCH 'canon*'
+        AND EXISTS (
+          SELECT 1
+          FROM entity_tag_links etl
+          JOIN canon_tags ct ON ct.id = etl.tag_id
+          WHERE ct.slug = 'canon'
+            AND etl.entity_type = search_index.entity_type
+            AND etl.entity_id = search_index.entity_id
+        )
+    `)
+    .get().count > 0;
 }
 
 function compactText(parts) {
