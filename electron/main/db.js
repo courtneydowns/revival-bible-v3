@@ -191,20 +191,187 @@ export function getLivingDocumentEntry(id) {
 export function querySearchIndex(query) {
   const term = String(query || '').trim();
   if (!term) return [];
+  const ftsQuery = buildSearchQuery(term);
+  if (!ftsQuery) return [];
 
   return connection
     .prepare(`
-      SELECT entity_type, entity_id, title, content, section_path
+      SELECT
+        entity_type,
+        entity_id,
+        title,
+        snippet(search_index, 3, '<mark>', '</mark>', '...', 24) AS snippet,
+        section_path
       FROM search_index
       WHERE search_index MATCH ?
+      ORDER BY bm25(search_index)
       LIMIT 25
     `)
-    .all(term);
+    .all(ftsQuery);
 }
 
 export function clearSearchIndex() {
   connection.prepare('DELETE FROM search_index').run();
   return { rebuilt: true, indexed: 0 };
+}
+
+export function ensureSearchIndex() {
+  const indexed = connection.prepare('SELECT COUNT(*) AS count FROM search_index').get().count;
+  const expected = getSearchSourceCount();
+
+  if (indexed === expected && indexed > 0) {
+    return { rebuilt: false, indexed, expected };
+  }
+
+  return {
+    ...rebuildSearchIndex(),
+    expected
+  };
+}
+
+export function rebuildSearchIndex() {
+  const insertSearchRow = connection.prepare(`
+    INSERT INTO search_index (entity_type, entity_id, title, content, section_path)
+    VALUES (@entity_type, @entity_id, @title, @content, @section_path)
+  `);
+  const parentTitles = new Map(
+    connection
+      .prepare('SELECT id, title FROM nodes')
+      .all()
+      .map((node) => [node.id, node.title])
+  );
+  const rows = [];
+
+  for (const node of connection.prepare(`
+    SELECT n.*, nc.content
+    FROM nodes n
+    LEFT JOIN node_content nc ON nc.node_id = n.id
+      AND nc.version = (
+        SELECT MAX(version)
+        FROM node_content latest
+        WHERE latest.node_id = n.id
+      )
+    ORDER BY COALESCE(n.parent_id, ''), n.position, n.title
+  `).all()) {
+    rows.push({
+      entity_type: 'bible_section',
+      entity_id: node.id,
+      title: node.title,
+      content: compactText([node.title, node.node_type, node.status, node.metadata, node.content]),
+      section_path: node.parent_id ? `${parentTitles.get(node.parent_id) || 'Story Bible'} / ${node.title}` : node.title
+    });
+  }
+
+  for (const character of getCharacters()) {
+    rows.push({
+      entity_type: 'character',
+      entity_id: String(character.id),
+      title: character.name,
+      content: compactText([
+        character.name,
+        character.role,
+        character.status_at_open,
+        character.arc_season_1,
+        character.arc_season_2,
+        character.arc_season_3,
+        character.what_they_carry,
+        character.what_they_wont,
+        character.voice_notes,
+        character.end_state,
+        character.notes
+      ]),
+      section_path: character.role || 'Character'
+    });
+  }
+
+  for (const episode of getEpisodes()) {
+    rows.push({
+      entity_type: 'episode',
+      entity_id: String(episode.id),
+      title: episode.title || `S${episode.season}E${episode.episode_number}`,
+      content: compactText([
+        episode.title,
+        episode.na_tradition,
+        episode.dual_meaning,
+        episode.arc_summary,
+        episode.thematic_core,
+        episode.cold_open,
+        flattenJsonText(episode.acts),
+        episode.flanagan_moment,
+        episode.rewatch_notes,
+        episode.status
+      ]),
+      section_path: `Season ${episode.season} / Episode ${episode.episode_number}`
+    });
+  }
+
+  for (const decision of getDecisions()) {
+    rows.push({
+      entity_type: 'decision',
+      entity_id: String(decision.id),
+      title: decision.title,
+      content: compactText([
+        decision.title,
+        decision.question,
+        decision.why_first,
+        decision.what_we_know,
+        decision.what_needs_deciding,
+        decision.answer,
+        decision.status,
+        decision.blocks,
+        decision.blocked_by
+      ]),
+      section_path: `Tier ${decision.tier} / Decision #${decision.sequence_number}`
+    });
+  }
+
+  for (const question of getQuestions()) {
+    rows.push({
+      entity_type: 'question',
+      entity_id: String(question.id),
+      title: question.question,
+      content: compactText([
+        question.question,
+        question.urgency,
+        question.status,
+        question.answer,
+        question.context,
+        question.blocks,
+        question.blocked_by
+      ]),
+      section_path: formatUrgency(question.urgency)
+    });
+  }
+
+  for (const document of getLivingDocuments()) {
+    const fields = parseJsonObject(document.fields);
+    rows.push({
+      entity_type: 'living_document',
+      entity_id: String(document.id),
+      title: `${formatDocType(document.doc_type)} Entry ${document.entry_number || document.id}`,
+      content: compactText([formatDocType(document.doc_type), document.status, flattenJsonText(fields)]),
+      section_path: formatDocType(document.doc_type)
+    });
+  }
+
+  const transaction = connection.transaction(() => {
+    connection.prepare('DELETE FROM search_index').run();
+    for (const row of rows) {
+      insertSearchRow.run(row);
+    }
+  });
+
+  transaction();
+
+  const counts = connection
+    .prepare('SELECT entity_type, COUNT(*) AS count FROM search_index GROUP BY entity_type ORDER BY entity_type')
+    .all();
+
+  return {
+    rebuilt: true,
+    indexed: rows.length,
+    counts
+  };
 }
 
 export function seedBibleIfEmpty({ nodes, contents, characters, relationships }) {
@@ -469,4 +636,95 @@ export function seedLivingDocumentsIfNeeded(livingDocuments) {
     livingDocuments: finalRows,
     expectedTypes: [...new Set(livingDocuments.map((document) => document.doc_type))].length
   };
+}
+
+function buildSearchQuery(term) {
+  return term
+    .split(/\s+/)
+    .map((part) => part.replace(/[^\p{L}\p{N}_]/gu, ''))
+    .filter(Boolean)
+    .slice(0, 8)
+    .map((part) => `${part}*`)
+    .join(' AND ');
+}
+
+function getSearchSourceCount() {
+  return [
+    'nodes',
+    'characters',
+    'episodes',
+    'decisions',
+    'questions',
+    'living_documents'
+  ].reduce((total, tableName) => total + connection.prepare(`SELECT COUNT(*) AS count FROM ${tableName}`).get().count, 0);
+}
+
+function compactText(parts) {
+  return parts
+    .flatMap((part) => {
+      if (Array.isArray(part)) return part;
+      return [part];
+    })
+    .filter((part) => part !== undefined && part !== null && String(part).trim())
+    .map((part) => String(part).replace(/\s+/g, ' ').trim())
+    .join('\n');
+}
+
+function flattenJsonText(value) {
+  if (!value) return '';
+  const parsed = typeof value === 'string' ? parseJsonValue(value) : value;
+
+  if (Array.isArray(parsed)) {
+    return parsed.map((item) => flattenJsonText(item)).join('\n');
+  }
+
+  if (parsed && typeof parsed === 'object') {
+    return Object.entries(parsed)
+      .map(([key, entryValue]) => `${formatLabel(key)}: ${flattenJsonText(entryValue)}`)
+      .join('\n');
+  }
+
+  return String(parsed);
+}
+
+function parseJsonValue(value) {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
+
+function parseJsonObject(value) {
+  const parsed = parseJsonValue(value);
+  return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+}
+
+function formatDocType(docType) {
+  const labels = {
+    rewatch_ledger: 'Rewatch Ledger',
+    dread_map: 'Dread Map',
+    obligation_ledger: 'Obligation Ledger',
+    caroline_map: 'Caroline Logic Map'
+  };
+
+  return labels[docType] || formatLabel(docType);
+}
+
+function formatUrgency(urgency) {
+  const labels = {
+    pinned: 'Pinned',
+    tier1: 'Tier 1 - Blocks Pilot',
+    tier2: 'Tier 2 - Blocks Season Overview',
+    tier3: "Tier 3 - Blocks Writers' Room"
+  };
+
+  return labels[urgency] || formatLabel(urgency);
+}
+
+function formatLabel(value) {
+  return String(value || '')
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 }

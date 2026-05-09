@@ -1,7 +1,7 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, screen, shell } from 'electron';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { closeDatabase, getCharacter, getCharacterRelationshipCount, getCharacterRelationships, getCharacters, getDatabaseInfo, getDecision, getDecisionBlockers, getDecisions, getEpisode, getEpisodes, getEpisodesBySeason, getLatestNodeContent, getLivingDocumentEntry, getLivingDocuments, getLivingDocumentsByType, getNode, getNodeTree, getQuestion, getQuestions, initDatabase } from './db.js';
+import { closeDatabase, ensureSearchIndex, getCharacter, getCharacterRelationshipCount, getCharacterRelationships, getCharacters, getDatabaseInfo, getDecision, getDecisionBlockers, getDecisions, getEpisode, getEpisodes, getEpisodesBySeason, getLatestNodeContent, getLivingDocumentEntry, getLivingDocuments, getLivingDocumentsByType, getNode, getNodeTree, getQuestion, getQuestions, initDatabase } from './db.js';
 import { getPreferences, hasApiKey, setApiKey, setPreferences } from './config.js';
 import { seedBible } from './seed-bible.js';
 import { seedEpisodes } from './seed-episodes.js';
@@ -16,9 +16,13 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 let mainWindow;
 
 function createWindow() {
+  const { workArea } = screen.getPrimaryDisplay();
+
   mainWindow = new BrowserWindow({
-    width: 1440,
-    height: 920,
+    x: workArea.x,
+    y: workArea.y,
+    width: workArea.width,
+    height: workArea.height,
     minWidth: 1100,
     minHeight: 720,
     title: 'Revival Bible v3',
@@ -32,7 +36,10 @@ function createWindow() {
     }
   });
 
+  mainWindow.maximize();
+
   mainWindow.once('ready-to-show', () => {
+    mainWindow.maximize();
     mainWindow.show();
   });
 
@@ -78,6 +85,8 @@ app.whenReady().then(() => {
   console.info(`[Revival Bible v3] Phase 3A episode seed checked: ${JSON.stringify(episodeSeedResult)}`);
   const phase3BSeedResult = seedPhase3B();
   console.info(`[Revival Bible v3] Phase 3B seed checked: ${JSON.stringify(phase3BSeedResult)}`);
+  const searchIndexResult = ensureSearchIndex();
+  console.info(`[Revival Bible v3] Search index checked: ${JSON.stringify(searchIndexResult)}`);
   registerCoreHandlers();
   registerAiHandlers(ipcMain);
   registerSearchHandlers(ipcMain);

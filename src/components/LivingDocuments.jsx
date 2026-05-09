@@ -15,6 +15,7 @@ const documentTypes = [
 export default function LivingDocuments() {
   const livingDocs = useRevivalStore((state) => state.livingDocs);
   const activeLivingDocType = useRevivalStore((state) => state.activeLivingDocType);
+  const activeLivingDocEntryId = useRevivalStore((state) => state.activeLivingDocEntryId);
   const loadLivingDocs = useRevivalStore((state) => state.loadLivingDocs);
   const setActiveLivingDocType = useRevivalStore((state) => state.setActiveLivingDocType);
   const activeType = activeLivingDocType || 'rewatch_ledger';
@@ -49,7 +50,7 @@ export default function LivingDocuments() {
       </div>
 
       <div className="living-document-panel">
-        <ActiveComponent entries={livingDocs[activeConfig[0]] || []} />
+        <ActiveComponent activeEntryId={activeLivingDocEntryId} entries={livingDocs[activeConfig[0]] || []} />
       </div>
     </section>
   );

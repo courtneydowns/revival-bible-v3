@@ -1,5 +1,5 @@
 import { LivingDocumentEntryList } from './livingDocumentRenderers.jsx';
 
-export default function DreadMap({ entries = [] }) {
-  return <LivingDocumentEntryList entries={entries} emptyLabel="No dread map entries seeded." />;
+export default function DreadMap({ activeEntryId, entries = [] }) {
+  return <LivingDocumentEntryList activeEntryId={activeEntryId} entries={entries} emptyLabel="No dread map entries seeded." />;
 }

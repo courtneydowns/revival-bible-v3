@@ -1,6 +1,6 @@
 import StatusBadge from './StatusBadge.jsx';
 
-export function LivingDocumentEntryList({ entries = [], emptyLabel }) {
+export function LivingDocumentEntryList({ activeEntryId, entries = [], emptyLabel }) {
   if (!entries.length) {
     return <div className="placeholder-block">{emptyLabel}</div>;
   }
@@ -8,7 +8,7 @@ export function LivingDocumentEntryList({ entries = [], emptyLabel }) {
   return (
     <div className="living-entry-list">
       {entries.map((entry) => (
-        <article className="living-entry" key={entry.id}>
+        <article className={`living-entry ${String(entry.id) === String(activeEntryId) ? 'selected' : ''}`} key={entry.id}>
           <div className="phase3b-card-topline">
             <span>Entry {entry.entry_number || entry.id}</span>
             <StatusBadge status={entry.status} />

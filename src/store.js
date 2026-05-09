@@ -56,6 +56,31 @@ export const useRevivalStore = create((set, get) => ({
       activeLivingDocEntryId: entries[0]?.id || null
     });
   },
+  selectLivingDocEntry: async (entryId) => {
+    const api = window.revival;
+    if (!api || !entryId) return;
+
+    const existingEntry = Object.values(get().livingDocs)
+      .flat()
+      .find((entry) => String(entry.id) === String(entryId));
+    const entry = existingEntry || await api.living.getEntry(entryId);
+    if (!entry) {
+      set({ activeView: 'living-docs' });
+      return;
+    }
+
+    if (!existingEntry) {
+      set((state) => ({
+        livingDocs: groupLivingDocs([...Object.values(state.livingDocs).flat(), entry])
+      }));
+    }
+
+    set({
+      activeView: 'living-docs',
+      activeLivingDocType: entry.doc_type,
+      activeLivingDocEntryId: entry.id
+    });
+  },
   toggleExpandedNode: (nodeId) => {
     const expandedNodes = get().expandedNodes;
     set({
@@ -226,10 +251,44 @@ export const useRevivalStore = create((set, get) => ({
 
     set({
       activeView: 'characters',
-      activeCharacterId: characterId,
+      activeCharacterId: selectedCharacter?.id || characterId,
       selectedCharacter: selectedCharacter || null,
       selectedCharacterRelationships: selectedCharacterRelationships || []
     });
+  },
+  navigateToSearchResult: async (result) => {
+    if (!result?.entity_type || !result?.entity_id) return;
+
+    switch (result.entity_type) {
+      case 'episode':
+        await get().selectEpisode(result.entity_id);
+        break;
+      case 'character':
+        await get().selectCharacter(result.entity_id);
+        break;
+      case 'decision':
+        await get().selectDecision(result.entity_id);
+        break;
+      case 'question':
+        await get().selectQuestion(result.entity_id);
+        break;
+      case 'living_document':
+        await get().selectLivingDocEntry(result.entity_id);
+        break;
+      case 'bible_section': {
+        const nodeTree = get().nodeTree.length ? get().nodeTree : await get().loadNodeTree();
+        const parentIds = getNodeParentIds(nodeTree || [], result.entity_id);
+        set((state) => ({
+          expandedNodes: [...new Set([...state.expandedNodes, 'story-bible', ...parentIds])]
+        }));
+        await get().selectNode(result.entity_id);
+        break;
+      }
+      default:
+        break;
+    }
+
+    get().closeSearch();
   },
   hydratePhaseOneData: async () => {
     const api = window.revival;
@@ -268,4 +327,17 @@ function groupLivingDocs(rows) {
   }
 
   return livingDocs;
+}
+
+function getNodeParentIds(nodeTree, nodeId) {
+  const byId = new Map(nodeTree.map((node) => [String(node.id), node]));
+  const parentIds = [];
+  let current = byId.get(String(nodeId));
+
+  while (current?.parent_id) {
+    parentIds.push(current.parent_id);
+    current = byId.get(String(current.parent_id));
+  }
+
+  return parentIds;
 }

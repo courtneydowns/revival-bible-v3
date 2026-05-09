@@ -65,11 +65,12 @@ export default function DecisionTracker() {
           ))}
         </aside>
 
-        <article className="detail-panel phase3b-detail-panel">
+        <article className={`detail-panel phase3b-detail-panel ${selectedDecision ? 'selected-detail-panel' : ''}`}>
           {selectedDecision ? (
             <>
               <div className="document-header">
                 <div>
+                  <div className="selection-kicker">Selected Decision</div>
                   <div className="eyebrow">Decision #{selectedDecision.sequence_number}</div>
                   <h2>{selectedDecision.title}</h2>
                 </div>

@@ -1,4 +1,4 @@
-import { clearSearchIndex, querySearchIndex } from './db.js';
+import { querySearchIndex, rebuildSearchIndex } from './db.js';
 
 export function registerSearchHandlers(ipcMain) {
   ipcMain.handle('search:query', async (_event, query) => ({
@@ -8,8 +8,7 @@ export function registerSearchHandlers(ipcMain) {
 
   ipcMain.handle('search:rebuild-index', async () => ({
     ok: true,
-    phase: 1,
-    ...clearSearchIndex(),
-    message: 'Search index rebuild is a Phase 1 placeholder until story data is seeded.'
+    ...rebuildSearchIndex(),
+    message: 'Search index rebuilt from local story bible data.'
   }));
 }

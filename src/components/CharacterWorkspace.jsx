@@ -18,11 +18,11 @@ export default function CharacterWorkspace() {
     <section className="view character-workspace">
       <div className="eyebrow">Characters / Read Only</div>
       <h1>Character Workspace</h1>
-      <div className="split-view">
-        <aside className="list-panel">
+      <div className="split-view character-split-view">
+        <aside className="list-panel character-list-panel">
           {characters.map((character) => (
             <button
-              className={`list-row ${activeCharacterId === character.id ? 'selected' : ''}`}
+              className={`list-row ${String(activeCharacterId) === String(character.id) ? 'selected' : ''}`}
               key={character.id}
               onClick={() => selectCharacter(character.id)}
               type="button"
@@ -32,9 +32,10 @@ export default function CharacterWorkspace() {
             </button>
           ))}
         </aside>
-        <article className="detail-panel">
+        <article className={`detail-panel character-detail-panel ${selectedCharacter ? 'selected-detail-panel' : ''}`}>
           {selectedCharacter ? (
             <>
+              <div className="selection-kicker">Selected Character</div>
               <h2>{selectedCharacter.name}</h2>
               <dl className="metadata-grid">
                 <div>

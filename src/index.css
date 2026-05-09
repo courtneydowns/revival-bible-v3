@@ -409,6 +409,13 @@ h1 {
   align-items: start;
 }
 
+.character-split-view {
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  align-items: stretch;
+  max-height: calc(100vh - 170px);
+  min-height: 0;
+}
+
 .list-panel,
 .detail-panel {
   padding: 12px;
@@ -417,6 +424,22 @@ h1 {
 .list-panel {
   display: grid;
   gap: 6px;
+}
+
+.character-list-panel,
+.character-detail-panel {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.character-list-panel {
+  align-content: start;
+}
+
+.character-detail-panel {
+  position: sticky;
+  top: 0;
 }
 
 .list-row {
@@ -437,6 +460,11 @@ h1 {
   border-color: var(--line);
   background: var(--bg-soft);
   color: var(--text);
+}
+
+.list-row.selected {
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 .list-row span {
@@ -581,7 +609,7 @@ h1 {
 }
 
 .phase3b-card.selected {
-  box-shadow: inset 3px 0 0 var(--accent);
+  box-shadow: inset 4px 0 0 var(--accent), 0 0 0 1px rgb(216 180 95 / 18%);
 }
 
 .phase3b-card-topline,
@@ -668,6 +696,11 @@ h1 {
   border-radius: var(--radius);
   background: var(--bg-raised);
   padding: 16px;
+}
+
+.living-entry.selected {
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 .living-field-grid {
@@ -774,6 +807,26 @@ h1 {
   padding: 20px;
 }
 
+.search-modal {
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  max-height: calc(100vh - 80px);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.search-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.search-modal-header h2 {
+  margin-bottom: 0;
+}
+
 .field-grid {
   display: grid;
   gap: 14px;
@@ -797,6 +850,108 @@ h1 {
   background: #10100f;
   color: var(--text);
   padding: 10px 12px;
+}
+
+.search-status {
+  min-height: 18px;
+  margin: 10px 0 14px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.search-results {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  max-height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+  overscroll-behavior: contain;
+}
+
+.search-result-group {
+  display: grid;
+  gap: 8px;
+}
+
+.search-result-group h3 {
+  margin: 0;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.search-result-list {
+  display: grid;
+  gap: 8px;
+}
+
+.search-result {
+  display: grid;
+  gap: 7px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #141413;
+  color: var(--text);
+  cursor: pointer;
+  padding: 12px;
+  text-align: left;
+}
+
+.search-result:hover {
+  border-color: var(--accent);
+  background: var(--bg-soft);
+}
+
+.search-result-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.search-result-topline small {
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-result strong {
+  line-height: 1.25;
+}
+
+.search-result p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.search-result mark {
+  border-radius: 3px;
+  background: rgb(216 180 95 / 22%);
+  color: var(--accent-strong);
+  padding: 0 2px;
+}
+
+.selected-detail-panel {
+  border-color: var(--accent);
+  box-shadow: inset 4px 0 0 var(--accent);
+}
+
+.selection-kicker {
+  margin-bottom: 5px;
+  color: var(--accent-strong);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
 }
 
 .primary-button,
@@ -875,6 +1030,10 @@ h1 {
     grid-template-columns: 1fr;
   }
 
+  .character-split-view {
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  }
+
   .episode-workspace {
     grid-template-columns: minmax(250px, 320px) minmax(0, 1fr);
   }
@@ -887,13 +1046,15 @@ h1 {
 
 @media (max-width: 860px) {
   .episode-workspace,
-  .phase3b-workspace {
+  .phase3b-workspace,
+  .character-split-view {
     grid-template-columns: 1fr;
     max-height: none;
   }
 
   .episode-detail-panel,
-  .phase3b-detail-panel {
+  .phase3b-detail-panel,
+  .character-detail-panel {
     position: static;
   }
 
