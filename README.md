@@ -13,3 +13,26 @@ This app is built from scratch in:
 GitHub repo:
 
 https://github.com/courtneydowns/revival-bible-v3
+
+## Phase 1
+
+This repository currently contains the Phase 1 foundation only:
+
+- Electron + React 18 + electron-vite shell
+- SQLite schema initialization through `better-sqlite3`
+- Provider-neutral AI IPC placeholders
+- Search and export IPC placeholders
+- Zustand app state
+- Dark editorial three-column interface
+
+Story-bible seeding starts in Phase 2. The app does not import `STORY_BIBLE_V4.txt` yet and does not make external AI calls.
+
+## Commands
+
+```bash
+npm install
+npm run build
+npm run dev
+```
+
+`npm run dev` launches the Electron app in development mode. `npm start` previews the built Electron app after `npm run build`.

@@ -1,0 +1,56 @@
+import { contextBridge, ipcRenderer } from 'electron';
+
+const invoke = (channel, ...args) => ipcRenderer.invoke(channel, ...args);
+
+contextBridge.exposeInMainWorld('revival', {
+  config: {
+    hasApiKey: (provider) => invoke('config:has-api-key', provider),
+    getPreferences: () => invoke('config:get-preferences'),
+    setPreferences: (preferences) => invoke('config:set-preferences', preferences),
+    setApiKey: (payload) => invoke('config:set-api-key', payload)
+  },
+  app: {
+    getDatabaseInfo: () => invoke('app:get-database-info')
+  },
+  nodes: {
+    getTree: () => invoke('nodes:get-tree')
+  },
+  episodes: {
+    getAll: () => invoke('episodes:get-all')
+  },
+  characters: {
+    getAll: () => invoke('characters:get-all')
+  },
+  decisions: {
+    getAll: () => invoke('decisions:get-all')
+  },
+  questions: {
+    getAll: () => invoke('questions:get-all')
+  },
+  living: {
+    getAll: () => invoke('living:get-all')
+  },
+  search: {
+    query: (query) => invoke('search:query', query),
+    rebuildIndex: () => invoke('search:rebuild-index')
+  },
+  ai: {
+    validateKey: (payload) => invoke('ai:validate-key', payload),
+    qa: (payload) => invoke('ai:qa', payload),
+    draftAssist: (payload) => invoke('ai:draft-assist', payload),
+    consistencyCheck: (payload) => invoke('ai:consistency-check', payload),
+    flanaganSceneTest: (payload) => invoke('ai:flanagan-scene-test', payload),
+    cancel: () => invoke('ai:cancel')
+  },
+  export: {
+    md: (payload) => invoke('export:md', payload),
+    docx: (payload) => invoke('export:docx', payload),
+    pdf: (payload) => invoke('export:pdf', payload)
+  },
+  shell: {
+    openPath: (targetPath) => invoke('shell:open-path', targetPath)
+  },
+  window: {
+    openPopout: (payload) => invoke('window:open-popout', payload)
+  }
+});
