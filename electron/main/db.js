@@ -114,6 +114,49 @@ export function getCharacterRelationshipCount() {
   return connection.prepare('SELECT COUNT(*) AS count FROM character_relationships').get().count;
 }
 
+export function seedCharacterRelationshipsIfNeeded(relationships) {
+  const existingCount = connection.prepare('SELECT COUNT(*) AS count FROM character_relationships').get().count;
+  const getCharacterByName = connection.prepare('SELECT id FROM characters WHERE name = ?');
+  const findRelationship = connection.prepare(`
+    SELECT id
+    FROM character_relationships
+    WHERE character_a_id = ?
+      AND character_b_id = ?
+      AND relationship_type = ?
+      AND detail = ?
+  `);
+  const insertRelationship = connection.prepare(`
+    INSERT INTO character_relationships (character_a_id, character_b_id, relationship_type, detail)
+    VALUES (?, ?, ?, ?)
+  `);
+
+  const transaction = connection.transaction(() => {
+    for (const relationship of relationships) {
+      const from = getCharacterByName.get(relationship.from);
+      const to = getCharacterByName.get(relationship.to);
+
+      if (!from || !to) continue;
+
+      const exists = findRelationship.get(from.id, to.id, relationship.relationship_type, relationship.detail);
+      if (!exists) {
+        insertRelationship.run(from.id, to.id, relationship.relationship_type, relationship.detail);
+      }
+    }
+  });
+
+  transaction();
+
+  const finalRows = connection
+    .prepare('SELECT relationship_type, COUNT(*) AS count FROM character_relationships GROUP BY relationship_type ORDER BY relationship_type')
+    .all();
+
+  return {
+    seeded: finalRows.reduce((total, row) => total + row.count, 0) > existingCount,
+    relationships: finalRows,
+    expectedNew: relationships.length
+  };
+}
+
 export function getDecisions() {
   return connection
     .prepare('SELECT * FROM decisions ORDER BY tier, sequence_number')

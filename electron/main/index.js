@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { closeDatabase, ensureSearchIndex, getCharacter, getCharacterRelationshipCount, getCharacterRelationships, getCharacters, getDatabaseInfo, getDecision, getDecisionBlockers, getDecisions, getEpisode, getEpisodes, getEpisodesBySeason, getLatestNodeContent, getLivingDocumentEntry, getLivingDocuments, getLivingDocumentsByType, getNode, getNodeTree, getQuestion, getQuestions, getTimelineEvent, getTimelineEvents, initDatabase } from './db.js';
 import { getPreferences, hasApiKey, setApiKey, setPreferences } from './config.js';
 import { seedBible } from './seed-bible.js';
+import { seedCharacterRelationshipRefinement } from './seed-character-relationships.js';
 import { seedEpisodes } from './seed-episodes.js';
 import { seedPhase3B } from './seed-phase3b.js';
 import { seedTimeline } from './seed-timeline.js';
@@ -86,6 +87,8 @@ app.whenReady().then(() => {
   console.info(`[Revival Bible v3] Phase 2 bible seed checked: ${JSON.stringify(seedResult)}`);
   const episodeSeedResult = seedEpisodes();
   console.info(`[Revival Bible v3] Phase 3A episode seed checked: ${JSON.stringify(episodeSeedResult)}`);
+  const characterRelationshipSeedResult = seedCharacterRelationshipRefinement();
+  console.info(`[Revival Bible v3] Phase 5B relationship seed checked: ${JSON.stringify(characterRelationshipSeedResult)}`);
   const phase3BSeedResult = seedPhase3B();
   console.info(`[Revival Bible v3] Phase 3B seed checked: ${JSON.stringify(phase3BSeedResult)}`);
   const timelineSeedResult = seedTimeline();

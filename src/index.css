@@ -487,6 +487,43 @@ h1 {
   padding: 12px;
 }
 
+.relationship-button {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.relationship-button:hover {
+  border-color: var(--accent);
+  background: var(--bg-soft);
+}
+
+.relationship-row-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.relationship-type-badge {
+  flex: 0 0 auto;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 3px 8px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.relationship-type-badge.type-family { color: var(--established); }
+.relationship-type-badge.type-ally { color: var(--locked); }
+.relationship-type-badge.type-conflict { color: var(--danger); }
+.relationship-type-badge.type-authority { color: var(--accent); }
+.relationship-type-badge.type-secret { color: var(--needed); }
+
 .field-card p,
 .relationship-row p {
   margin: 6px 0 0;

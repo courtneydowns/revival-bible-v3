@@ -57,11 +57,19 @@ export default function CharacterWorkspace() {
               {relationships.length ? (
                 <div className="relationship-list">
                   {relationships.map((relationship) => (
-                    <div className="relationship-row" key={relationship.id}>
-                      <strong>{relationship.relationship_type}</strong>
+                    <button
+                      className="relationship-row relationship-button"
+                      key={relationship.id}
+                      onClick={() => selectCharacter(getRelatedCharacterId(relationship, selectedCharacter.id))}
+                      type="button"
+                    >
+                      <div className="relationship-row-header">
+                        <strong>{getRelatedCharacterName(relationship, selectedCharacter.id)}</strong>
+                        <span className={`relationship-type-badge type-${relationship.relationship_type}`}>{formatRelationshipType(relationship.relationship_type)}</span>
+                      </div>
                       <span>{relationship.character_a_name} {'->'} {relationship.character_b_name}</span>
                       <p>{relationship.detail}</p>
-                    </div>
+                    </button>
                   ))}
                 </div>
               ) : (
@@ -75,6 +83,25 @@ export default function CharacterWorkspace() {
       </div>
     </section>
   );
+}
+
+function getRelatedCharacterId(relationship, selectedCharacterId) {
+  return String(relationship.character_a_id) === String(selectedCharacterId)
+    ? relationship.character_b_id
+    : relationship.character_a_id;
+}
+
+function getRelatedCharacterName(relationship, selectedCharacterId) {
+  return String(relationship.character_a_id) === String(selectedCharacterId)
+    ? relationship.character_b_name
+    : relationship.character_a_name;
+}
+
+function formatRelationshipType(type) {
+  return String(type || '')
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 }
 
 function Field({ title, value }) {
