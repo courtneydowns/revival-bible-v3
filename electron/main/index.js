@@ -1,9 +1,10 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { closeDatabase, getCharacter, getCharacterRelationshipCount, getCharacterRelationships, getCharacters, getDatabaseInfo, getDecisions, getEpisodes, getLatestNodeContent, getLivingDocuments, getNode, getNodeTree, getQuestions, initDatabase } from './db.js';
+import { closeDatabase, getCharacter, getCharacterRelationshipCount, getCharacterRelationships, getCharacters, getDatabaseInfo, getDecisions, getEpisode, getEpisodes, getEpisodesBySeason, getLatestNodeContent, getLivingDocuments, getNode, getNodeTree, getQuestions, initDatabase } from './db.js';
 import { getPreferences, hasApiKey, setApiKey, setPreferences } from './config.js';
 import { seedBible } from './seed-bible.js';
+import { seedEpisodes } from './seed-episodes.js';
 import { registerAiHandlers } from './ipc-ai.js';
 import { registerSearchHandlers } from './ipc-search.js';
 import { registerExportHandlers } from './ipc-export.js';
@@ -52,6 +53,8 @@ function registerCoreHandlers() {
   ipcMain.handle('nodes:get', async (_event, id) => getNode(id));
   ipcMain.handle('content:get', async (_event, nodeId) => getLatestNodeContent(nodeId));
   ipcMain.handle('episodes:get-all', async () => getEpisodes());
+  ipcMain.handle('episodes:get-by-season', async (_event, season) => getEpisodesBySeason(season));
+  ipcMain.handle('episodes:get', async (_event, id) => getEpisode(id));
   ipcMain.handle('characters:get-all', async () => getCharacters());
   ipcMain.handle('characters:get', async (_event, id) => getCharacter(id));
   ipcMain.handle('characters:get-relationships', async (_event, id) => getCharacterRelationships(id));
@@ -65,6 +68,8 @@ app.whenReady().then(() => {
   initDatabase(app);
   const seedResult = seedBible();
   console.info(`[Revival Bible v3] Phase 2 bible seed checked: ${JSON.stringify(seedResult)}`);
+  const episodeSeedResult = seedEpisodes();
+  console.info(`[Revival Bible v3] Phase 3A episode seed checked: ${JSON.stringify(episodeSeedResult)}`);
   registerCoreHandlers();
   registerAiHandlers(ipcMain);
   registerSearchHandlers(ipcMain);

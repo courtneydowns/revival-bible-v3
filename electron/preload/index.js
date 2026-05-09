@@ -20,7 +20,9 @@ contextBridge.exposeInMainWorld('revival', {
     get: (nodeId) => invoke('content:get', nodeId)
   },
   episodes: {
-    getAll: () => invoke('episodes:get-all')
+    getAll: () => invoke('episodes:get-all'),
+    getBySeason: (season) => invoke('episodes:get-by-season', season),
+    get: (id) => invoke('episodes:get', id)
   },
   characters: {
     getAll: () => invoke('characters:get-all'),

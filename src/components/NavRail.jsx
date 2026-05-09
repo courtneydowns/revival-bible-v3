@@ -29,7 +29,6 @@ export default function NavRail() {
   const toggleExpandedNode = useRevivalStore((state) => state.toggleExpandedNode);
   const selectNode = useRevivalStore((state) => state.selectNode);
   const storyBibleExpanded = expandedNodes.includes(STORY_BIBLE_TREE_ID);
-  const showStoryBibleTree = storyBibleExpanded || activeView === 'bible';
   const sections = nodeTree.filter((node) => !node.parent_id);
   const childrenByParent = nodeTree.reduce((accumulator, node) => {
     if (!node.parent_id) return accumulator;
@@ -68,22 +67,40 @@ export default function NavRail() {
 
           return (
             <div className="nav-tree-group" key={id}>
-              <button
-                className={`nav-button ${activeView === id ? 'active' : ''}`}
-                onClick={async () => {
-                  setActiveView(id);
-                  if (!nodeTree.length) {
-                    await loadNodeTree();
-                  }
-                  setNodeExpanded(STORY_BIBLE_TREE_ID, true);
-                }}
-                type="button"
-              >
-                <Icon size={17} />
-                <span>{label}</span>
-                <ChevronRight className={`nav-chevron ${showStoryBibleTree ? 'expanded' : ''}`} size={14} />
-              </button>
-              {showStoryBibleTree ? (
+              <div className={`nav-branch-row ${activeView === id ? 'active' : ''}`}>
+                <button
+                  className="nav-branch-label"
+                  onClick={async () => {
+                    setActiveView(id);
+                    if (!nodeTree.length) {
+                      await loadNodeTree();
+                    }
+                    if (!storyBibleExpanded) {
+                      setNodeExpanded(STORY_BIBLE_TREE_ID, true);
+                    }
+                  }}
+                  type="button"
+                >
+                  <Icon size={17} />
+                  <span>{label}</span>
+                </button>
+                <button
+                  aria-label={storyBibleExpanded ? 'Collapse Story Bible' : 'Expand Story Bible'}
+                  className="nav-branch-toggle"
+                  onClick={async (event) => {
+                    event.stopPropagation();
+                    if (!nodeTree.length) {
+                      await loadNodeTree();
+                    }
+                    toggleExpandedNode(STORY_BIBLE_TREE_ID);
+                  }}
+                  title={storyBibleExpanded ? 'Collapse Story Bible' : 'Expand Story Bible'}
+                  type="button"
+                >
+                  <ChevronRight className={`nav-chevron ${storyBibleExpanded ? 'expanded' : ''}`} size={14} />
+                </button>
+              </div>
+              {storyBibleExpanded ? (
                 <div className="bible-tree">
                   {sections.length ? sections.map((section) => {
                     const expanded = expandedNodes.includes(section.id);

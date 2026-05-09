@@ -65,6 +65,25 @@ export function getEpisodes() {
     .all();
 }
 
+export function getEpisodesBySeason(season) {
+  return connection
+    .prepare('SELECT * FROM episodes WHERE season = ? ORDER BY episode_number')
+    .all(season);
+}
+
+export function getEpisode(id) {
+  return connection.prepare('SELECT * FROM episodes WHERE id = ?').get(id);
+}
+
+export function updateEpisode(id, data = {}) {
+  return {
+    id,
+    updated: false,
+    data,
+    message: 'Episode editing is not implemented in Phase 3A.'
+  };
+}
+
 export function getCharacters() {
   return connection
     .prepare('SELECT * FROM characters ORDER BY COALESCE(position, id), name')
@@ -221,5 +240,78 @@ export function seedBibleIfEmpty({ nodes, contents, characters, relationships })
     nodes: nodes.length,
     characters: characters.length,
     relationships: relationships.length
+  };
+}
+
+export function seedEpisodesIfNeeded(episodes) {
+  const existingCount = connection.prepare('SELECT COUNT(*) AS count FROM episodes').get().count;
+  const existingBySlot = connection.prepare('SELECT id FROM episodes WHERE season = ? AND episode_number = ?');
+
+  if (existingCount === episodes.length) {
+    return { seeded: false, episodes: existingCount, expected: episodes.length };
+  }
+
+  const insertWithId = connection.prepare(`
+    INSERT INTO episodes (
+      id, season, episode_number, title, na_tradition, dual_meaning, arc_summary,
+      thematic_core, cold_open, acts, flanagan_moment, rewatch_notes, status
+    )
+    VALUES (
+      @id, @season, @episode_number, @title, @na_tradition, @dual_meaning, @arc_summary,
+      @thematic_core, @cold_open, @acts, @flanagan_moment, @rewatch_notes, @status
+    )
+  `);
+
+  const insertWithoutId = connection.prepare(`
+    INSERT INTO episodes (
+      season, episode_number, title, na_tradition, dual_meaning, arc_summary,
+      thematic_core, cold_open, acts, flanagan_moment, rewatch_notes, status
+    )
+    VALUES (
+      @season, @episode_number, @title, @na_tradition, @dual_meaning, @arc_summary,
+      @thematic_core, @cold_open, @acts, @flanagan_moment, @rewatch_notes, @status
+    )
+  `);
+
+  const updateExisting = connection.prepare(`
+    UPDATE episodes
+    SET title = @title,
+        na_tradition = @na_tradition,
+        dual_meaning = @dual_meaning,
+        arc_summary = @arc_summary,
+        thematic_core = @thematic_core,
+        cold_open = @cold_open,
+        acts = @acts,
+        flanagan_moment = @flanagan_moment,
+        rewatch_notes = @rewatch_notes,
+        status = @status
+    WHERE season = @season AND episode_number = @episode_number
+  `);
+
+  const transaction = connection.transaction(() => {
+    for (const episode of episodes) {
+      const existing = existingBySlot.get(episode.season, episode.episode_number);
+
+      if (existing) {
+        updateExisting.run(episode);
+        continue;
+      }
+
+      try {
+        insertWithId.run(episode);
+      } catch {
+        insertWithoutId.run(episode);
+      }
+    }
+  });
+
+  transaction();
+
+  const finalCount = connection.prepare('SELECT COUNT(*) AS count FROM episodes').get().count;
+  return {
+    seeded: existingCount === 0,
+    episodes: finalCount,
+    expected: episodes.length,
+    partialBeforeSeed: existingCount > 0 && existingCount < episodes.length
   };
 }

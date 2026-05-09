@@ -11,6 +11,7 @@ export const useRevivalStore = create((set, get) => ({
   activeView: 'dashboard',
   activeNodeId: null,
   activeEpisodeId: null,
+  activeEpisodeSeason: 1,
   activeCharacterId: null,
   activeDecisionId: null,
   activeQuestionId: null,
@@ -20,6 +21,7 @@ export const useRevivalStore = create((set, get) => ({
   selectedNode: null,
   selectedNodeContent: null,
   episodes: [],
+  selectedEpisode: null,
   characters: [],
   selectedCharacter: null,
   selectedCharacterRelationships: [],
@@ -42,6 +44,7 @@ export const useRevivalStore = create((set, get) => ({
   setActiveView: (activeView) => set({ activeView }),
   setActiveNodeId: (activeNodeId) => set({ activeNodeId }),
   setActiveEpisodeId: (activeEpisodeId) => set({ activeEpisodeId }),
+  setActiveEpisodeSeason: (activeEpisodeSeason) => set({ activeEpisodeSeason }),
   setActiveCharacterId: (activeCharacterId) => set({ activeCharacterId }),
   setActiveDecisionId: (activeDecisionId) => set({ activeDecisionId }),
   setActiveQuestionId: (activeQuestionId) => set({ activeQuestionId }),
@@ -111,6 +114,34 @@ export const useRevivalStore = create((set, get) => ({
     const characters = await window.revival?.characters.getAll();
     set({ characters: characters || [] });
     return characters || [];
+  },
+  loadEpisodes: async () => {
+    const episodes = await window.revival?.episodes.getAll();
+    set({ episodes: episodes || [] });
+    return episodes || [];
+  },
+  selectEpisode: async (episodeId) => {
+    const api = window.revival;
+    if (!api || !episodeId) return;
+    const localEpisode = get().episodes.find((episode) => String(episode.id) === String(episodeId));
+
+    if (localEpisode) {
+      set({
+        activeView: 'episodes',
+        activeEpisodeId: localEpisode.id,
+        activeEpisodeSeason: localEpisode.season,
+        selectedEpisode: localEpisode
+      });
+    }
+
+    const selectedEpisode = await api.episodes.get(episodeId);
+
+    set({
+      activeView: 'episodes',
+      activeEpisodeId: selectedEpisode?.id || episodeId,
+      activeEpisodeSeason: selectedEpisode?.season || get().activeEpisodeSeason,
+      selectedEpisode: selectedEpisode || localEpisode || null
+    });
   },
   selectCharacter: async (characterId) => {
     const api = window.revival;

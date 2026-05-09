@@ -36,6 +36,12 @@ body {
   color: var(--text);
   font-family: var(--font-sans);
   letter-spacing: 0;
+  overflow: hidden;
+}
+
+#root {
+  height: 100vh;
+  min-height: 0;
 }
 
 button,
@@ -52,6 +58,7 @@ button {
   display: grid;
   grid-template-columns: 244px minmax(0, 1fr) 340px;
   height: 100vh;
+  min-height: 0;
   overflow: hidden;
   background: var(--bg);
 }
@@ -61,6 +68,9 @@ button {
   background: #131313;
   padding: 18px 12px;
   overflow-y: auto;
+  min-height: 0;
+  max-height: 100vh;
+  overscroll-behavior: contain;
 }
 
 .brand {
@@ -144,6 +154,8 @@ button {
 }
 
 .nav-button,
+.nav-branch-label,
+.nav-branch-toggle,
 .icon-button,
 .secondary-button,
 .primary-button {
@@ -164,14 +176,45 @@ button {
 }
 
 .nav-button:hover,
-.nav-button.active {
+.nav-button.active,
+.nav-branch-row:hover,
+.nav-branch-row.active {
   border-color: var(--line);
   background: var(--bg-soft);
   color: var(--text);
 }
 
+.nav-branch-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 30px;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  color: var(--text-muted);
+}
+
+.nav-branch-label {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0 9px 10px;
+  text-align: left;
+}
+
+.nav-branch-label span {
+  min-width: 0;
+}
+
+.nav-branch-toggle {
+  display: inline-flex;
+  width: 30px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+}
+
 .nav-chevron {
-  margin-left: auto;
   transition: transform 120ms ease;
 }
 
@@ -183,6 +226,8 @@ button {
   display: grid;
   grid-template-rows: 58px minmax(0, 1fr) 32px;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .top-bar,
@@ -229,14 +274,17 @@ button {
 
 .content {
   min-width: 0;
+  min-height: 0;
   overflow-y: auto;
   padding: 28px;
+  overscroll-behavior: contain;
 }
 
 .right-panel {
   border-left: 1px solid var(--line);
   background: var(--bg-panel);
   overflow-y: auto;
+  min-height: 0;
 }
 
 .view {
@@ -425,6 +473,123 @@ h1 {
   font-size: 12px;
 }
 
+.season-switcher {
+  display: inline-flex;
+  gap: 6px;
+  margin: 0 0 14px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+}
+
+.season-switcher button {
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 8px 11px;
+}
+
+.season-switcher button.active,
+.season-switcher button:hover {
+  border-color: var(--line);
+  background: var(--bg-soft);
+  color: var(--text);
+}
+
+.episode-workspace {
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: stretch;
+  min-height: 0;
+  max-height: calc(100vh - 210px);
+}
+
+.episode-list-panel,
+.episode-detail-panel {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.episode-list-panel {
+  padding-right: 4px;
+}
+
+.episode-detail-panel {
+  position: sticky;
+  top: 0;
+}
+
+.episode-card-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.episode-card {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  color: var(--text);
+  cursor: pointer;
+  padding: 14px;
+  text-align: left;
+}
+
+.episode-card:hover,
+.episode-card.selected {
+  border-color: var(--accent);
+  background: var(--bg-soft);
+}
+
+.episode-card.selected {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.episode-card-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.episode-card-topline span,
+.episode-card small {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.episode-card p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.episode-detail .metadata-grid {
+  grid-template-columns: 1fr;
+}
+
+.detail-section {
+  border-top: 1px solid var(--line);
+  padding: 14px 0 0;
+}
+
+.detail-section h3 {
+  margin-bottom: 6px;
+}
+
+.detail-section p {
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
 .status-badge {
   display: inline-flex;
   align-items: center;
@@ -555,5 +720,20 @@ h1 {
   .metadata-grid,
   .arc-grid {
     grid-template-columns: 1fr;
+  }
+
+  .episode-workspace {
+    grid-template-columns: minmax(250px, 320px) minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 860px) {
+  .episode-workspace {
+    grid-template-columns: 1fr;
+    max-height: none;
+  }
+
+  .episode-detail-panel {
+    position: static;
   }
 }

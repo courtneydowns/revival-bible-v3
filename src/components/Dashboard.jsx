@@ -5,6 +5,7 @@ export default function Dashboard() {
   const databaseInfo = useRevivalStore((state) => state.databaseInfo);
   const nodeTree = useRevivalStore((state) => state.nodeTree);
   const characters = useRevivalStore((state) => state.characters);
+  const episodes = useRevivalStore((state) => state.episodes);
   const characterRelationshipCount = useRevivalStore((state) => state.characterRelationshipCount);
 
   return (
@@ -32,9 +33,14 @@ export default function Dashboard() {
           <StatusBadge status="DEVELOPING" />
           <p className="muted">{characters.length} characters and {characterRelationshipCount} relationships seeded.</p>
         </article>
+        <article className="status-card">
+          <strong>Episodes</strong>
+          <StatusBadge status={episodes.length === 24 ? 'ESTABLISHED' : 'NEEDED'} />
+          <p className="muted">{episodes.length} of 24 locked episode slots seeded.</p>
+        </article>
       </div>
       <div className="placeholder-block">
-        Phase 2 seeds the read-only bible tree, character roster, and relationship map data. Episodes, decisions, questions, living documents, AI calls, exports, and editing remain deferred.
+        Phase 3A adds read-only episode navigation. Decisions, questions, living documents, AI calls, exports, and editing remain deferred.
       </div>
     </section>
   );
