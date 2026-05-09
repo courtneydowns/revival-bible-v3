@@ -3,10 +3,13 @@ import StatusBadge from './StatusBadge.jsx';
 
 export default function Dashboard() {
   const databaseInfo = useRevivalStore((state) => state.databaseInfo);
+  const nodeTree = useRevivalStore((state) => state.nodeTree);
+  const characters = useRevivalStore((state) => state.characters);
+  const characterRelationshipCount = useRevivalStore((state) => state.characterRelationshipCount);
 
   return (
     <section className="view">
-      <div className="eyebrow">Phase 1 foundation build</div>
+      <div className="eyebrow">Phase 2 bible seed and navigation</div>
       <h1>Revival Bible v3</h1>
       <p className="dashboard-lede">
         Format: 3 seasons / 8 episodes each / 24 episodes total. This app is the local-first
@@ -21,17 +24,17 @@ export default function Dashboard() {
         </article>
         <article className="status-card">
           <strong>Story Source</strong>
-          <StatusBadge status="PROVISIONAL" />
-          <p className="muted">STORY_BIBLE_V4 is the source of truth, but seeding begins in Phase 2.</p>
+          <StatusBadge status={nodeTree.length ? 'ESTABLISHED' : 'NEEDED'} />
+          <p className="muted">{nodeTree.length} bible nodes seeded from the Phase 2 structure.</p>
         </article>
         <article className="status-card">
-          <strong>AI Layer</strong>
+          <strong>Characters</strong>
           <StatusBadge status="DEVELOPING" />
-          <p className="muted">Provider-neutral stubs are wired. No external calls are made.</p>
+          <p className="muted">{characters.length} characters and {characterRelationshipCount} relationships seeded.</p>
         </article>
       </div>
       <div className="placeholder-block">
-        Story seeding starts in Phase 2. Phase 1 stops at scaffold, shell, schema, IPC, store, and UI foundation.
+        Phase 2 seeds the read-only bible tree, character roster, and relationship map data. Episodes, decisions, questions, living documents, AI calls, exports, and editing remain deferred.
       </div>
     </section>
   );

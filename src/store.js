@@ -17,8 +17,13 @@ export const useRevivalStore = create((set, get) => ({
   activeLivingDocType: null,
   expandedNodes: [],
   nodeTree: [],
+  selectedNode: null,
+  selectedNodeContent: null,
   episodes: [],
   characters: [],
+  selectedCharacter: null,
+  selectedCharacterRelationships: [],
+  characterRelationshipCount: 0,
   decisions: [],
   questions: [],
   livingDocs: initialLivingDocs,
@@ -60,18 +65,70 @@ export const useRevivalStore = create((set, get) => ({
   setStreamingState: (streamingState) => set({ streamingState }),
   setNeedsApiKey: (needsApiKey) => set({ needsApiKey }),
   setDatabaseInfo: (databaseInfo) => set({ databaseInfo }),
+  loadNodeTree: async () => {
+    const nodeTree = await window.revival?.nodes.getTree();
+    set({ nodeTree: nodeTree || [] });
+    return nodeTree || [];
+  },
+  selectNode: async (nodeId) => {
+    const api = window.revival;
+    if (!api || !nodeId) return;
+
+    const [selectedNode, selectedNodeContent] = await Promise.all([
+      api.nodes.get(nodeId),
+      api.content.get(nodeId)
+    ]);
+
+    set({
+      activeView: 'bible',
+      activeNodeId: nodeId,
+      selectedNode: selectedNode || null,
+      selectedNodeContent: selectedNodeContent || null
+    });
+  },
+  loadSelectedNodeContent: async () => {
+    const api = window.revival;
+    const nodeId = get().activeNodeId;
+    if (!api || !nodeId) return null;
+
+    const selectedNodeContent = await api.content.get(nodeId);
+    set({ selectedNodeContent: selectedNodeContent || null });
+    return selectedNodeContent || null;
+  },
+  loadCharacters: async () => {
+    const characters = await window.revival?.characters.getAll();
+    set({ characters: characters || [] });
+    return characters || [];
+  },
+  selectCharacter: async (characterId) => {
+    const api = window.revival;
+    if (!api || !characterId) return;
+
+    const [selectedCharacter, selectedCharacterRelationships] = await Promise.all([
+      api.characters.get(characterId),
+      api.characters.getRelationships(characterId)
+    ]);
+
+    set({
+      activeView: 'characters',
+      activeCharacterId: characterId,
+      selectedCharacter: selectedCharacter || null,
+      selectedCharacterRelationships: selectedCharacterRelationships || []
+    });
+  },
   hydratePhaseOneData: async () => {
     const api = window.revival;
     if (!api) return;
 
-    const [databaseInfo, nodeTree, episodes, characters, decisions, questions, livingRows] = await Promise.all([
+    const [databaseInfo, nodeTree, episodes, characters, decisions, questions, livingRows, characterRelationshipCount] = await Promise.all([
       api.app.getDatabaseInfo(),
       api.nodes.getTree(),
       api.episodes.getAll(),
       api.characters.getAll(),
       api.decisions.getAll(),
       api.questions.getAll(),
-      api.living.getAll()
+      api.living.getAll(),
+      api.characters.getRelationshipCount()
     ]);
 
     const livingDocs = { ...initialLivingDocs };
@@ -82,6 +139,6 @@ export const useRevivalStore = create((set, get) => ({
       livingDocs[row.doc_type].push(row);
     }
 
-    set({ databaseInfo, nodeTree, episodes, characters, decisions, questions, livingDocs });
+    set({ databaseInfo, nodeTree, episodes, characters, decisions, questions, livingDocs, characterRelationshipCount });
   }
 }));

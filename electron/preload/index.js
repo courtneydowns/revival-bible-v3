@@ -13,13 +13,20 @@ contextBridge.exposeInMainWorld('revival', {
     getDatabaseInfo: () => invoke('app:get-database-info')
   },
   nodes: {
-    getTree: () => invoke('nodes:get-tree')
+    getTree: () => invoke('nodes:get-tree'),
+    get: (id) => invoke('nodes:get', id)
+  },
+  content: {
+    get: (nodeId) => invoke('content:get', nodeId)
   },
   episodes: {
     getAll: () => invoke('episodes:get-all')
   },
   characters: {
-    getAll: () => invoke('characters:get-all')
+    getAll: () => invoke('characters:get-all'),
+    get: (id) => invoke('characters:get', id),
+    getRelationships: (id) => invoke('characters:get-relationships', id),
+    getRelationshipCount: () => invoke('characters:get-relationship-count')
   },
   decisions: {
     getAll: () => invoke('decisions:get-all')
