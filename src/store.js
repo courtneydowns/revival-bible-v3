@@ -54,6 +54,18 @@ export const useRevivalStore = create((set, get) => ({
         : [...expandedNodes, nodeId]
     });
   },
+  setNodeExpanded: (nodeId, expanded) => {
+    const expandedNodes = get().expandedNodes;
+    const alreadyExpanded = expandedNodes.includes(nodeId);
+
+    if (expanded && !alreadyExpanded) {
+      set({ expandedNodes: [...expandedNodes, nodeId] });
+    }
+
+    if (!expanded && alreadyExpanded) {
+      set({ expandedNodes: expandedNodes.filter((id) => id !== nodeId) });
+    }
+  },
   openSearch: () => set({ searchOpen: true }),
   closeSearch: () => set({ searchOpen: false }),
   openSettings: () => set({ settingsOpen: true }),

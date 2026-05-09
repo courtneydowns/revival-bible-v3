@@ -39,7 +39,7 @@ export function closeDatabase() {
 
 export function getNodeTree() {
   return connection
-    .prepare('SELECT * FROM nodes ORDER BY COALESCE(parent_id, ""), position, title')
+    .prepare("SELECT * FROM nodes ORDER BY COALESCE(parent_id, ''), position, title")
     .all();
 }
 

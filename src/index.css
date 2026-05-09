@@ -137,6 +137,12 @@ button {
   padding-left: 24px;
 }
 
+.tree-empty {
+  color: var(--text-dim);
+  font-size: 12px;
+  padding: 6px 8px;
+}
+
 .nav-button,
 .icon-button,
 .secondary-button,
@@ -162,6 +168,15 @@ button {
   border-color: var(--line);
   background: var(--bg-soft);
   color: var(--text);
+}
+
+.nav-chevron {
+  margin-left: auto;
+  transition: transform 120ms ease;
+}
+
+.nav-chevron.expanded {
+  transform: rotate(90deg);
 }
 
 .main-column {
