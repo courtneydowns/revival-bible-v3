@@ -1,8 +1,5 @@
-export default function ObligationLedger({ count = 0 }) {
-  return (
-    <article className="status-card">
-      <strong>Obligation Ledger</strong>
-      <p className="muted">Rows: {count}. Phase 1 schema only.</p>
-    </article>
-  );
+import { LivingDocumentEntryList } from './livingDocumentRenderers.jsx';
+
+export default function ObligationLedger({ entries = [] }) {
+  return <LivingDocumentEntryList entries={entries} emptyLabel="No obligation ledger entries seeded." />;
 }

@@ -1,7 +1,5 @@
-export default function CarolineLogicMap({ count = 0 }) {
-  return (
-    <div className="placeholder-block">
-      Caroline Logic Map rows: {count}. Internal chronology work is deferred.
-    </div>
-  );
+import { LivingDocumentEntryList } from './livingDocumentRenderers.jsx';
+
+export default function CarolineLogicMap({ entries = [] }) {
+  return <LivingDocumentEntryList entries={entries} emptyLabel="No Caroline logic map entries seeded." />;
 }

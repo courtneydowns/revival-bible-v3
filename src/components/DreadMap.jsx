@@ -1,8 +1,5 @@
-export default function DreadMap({ count = 0 }) {
-  return (
-    <article className="status-card">
-      <strong>Dread Map</strong>
-      <p className="muted">Rows: {count}. Phase 1 schema only.</p>
-    </article>
-  );
+import { LivingDocumentEntryList } from './livingDocumentRenderers.jsx';
+
+export default function DreadMap({ entries = [] }) {
+  return <LivingDocumentEntryList entries={entries} emptyLabel="No dread map entries seeded." />;
 }

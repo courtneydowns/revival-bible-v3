@@ -1,22 +1,56 @@
+import { useEffect } from 'react';
 import { useRevivalStore } from '../store.js';
 import CarolineLogicMap from './CarolineLogicMap.jsx';
 import DreadMap from './DreadMap.jsx';
 import ObligationLedger from './ObligationLedger.jsx';
 import ReWatchLedger from './ReWatchLedger.jsx';
 
+const documentTypes = [
+  ['rewatch_ledger', 'Rewatch Ledger', ReWatchLedger],
+  ['dread_map', 'Dread Map', DreadMap],
+  ['obligation_ledger', 'Obligation Ledger', ObligationLedger],
+  ['caroline_map', 'Caroline Logic Map', CarolineLogicMap]
+];
+
 export default function LivingDocuments() {
   const livingDocs = useRevivalStore((state) => state.livingDocs);
+  const activeLivingDocType = useRevivalStore((state) => state.activeLivingDocType);
+  const loadLivingDocs = useRevivalStore((state) => state.loadLivingDocs);
+  const setActiveLivingDocType = useRevivalStore((state) => state.setActiveLivingDocType);
+  const activeType = activeLivingDocType || 'rewatch_ledger';
+  const activeConfig = documentTypes.find(([docType]) => docType === activeType) || documentTypes[0];
+  const ActiveComponent = activeConfig[2];
+
+  useEffect(() => {
+    const totalRows = Object.values(livingDocs).reduce((total, entries) => total + entries.length, 0);
+    if (!totalRows) {
+      loadLivingDocs();
+    }
+  }, [livingDocs, loadLivingDocs]);
 
   return (
-    <section className="view">
-      <div className="eyebrow">Phase 1 Placeholder</div>
+    <section className="view phase3b-view">
+      <div className="eyebrow">Living Documents / Read Only</div>
       <h1>Living Documents</h1>
-      <div className="card-grid">
-        <ReWatchLedger count={livingDocs.rewatch_ledger.length} />
-        <DreadMap count={livingDocs.dread_map.length} />
-        <ObligationLedger count={livingDocs.obligation_ledger.length} />
+      <p className="dashboard-lede">Phase 3B framework entries for rewatch logic, dread accumulation, obligation, and Caroline's hidden map.</p>
+
+      <div className="living-tabs" aria-label="Living document type selector">
+        {documentTypes.map(([docType, label]) => (
+          <button
+            className={docType === activeType ? 'active' : ''}
+            key={docType}
+            onClick={() => setActiveLivingDocType(docType)}
+            type="button"
+          >
+            {label}
+            <span>{livingDocs[docType]?.length || 0}</span>
+          </button>
+        ))}
       </div>
-      <CarolineLogicMap count={livingDocs.caroline_map.length} />
+
+      <div className="living-document-panel">
+        <ActiveComponent entries={livingDocs[activeConfig[0]] || []} />
+      </div>
     </section>
   );
 }

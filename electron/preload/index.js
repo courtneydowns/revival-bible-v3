@@ -31,13 +31,18 @@ contextBridge.exposeInMainWorld('revival', {
     getRelationshipCount: () => invoke('characters:get-relationship-count')
   },
   decisions: {
-    getAll: () => invoke('decisions:get-all')
+    getAll: () => invoke('decisions:get-all'),
+    get: (id) => invoke('decisions:get', id),
+    getBlockers: (id) => invoke('decisions:get-blockers', id)
   },
   questions: {
-    getAll: () => invoke('questions:get-all')
+    getAll: () => invoke('questions:get-all'),
+    get: (id) => invoke('questions:get', id)
   },
   living: {
-    getAll: () => invoke('living:get-all')
+    getAll: () => invoke('living:get-all'),
+    getByType: (docType) => invoke('living:get-by-type', docType),
+    getEntry: (id) => invoke('living:get-entry', id)
   },
   search: {
     query: (query) => invoke('search:query', query),

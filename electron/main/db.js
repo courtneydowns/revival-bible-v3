@@ -120,16 +120,72 @@ export function getDecisions() {
     .all();
 }
 
+export function getDecision(id) {
+  return connection.prepare('SELECT * FROM decisions WHERE id = ?').get(id);
+}
+
+export function getDecisionBlockers(identifier) {
+  const decision = connection
+    .prepare('SELECT * FROM decisions WHERE id = ? OR sequence_number = ? LIMIT 1')
+    .get(identifier, identifier);
+
+  if (!decision) {
+    return { decision: null, blockedBy: [], blocks: [] };
+  }
+
+  const parseList = (value) => {
+    if (Array.isArray(value)) return value;
+    if (!value) return [];
+
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const blockedBySequenceNumbers = parseList(decision.blocked_by);
+  const blockSequenceNumbers = parseList(decision.blocks);
+  const findBySequenceNumbers = (sequenceNumbers) => {
+    if (!sequenceNumbers.length) return [];
+    const placeholders = sequenceNumbers.map(() => '?').join(', ');
+    return connection
+      .prepare(`SELECT * FROM decisions WHERE sequence_number IN (${placeholders}) ORDER BY tier, sequence_number`)
+      .all(...sequenceNumbers);
+  };
+
+  return {
+    decision,
+    blockedBy: findBySequenceNumbers(blockedBySequenceNumbers),
+    blocks: findBySequenceNumbers(blockSequenceNumbers)
+  };
+}
+
 export function getQuestions() {
   return connection
     .prepare('SELECT * FROM questions ORDER BY urgency, id')
     .all();
 }
 
+export function getQuestion(id) {
+  return connection.prepare('SELECT * FROM questions WHERE id = ?').get(id);
+}
+
 export function getLivingDocuments() {
   return connection
     .prepare('SELECT * FROM living_documents ORDER BY doc_type, entry_number, id')
     .all();
+}
+
+export function getLivingDocumentsByType(docType) {
+  return connection
+    .prepare('SELECT * FROM living_documents WHERE doc_type = ? ORDER BY entry_number, id')
+    .all(docType);
+}
+
+export function getLivingDocumentEntry(id) {
+  return connection.prepare('SELECT * FROM living_documents WHERE id = ?').get(id);
 }
 
 export function querySearchIndex(query) {
@@ -313,5 +369,104 @@ export function seedEpisodesIfNeeded(episodes) {
     episodes: finalCount,
     expected: episodes.length,
     partialBeforeSeed: existingCount > 0 && existingCount < episodes.length
+  };
+}
+
+export function seedDecisionsIfNeeded(decisions) {
+  const existingCount = connection.prepare('SELECT COUNT(*) AS count FROM decisions').get().count;
+  const findBySequenceNumber = connection.prepare('SELECT id FROM decisions WHERE sequence_number = ?');
+
+  if (existingCount >= decisions.length) {
+    return { seeded: false, decisions: existingCount, expected: decisions.length };
+  }
+
+  const insertDecision = connection.prepare(`
+    INSERT INTO decisions (
+      tier, sequence_number, title, question, why_first, what_we_know,
+      what_needs_deciding, answer, status, blocks, blocked_by, locked_at
+    )
+    VALUES (
+      @tier, @sequence_number, @title, @question, @why_first, @what_we_know,
+      @what_needs_deciding, @answer, @status, @blocks, @blocked_by, @locked_at
+    )
+  `);
+
+  const transaction = connection.transaction(() => {
+    for (const decision of decisions) {
+      if (!findBySequenceNumber.get(decision.sequence_number)) {
+        insertDecision.run(decision);
+      }
+    }
+  });
+
+  transaction();
+
+  const finalCount = connection.prepare('SELECT COUNT(*) AS count FROM decisions').get().count;
+  return {
+    seeded: finalCount > existingCount,
+    decisions: finalCount,
+    expected: decisions.length,
+    partialBeforeSeed: existingCount > 0 && existingCount < decisions.length
+  };
+}
+
+export function seedQuestionsIfNeeded(questions) {
+  const existingCount = connection.prepare('SELECT COUNT(*) AS count FROM questions').get().count;
+  const findByQuestion = connection.prepare('SELECT id FROM questions WHERE question = ?');
+
+  if (existingCount >= questions.length) {
+    return { seeded: false, questions: existingCount, expected: questions.length };
+  }
+
+  const insertQuestion = connection.prepare(`
+    INSERT INTO questions (question, urgency, status, answer, context, blocks, blocked_by)
+    VALUES (@question, @urgency, @status, @answer, @context, @blocks, @blocked_by)
+  `);
+
+  const transaction = connection.transaction(() => {
+    for (const question of questions) {
+      if (!findByQuestion.get(question.question)) {
+        insertQuestion.run(question);
+      }
+    }
+  });
+
+  transaction();
+
+  const finalCount = connection.prepare('SELECT COUNT(*) AS count FROM questions').get().count;
+  return {
+    seeded: finalCount > existingCount,
+    questions: finalCount,
+    expected: questions.length,
+    partialBeforeSeed: existingCount > 0 && existingCount < questions.length
+  };
+}
+
+export function seedLivingDocumentsIfNeeded(livingDocuments) {
+  const existingCount = connection.prepare('SELECT COUNT(*) AS count FROM living_documents').get().count;
+  const findByTypeAndEntry = connection.prepare('SELECT id FROM living_documents WHERE doc_type = ? AND entry_number = ?');
+  const insertLivingDocument = connection.prepare(`
+    INSERT INTO living_documents (doc_type, entry_number, fields, status)
+    VALUES (@doc_type, @entry_number, @fields, @status)
+  `);
+
+  const transaction = connection.transaction(() => {
+    for (const document of livingDocuments) {
+      if (!findByTypeAndEntry.get(document.doc_type, document.entry_number)) {
+        insertLivingDocument.run(document);
+      }
+    }
+  });
+
+  transaction();
+
+  const finalRows = connection
+    .prepare('SELECT doc_type, COUNT(*) AS count FROM living_documents GROUP BY doc_type ORDER BY doc_type')
+    .all();
+
+  return {
+    seeded: finalRows.reduce((total, row) => total + row.count, 0) > existingCount,
+    livingDocuments: finalRows,
+    expectedTypes: [...new Set(livingDocuments.map((document) => document.doc_type))].length
   };
 }

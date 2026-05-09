@@ -15,7 +15,8 @@ export const useRevivalStore = create((set, get) => ({
   activeCharacterId: null,
   activeDecisionId: null,
   activeQuestionId: null,
-  activeLivingDocType: null,
+  activeLivingDocType: 'rewatch_ledger',
+  activeLivingDocEntryId: null,
   expandedNodes: [],
   nodeTree: [],
   selectedNode: null,
@@ -48,7 +49,13 @@ export const useRevivalStore = create((set, get) => ({
   setActiveCharacterId: (activeCharacterId) => set({ activeCharacterId }),
   setActiveDecisionId: (activeDecisionId) => set({ activeDecisionId }),
   setActiveQuestionId: (activeQuestionId) => set({ activeQuestionId }),
-  setActiveLivingDocType: (activeLivingDocType) => set({ activeLivingDocType }),
+  setActiveLivingDocType: (activeLivingDocType) => {
+    const entries = get().livingDocs[activeLivingDocType] || [];
+    set({
+      activeLivingDocType,
+      activeLivingDocEntryId: entries[0]?.id || null
+    });
+  },
   toggleExpandedNode: (nodeId) => {
     const expandedNodes = get().expandedNodes;
     set({
@@ -120,6 +127,71 @@ export const useRevivalStore = create((set, get) => ({
     set({ episodes: episodes || [] });
     return episodes || [];
   },
+  loadDecisions: async () => {
+    const decisions = await window.revival?.decisions.getAll();
+    const activeDecisionId = get().activeDecisionId || decisions?.[0]?.id || null;
+    set({ decisions: decisions || [], activeDecisionId });
+    return decisions || [];
+  },
+  selectDecision: async (decisionId) => {
+    const api = window.revival;
+    if (!api || !decisionId) return;
+
+    const localDecision = get().decisions.find((decision) => String(decision.id) === String(decisionId));
+    set({
+      activeView: 'decisions',
+      activeDecisionId: decisionId
+    });
+
+    if (!localDecision) {
+      const decision = await api.decisions.get(decisionId);
+      if (decision) {
+        set((state) => ({
+          decisions: state.decisions.some((item) => item.id === decision.id)
+            ? state.decisions
+            : [...state.decisions, decision].sort((a, b) => a.tier - b.tier || a.sequence_number - b.sequence_number)
+        }));
+      }
+    }
+  },
+  loadQuestions: async () => {
+    const questions = await window.revival?.questions.getAll();
+    const activeQuestionId = get().activeQuestionId || questions?.[0]?.id || null;
+    set({ questions: questions || [], activeQuestionId });
+    return questions || [];
+  },
+  selectQuestion: async (questionId) => {
+    const api = window.revival;
+    if (!api || !questionId) return;
+
+    const localQuestion = get().questions.find((question) => String(question.id) === String(questionId));
+    set({
+      activeView: 'questions',
+      activeQuestionId: questionId
+    });
+
+    if (!localQuestion) {
+      const question = await api.questions.get(questionId);
+      if (question) {
+        set((state) => ({
+          questions: state.questions.some((item) => item.id === question.id)
+            ? state.questions
+            : [...state.questions, question]
+        }));
+      }
+    }
+  },
+  loadLivingDocs: async () => {
+    const livingRows = await window.revival?.living.getAll();
+    const livingDocs = groupLivingDocs(livingRows || []);
+    const activeLivingDocType = get().activeLivingDocType || 'rewatch_ledger';
+    set({
+      livingDocs,
+      activeLivingDocType,
+      activeLivingDocEntryId: get().activeLivingDocEntryId || livingDocs[activeLivingDocType]?.[0]?.id || null
+    });
+    return livingDocs;
+  },
   selectEpisode: async (episodeId) => {
     const api = window.revival;
     if (!api || !episodeId) return;
@@ -174,14 +246,26 @@ export const useRevivalStore = create((set, get) => ({
       api.characters.getRelationshipCount()
     ]);
 
-    const livingDocs = { ...initialLivingDocs };
-    for (const row of livingRows) {
-      if (!livingDocs[row.doc_type]) {
-        livingDocs[row.doc_type] = [];
-      }
-      livingDocs[row.doc_type].push(row);
-    }
+    const livingDocs = groupLivingDocs(livingRows || []);
 
     set({ databaseInfo, nodeTree, episodes, characters, decisions, questions, livingDocs, characterRelationshipCount });
   }
 }));
+
+function groupLivingDocs(rows) {
+  const livingDocs = {
+    rewatch_ledger: [],
+    dread_map: [],
+    obligation_ledger: [],
+    caroline_map: []
+  };
+
+  for (const row of rows) {
+    if (!livingDocs[row.doc_type]) {
+      livingDocs[row.doc_type] = [];
+    }
+    livingDocs[row.doc_type].push(row);
+  }
+
+  return livingDocs;
+}
