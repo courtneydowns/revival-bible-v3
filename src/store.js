@@ -15,6 +15,7 @@ export const useRevivalStore = create((set, get) => ({
   activeCharacterId: null,
   activeDecisionId: null,
   activeQuestionId: null,
+  activeTimelineEventId: null,
   activeLivingDocType: 'rewatch_ledger',
   activeLivingDocEntryId: null,
   expandedNodes: [],
@@ -29,6 +30,7 @@ export const useRevivalStore = create((set, get) => ({
   characterRelationshipCount: 0,
   decisions: [],
   questions: [],
+  timelineEvents: [],
   livingDocs: initialLivingDocs,
   searchOpen: false,
   settingsOpen: false,
@@ -49,6 +51,7 @@ export const useRevivalStore = create((set, get) => ({
   setActiveCharacterId: (activeCharacterId) => set({ activeCharacterId }),
   setActiveDecisionId: (activeDecisionId) => set({ activeDecisionId }),
   setActiveQuestionId: (activeQuestionId) => set({ activeQuestionId }),
+  setActiveTimelineEventId: (activeTimelineEventId) => set({ activeTimelineEventId }),
   setActiveLivingDocType: (activeLivingDocType) => {
     const entries = get().livingDocs[activeLivingDocType] || [];
     set({
@@ -217,6 +220,19 @@ export const useRevivalStore = create((set, get) => ({
     });
     return livingDocs;
   },
+  loadTimelineEvents: async () => {
+    const timelineEvents = await window.revival?.timeline.getEvents();
+    const activeTimelineEventId = get().activeTimelineEventId || timelineEvents?.[0]?.id || null;
+    set({ timelineEvents: timelineEvents || [], activeTimelineEventId });
+    return timelineEvents || [];
+  },
+  selectTimelineEvent: async (timelineEventId) => {
+    if (!timelineEventId) return;
+    set({
+      activeView: 'timeline',
+      activeTimelineEventId: timelineEventId
+    });
+  },
   selectEpisode: async (episodeId) => {
     const api = window.revival;
     if (!api || !episodeId) return;
@@ -275,6 +291,9 @@ export const useRevivalStore = create((set, get) => ({
       case 'living_document':
         await get().selectLivingDocEntry(result.entity_id);
         break;
+      case 'timeline_event':
+        await get().selectTimelineEvent(result.entity_id);
+        break;
       case 'bible_section': {
         const nodeTree = get().nodeTree.length ? get().nodeTree : await get().loadNodeTree();
         const parentIds = getNodeParentIds(nodeTree || [], result.entity_id);
@@ -294,7 +313,7 @@ export const useRevivalStore = create((set, get) => ({
     const api = window.revival;
     if (!api) return;
 
-    const [databaseInfo, nodeTree, episodes, characters, decisions, questions, livingRows, characterRelationshipCount] = await Promise.all([
+    const [databaseInfo, nodeTree, episodes, characters, decisions, questions, livingRows, timelineEvents, characterRelationshipCount] = await Promise.all([
       api.app.getDatabaseInfo(),
       api.nodes.getTree(),
       api.episodes.getAll(),
@@ -302,12 +321,13 @@ export const useRevivalStore = create((set, get) => ({
       api.decisions.getAll(),
       api.questions.getAll(),
       api.living.getAll(),
+      api.timeline.getEvents(),
       api.characters.getRelationshipCount()
     ]);
 
     const livingDocs = groupLivingDocs(livingRows || []);
 
-    set({ databaseInfo, nodeTree, episodes, characters, decisions, questions, livingDocs, characterRelationshipCount });
+    set({ databaseInfo, nodeTree, episodes, characters, decisions, questions, livingDocs, timelineEvents: timelineEvents || [], characterRelationshipCount });
   }
 }));
 

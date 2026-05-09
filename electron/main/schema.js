@@ -114,6 +114,23 @@ export function initializeSchema(db) {
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS timeline_events (
+      id INTEGER PRIMARY KEY,
+      seed_key TEXT UNIQUE NOT NULL,
+      season INTEGER,
+      episode_number INTEGER,
+      chronology_bucket TEXT NOT NULL,
+      outbreak_phase TEXT NOT NULL,
+      event_type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      summary TEXT,
+      source_note TEXT,
+      position INTEGER NOT NULL,
+      status TEXT DEFAULT 'DEVELOPING',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS sessions (
       id INTEGER PRIMARY KEY,
       focus_type TEXT,
@@ -164,6 +181,7 @@ export function initializeSchema(db) {
   createUpdatedAtTrigger(db, 'decisions');
   createUpdatedAtTrigger(db, 'questions');
   createUpdatedAtTrigger(db, 'living_documents');
+  createUpdatedAtTrigger(db, 'timeline_events');
 }
 
 function createUpdatedAtTrigger(db, tableName) {

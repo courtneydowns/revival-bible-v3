@@ -1,11 +1,12 @@
 import { app, BrowserWindow, ipcMain, screen, shell } from 'electron';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { closeDatabase, ensureSearchIndex, getCharacter, getCharacterRelationshipCount, getCharacterRelationships, getCharacters, getDatabaseInfo, getDecision, getDecisionBlockers, getDecisions, getEpisode, getEpisodes, getEpisodesBySeason, getLatestNodeContent, getLivingDocumentEntry, getLivingDocuments, getLivingDocumentsByType, getNode, getNodeTree, getQuestion, getQuestions, initDatabase } from './db.js';
+import { closeDatabase, ensureSearchIndex, getCharacter, getCharacterRelationshipCount, getCharacterRelationships, getCharacters, getDatabaseInfo, getDecision, getDecisionBlockers, getDecisions, getEpisode, getEpisodes, getEpisodesBySeason, getLatestNodeContent, getLivingDocumentEntry, getLivingDocuments, getLivingDocumentsByType, getNode, getNodeTree, getQuestion, getQuestions, getTimelineEvent, getTimelineEvents, initDatabase } from './db.js';
 import { getPreferences, hasApiKey, setApiKey, setPreferences } from './config.js';
 import { seedBible } from './seed-bible.js';
 import { seedEpisodes } from './seed-episodes.js';
 import { seedPhase3B } from './seed-phase3b.js';
+import { seedTimeline } from './seed-timeline.js';
 import { registerAiHandlers } from './ipc-ai.js';
 import { registerSearchHandlers } from './ipc-search.js';
 import { registerExportHandlers } from './ipc-export.js';
@@ -75,6 +76,8 @@ function registerCoreHandlers() {
   ipcMain.handle('living:get-all', async () => getLivingDocuments());
   ipcMain.handle('living:get-by-type', async (_event, docType) => getLivingDocumentsByType(docType));
   ipcMain.handle('living:get-entry', async (_event, id) => getLivingDocumentEntry(id));
+  ipcMain.handle('timeline:get-events', async () => getTimelineEvents());
+  ipcMain.handle('timeline:get-event', async (_event, id) => getTimelineEvent(id));
 }
 
 app.whenReady().then(() => {
@@ -85,6 +88,8 @@ app.whenReady().then(() => {
   console.info(`[Revival Bible v3] Phase 3A episode seed checked: ${JSON.stringify(episodeSeedResult)}`);
   const phase3BSeedResult = seedPhase3B();
   console.info(`[Revival Bible v3] Phase 3B seed checked: ${JSON.stringify(phase3BSeedResult)}`);
+  const timelineSeedResult = seedTimeline();
+  console.info(`[Revival Bible v3] Phase 5A timeline seed checked: ${JSON.stringify(timelineSeedResult)}`);
   const searchIndexResult = ensureSearchIndex();
   console.info(`[Revival Bible v3] Search index checked: ${JSON.stringify(searchIndexResult)}`);
   registerCoreHandlers();

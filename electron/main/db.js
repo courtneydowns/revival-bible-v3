@@ -188,6 +188,20 @@ export function getLivingDocumentEntry(id) {
   return connection.prepare('SELECT * FROM living_documents WHERE id = ?').get(id);
 }
 
+export function getTimelineEvents() {
+  return connection
+    .prepare(`
+      SELECT *
+      FROM timeline_events
+      ORDER BY position, COALESCE(season, 0), COALESCE(episode_number, 0), id
+    `)
+    .all();
+}
+
+export function getTimelineEvent(id) {
+  return connection.prepare('SELECT * FROM timeline_events WHERE id = ?').get(id);
+}
+
 export function querySearchIndex(query) {
   const term = String(query || '').trim();
   if (!term) return [];
@@ -351,6 +365,24 @@ export function rebuildSearchIndex() {
       title: `${formatDocType(document.doc_type)} Entry ${document.entry_number || document.id}`,
       content: compactText([formatDocType(document.doc_type), document.status, flattenJsonText(fields)]),
       section_path: formatDocType(document.doc_type)
+    });
+  }
+
+  for (const event of getTimelineEvents()) {
+    rows.push({
+      entity_type: 'timeline_event',
+      entity_id: String(event.id),
+      title: event.title,
+      content: compactText([
+        event.title,
+        event.summary,
+        event.chronology_bucket,
+        event.outbreak_phase,
+        event.event_type,
+        event.source_note,
+        event.status
+      ]),
+      section_path: formatTimelineLocation(event)
     });
   }
 
@@ -638,6 +670,41 @@ export function seedLivingDocumentsIfNeeded(livingDocuments) {
   };
 }
 
+export function seedTimelineEventsIfNeeded(timelineEvents) {
+  const existingCount = connection.prepare('SELECT COUNT(*) AS count FROM timeline_events').get().count;
+  const findBySeedKey = connection.prepare('SELECT id FROM timeline_events WHERE seed_key = ?');
+  const insertTimelineEvent = connection.prepare(`
+    INSERT INTO timeline_events (
+      seed_key, season, episode_number, chronology_bucket, outbreak_phase,
+      event_type, title, summary, source_note, position, status
+    )
+    VALUES (
+      @seed_key, @season, @episode_number, @chronology_bucket, @outbreak_phase,
+      @event_type, @title, @summary, @source_note, @position, @status
+    )
+  `);
+
+  const transaction = connection.transaction(() => {
+    for (const event of timelineEvents) {
+      if (!findBySeedKey.get(event.seed_key)) {
+        insertTimelineEvent.run(event);
+      }
+    }
+  });
+
+  transaction();
+
+  const finalRows = connection
+    .prepare('SELECT chronology_bucket, COUNT(*) AS count FROM timeline_events GROUP BY chronology_bucket ORDER BY MIN(position)')
+    .all();
+
+  return {
+    seeded: finalRows.reduce((total, row) => total + row.count, 0) > existingCount,
+    timelineEvents: finalRows,
+    expected: timelineEvents.length
+  };
+}
+
 function buildSearchQuery(term) {
   return term
     .split(/\s+/)
@@ -655,7 +722,8 @@ function getSearchSourceCount() {
     'episodes',
     'decisions',
     'questions',
-    'living_documents'
+    'living_documents',
+    'timeline_events'
   ].reduce((total, tableName) => total + connection.prepare(`SELECT COUNT(*) AS count FROM ${tableName}`).get().count, 0);
 }
 
@@ -720,6 +788,11 @@ function formatUrgency(urgency) {
   };
 
   return labels[urgency] || formatLabel(urgency);
+}
+
+function formatTimelineLocation(event) {
+  const episodeLabel = event.season && event.episode_number ? `S${event.season}E${event.episode_number}` : null;
+  return [event.chronology_bucket, episodeLabel, event.outbreak_phase].filter(Boolean).join(' / ');
 }
 
 function formatLabel(value) {

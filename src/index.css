@@ -684,6 +684,99 @@ h1 {
   max-height: calc(100vh - 250px);
 }
 
+.timeline-event-list {
+  display: grid;
+  gap: 20px;
+  margin-top: 24px;
+}
+
+.timeline-bucket {
+  display: grid;
+  gap: 10px;
+}
+
+.timeline-bucket h2 {
+  margin: 0;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.timeline-bucket-list {
+  display: grid;
+  gap: 10px;
+}
+
+.timeline-event-card {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  color: var(--text);
+  cursor: pointer;
+  padding: 16px;
+  text-align: left;
+}
+
+.timeline-event-card:hover,
+.timeline-event-card.selected {
+  border-color: var(--accent);
+  background: var(--bg-soft);
+}
+
+.timeline-event-card.selected {
+  box-shadow: inset 4px 0 0 var(--accent), 0 0 0 1px rgb(216 180 95 / 18%);
+}
+
+.timeline-card-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.timeline-card-topline span {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.timeline-event-card p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.timeline-metadata {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.75fr) minmax(120px, 0.75fr) minmax(0, 2fr);
+  gap: 10px;
+  margin: 0;
+}
+
+.timeline-metadata div {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #141413;
+  padding: 10px;
+}
+
+.timeline-metadata dt {
+  margin-bottom: 4px;
+  color: var(--text-dim);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.timeline-metadata dd {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
 .living-entry-list {
   display: grid;
   gap: 14px;
@@ -1039,6 +1132,7 @@ h1 {
   }
 
   .phase3b-workspace,
+  .timeline-metadata,
   .living-field-grid {
     grid-template-columns: 1fr;
   }

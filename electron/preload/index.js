@@ -44,6 +44,10 @@ contextBridge.exposeInMainWorld('revival', {
     getByType: (docType) => invoke('living:get-by-type', docType),
     getEntry: (id) => invoke('living:get-entry', id)
   },
+  timeline: {
+    getEvents: () => invoke('timeline:get-events'),
+    getEvent: (id) => invoke('timeline:get-event', id)
+  },
   search: {
     query: (query) => invoke('search:query', query),
     rebuildIndex: () => invoke('search:rebuild-index')
