@@ -50,7 +50,10 @@ contextBridge.exposeInMainWorld('revival', {
   },
   canon: {
     getTags: () => invoke('canon:get-tags'),
-    getEntityTagLinks: () => invoke('canon:get-entity-tag-links')
+    getEntityTagLinks: () => invoke('canon:get-entity-tag-links'),
+    addEntityTag: (payload) => invoke('canon:add-entity-tag', payload),
+    removeEntityTag: (payload) => invoke('canon:remove-entity-tag', payload),
+    updateEntityStatus: (payload) => invoke('canon:update-entity-status', payload)
   },
   search: {
     query: (query) => invoke('search:query', query),

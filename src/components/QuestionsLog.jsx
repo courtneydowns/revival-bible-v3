@@ -2,6 +2,8 @@ import { useEffect, useMemo } from 'react';
 import { useRevivalStore } from '../store.js';
 import CanonTagBadges from './CanonTagBadges.jsx';
 import StatusBadge from './StatusBadge.jsx';
+import StatusSelector from './StatusSelector.jsx';
+import TagEditor from './TagEditor.jsx';
 
 const urgencyLabels = {
   pinned: 'Pinned',
@@ -36,7 +38,7 @@ export default function QuestionsLog() {
 
   return (
     <section className="view phase3b-view">
-      <div className="eyebrow">Questions / Read Only</div>
+      <div className="eyebrow">Questions</div>
       <h1>Questions Log</h1>
       <p className="dashboard-lede">Phase 3B open creative questions grouped by urgency.</p>
 
@@ -75,6 +77,12 @@ export default function QuestionsLog() {
                 <StatusBadge status={selectedQuestion.status} />
               </div>
               <div className="field-grid">
+                <StatusSelector currentStatus={selectedQuestion.status} entityId={selectedQuestion.id} entityType="question" />
+                <TagEditor
+                  entityId={selectedQuestion.id}
+                  entityType="question"
+                  tags={entityTagsByKey[`question:${selectedQuestion.id}`] || []}
+                />
                 <Field title="Urgency" value={urgencyLabels[selectedQuestion.urgency] || selectedQuestion.urgency} />
                 <Field title="Status" value={selectedQuestion.status} />
                 <Field title="Answer" value={selectedQuestion.answer || 'Answer pending.'} />

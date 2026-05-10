@@ -4,6 +4,9 @@ import CanonTagBadges from './CanonTagBadges.jsx';
 import EntityPreviewCard from './EntityPreviewCard.jsx';
 import InspectorPanel from './InspectorPanel.jsx';
 import MasterDetailShell from './MasterDetailShell.jsx';
+import StatusBadge from './StatusBadge.jsx';
+import StatusSelector from './StatusSelector.jsx';
+import TagEditor from './TagEditor.jsx';
 
 export default function CharacterWorkspace() {
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
@@ -22,7 +25,7 @@ export default function CharacterWorkspace() {
 
   return (
     <section className="view character-workspace">
-      <div className="eyebrow">Characters / Read Only</div>
+      <div className="eyebrow">Characters</div>
       <h1>Character Workspace</h1>
       <MasterDetailShell
         className={`character-master-detail ${inspectorCollapsed ? 'inspector-collapsed' : ''}`}
@@ -33,6 +36,7 @@ export default function CharacterWorkspace() {
             key={character.id}
             meta={[character.role, character.status_at_open ? `Open: ${character.status_at_open}` : null]}
             onSelect={() => selectCharacter(character.id)}
+            status={<StatusBadge status={character.canon_state} />}
             tags={entityTagsByKey[`character:${character.id}`] || []}
             title={character.name}
             type="Character"
@@ -46,10 +50,22 @@ export default function CharacterWorkspace() {
             emptyText="Select a character."
             kicker="Selected Character"
             onToggleCollapsed={() => setInspectorCollapsed((value) => !value)}
+            status={selectedCharacter ? <StatusBadge status={selectedCharacter.canon_state} /> : null}
             title={selectedCharacter?.name}
           >
             {selectedCharacter ? (
               <>
+                <StatusSelector
+                  currentStatus={selectedCharacter.canon_state}
+                  entityId={selectedCharacter.id}
+                  entityType="character"
+                  label="Canon State"
+                />
+                <TagEditor
+                  entityId={selectedCharacter.id}
+                  entityType="character"
+                  tags={entityTagsByKey[`character:${selectedCharacter.id}`] || []}
+                />
                 <dl className="metadata-grid">
                   <div>
                     <dt>Role</dt>

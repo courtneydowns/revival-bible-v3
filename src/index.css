@@ -46,6 +46,7 @@ body {
 
 button,
 input,
+select,
 textarea {
   font: inherit;
 }
@@ -1075,6 +1076,9 @@ h1 {
 .status-badge.needed { color: var(--needed); }
 .status-badge.provisional { color: var(--provisional); }
 .status-badge.open { color: var(--established); }
+.status-badge.canon { color: var(--accent-strong); }
+.status-badge.unresolved,
+.status-badge.contradiction-risk { color: var(--danger); }
 
 .canon-tag-row {
   display: flex;
@@ -1109,6 +1113,84 @@ h1 {
 .canon-tag.color-decision { color: var(--accent); }
 .canon-tag.color-unresolved,
 .canon-tag.color-risk { color: var(--danger); }
+
+.inspector-editor {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgb(255 255 255 / 2%);
+  padding: 10px;
+}
+
+.inspector-editor.compact label {
+  display: grid;
+  gap: 6px;
+}
+
+.inspector-editor-header,
+.inspector-editor label > span {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.editable-tag-row,
+.tag-add-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.canon-tag.editable {
+  gap: 4px;
+  padding-right: 4px;
+}
+
+.canon-tag.editable button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: currentColor;
+  cursor: pointer;
+}
+
+.canon-tag.editable button:hover {
+  background: rgb(255 255 255 / 8%);
+}
+
+.tag-add-row {
+  flex-wrap: nowrap;
+}
+
+.tag-add-row input,
+.inspector-editor select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #10100f;
+  color: var(--text);
+  padding: 7px 9px;
+}
+
+.tag-add-row .icon-button {
+  flex: 0 0 auto;
+}
+
+.editor-message,
+.small-note {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 12px;
+}
 
 .modal-backdrop {
   position: fixed;

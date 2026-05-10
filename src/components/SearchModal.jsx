@@ -183,5 +183,10 @@ function sanitizeSnippet(value) {
 function getSearchableTags(tags) {
   const preferredOrder = ['canon', 'character', 'relationship', 'timeline', 'episode', 'unresolved', 'contradiction-risk', 'decision', 'question', 'location'];
   const bySlug = new Map(tags.map((tag) => [tag.slug, tag]));
-  return preferredOrder.map((slug) => bySlug.get(slug)).filter(Boolean);
+  const preferredTags = preferredOrder.map((slug) => bySlug.get(slug)).filter(Boolean);
+  const extraTags = tags
+    .filter((tag) => !preferredOrder.includes(tag.slug))
+    .sort((left, right) => left.label.localeCompare(right.label));
+
+  return [...preferredTags, ...extraTags];
 }

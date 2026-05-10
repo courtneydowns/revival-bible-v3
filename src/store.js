@@ -237,6 +237,24 @@ export const useRevivalStore = create((set, get) => ({
     set({ canonTags: canonTags || [], entityTagsByKey });
     return entityTagsByKey;
   },
+  addTagToEntity: async ({ entityType, entityId, tag }) => {
+    const response = await window.revival?.canon.addEntityTag({ entityType, entityId, tag });
+    if (!response?.ok) return response;
+    await get().loadCanonTags();
+    return response;
+  },
+  removeTagFromEntity: async ({ entityType, entityId, tagSlug }) => {
+    const response = await window.revival?.canon.removeEntityTag({ entityType, entityId, tagSlug });
+    if (!response?.ok) return response;
+    await get().loadCanonTags();
+    return response;
+  },
+  updateEntityStatus: async ({ entityType, entityId, status }) => {
+    const response = await window.revival?.canon.updateEntityStatus({ entityType, entityId, status });
+    if (!response?.ok || !response.record) return response;
+    set((state) => applyEntityRecordUpdate(state, entityType, response.record));
+    return response;
+  },
   selectTimelineEvent: async (timelineEventId) => {
     if (!timelineEventId) return;
     set({
@@ -368,6 +386,38 @@ function groupEntityTags(rows) {
     groups[key].push(row);
     return groups;
   }, {});
+}
+
+function applyEntityRecordUpdate(state, entityType, record) {
+  switch (entityType) {
+    case 'character':
+      return {
+        characters: replaceById(state.characters, record),
+        selectedCharacter: String(state.selectedCharacter?.id) === String(record.id) ? record : state.selectedCharacter
+      };
+    case 'decision':
+      return {
+        decisions: replaceById(state.decisions, record)
+      };
+    case 'question':
+      return {
+        questions: replaceById(state.questions, record)
+      };
+    case 'timeline_event':
+      return {
+        timelineEvents: replaceById(state.timelineEvents, record)
+      };
+    case 'living_document':
+      return {
+        livingDocs: groupLivingDocs(replaceById(Object.values(state.livingDocs).flat(), record))
+      };
+    default:
+      return {};
+  }
+}
+
+function replaceById(rows, nextRow) {
+  return rows.map((row) => (String(row.id) === String(nextRow.id) ? nextRow : row));
 }
 
 function getNodeParentIds(nodeTree, nodeId) {

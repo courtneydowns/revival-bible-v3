@@ -5,6 +5,8 @@ import EntityPreviewCard from './EntityPreviewCard.jsx';
 import InspectorPanel from './InspectorPanel.jsx';
 import MasterDetailShell from './MasterDetailShell.jsx';
 import StatusBadge from './StatusBadge.jsx';
+import StatusSelector from './StatusSelector.jsx';
+import TagEditor from './TagEditor.jsx';
 
 const tierLabels = {
   1: 'Tier 1 - Foundation',
@@ -41,7 +43,7 @@ export default function DecisionTracker() {
 
   return (
     <section className="view phase3b-view">
-      <div className="eyebrow">Decisions / Read Only</div>
+      <div className="eyebrow">Decisions</div>
       <h1>Decision Tracker</h1>
       <p className="dashboard-lede">Phase 3B pre-writing decisions, blockers, and downstream dependencies.</p>
 
@@ -80,15 +82,27 @@ export default function DecisionTracker() {
             title={selectedDecision?.title}
           >
             {selectedDecision ? (
-              <div className="field-grid">
-                <Field title="Question" value={selectedDecision.question} />
-                <Field title="Why First" value={selectedDecision.why_first} />
-                <Field title="What We Know" value={selectedDecision.what_we_know} />
-                <Field title="What Needs Deciding" value={selectedDecision.what_needs_deciding} />
-                <Field title="Answer" value={selectedDecision.answer || 'Answer pending.'} />
-                <Field title="Blocked By" value={formatList(selectedDecision.blocked_by)} />
-                <Field title="Blocks" value={formatList(selectedDecision.blocks)} />
-              </div>
+              <>
+                <StatusSelector
+                  currentStatus={selectedDecision.status}
+                  entityId={selectedDecision.id}
+                  entityType="decision"
+                />
+                <TagEditor
+                  entityId={selectedDecision.id}
+                  entityType="decision"
+                  tags={entityTagsByKey[`decision:${selectedDecision.id}`] || []}
+                />
+                <div className="field-grid">
+                  <Field title="Question" value={selectedDecision.question} />
+                  <Field title="Why First" value={selectedDecision.why_first} />
+                  <Field title="What We Know" value={selectedDecision.what_we_know} />
+                  <Field title="What Needs Deciding" value={selectedDecision.what_needs_deciding} />
+                  <Field title="Answer" value={selectedDecision.answer || 'Answer pending.'} />
+                  <Field title="Blocked By" value={formatList(selectedDecision.blocked_by)} />
+                  <Field title="Blocks" value={formatList(selectedDecision.blocks)} />
+                </div>
+              </>
             ) : null}
           </InspectorPanel>
         )}

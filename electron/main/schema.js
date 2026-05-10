@@ -47,6 +47,7 @@ export function initializeSchema(db) {
       id INTEGER PRIMARY KEY,
       name TEXT NOT NULL,
       role TEXT,
+      canon_state TEXT DEFAULT 'developing',
       status_at_open TEXT,
       arc_season_1 TEXT,
       arc_season_2 TEXT,
@@ -204,6 +205,8 @@ export function initializeSchema(db) {
   createUpdatedAtTrigger(db, 'living_documents');
   createUpdatedAtTrigger(db, 'timeline_events');
   createUpdatedAtTrigger(db, 'canon_tags');
+
+  ensureColumn(db, 'characters', 'canon_state', "TEXT DEFAULT 'developing'");
 }
 
 function createUpdatedAtTrigger(db, tableName) {
@@ -216,4 +219,11 @@ function createUpdatedAtTrigger(db, tableName) {
       UPDATE ${tableName} SET updated_at = CURRENT_TIMESTAMP WHERE rowid = NEW.rowid;
     END;
   `);
+}
+
+function ensureColumn(db, tableName, columnName, definition) {
+  const columns = db.prepare(`PRAGMA table_info(${tableName})`).all();
+  if (columns.some((column) => column.name === columnName)) return;
+
+  db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
 }

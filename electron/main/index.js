@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, screen, shell } from 'electron';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { closeDatabase, ensureSearchIndex, getCanonTags, getCharacter, getCharacterRelationshipCount, getCharacterRelationships, getCharacters, getDatabaseInfo, getDecision, getDecisionBlockers, getDecisions, getEntityTagLinks, getEpisode, getEpisodes, getEpisodesBySeason, getLatestNodeContent, getLivingDocumentEntry, getLivingDocuments, getLivingDocumentsByType, getNode, getNodeTree, getQuestion, getQuestions, getTimelineEvent, getTimelineEvents, initDatabase } from './db.js';
+import { addEntityTag, closeDatabase, ensureSearchIndex, getCanonTags, getCharacter, getCharacterRelationshipCount, getCharacterRelationships, getCharacters, getDatabaseInfo, getDecision, getDecisionBlockers, getDecisions, getEntityTagLinks, getEpisode, getEpisodes, getEpisodesBySeason, getLatestNodeContent, getLivingDocumentEntry, getLivingDocuments, getLivingDocumentsByType, getNode, getNodeTree, getQuestion, getQuestions, getTimelineEvent, getTimelineEvents, initDatabase, removeEntityTag, updateEntityStatus } from './db.js';
 import { getPreferences, hasApiKey, setApiKey, setPreferences } from './config.js';
 import { seedBible } from './seed-bible.js';
 import { seedCanonTags } from './seed-canon-tags.js';
@@ -82,6 +82,9 @@ function registerCoreHandlers() {
   ipcMain.handle('timeline:get-event', async (_event, id) => getTimelineEvent(id));
   ipcMain.handle('canon:get-tags', async () => getCanonTags());
   ipcMain.handle('canon:get-entity-tag-links', async () => getEntityTagLinks());
+  ipcMain.handle('canon:add-entity-tag', async (_event, payload) => addEntityTag(payload?.entityType, payload?.entityId, payload?.tag));
+  ipcMain.handle('canon:remove-entity-tag', async (_event, payload) => removeEntityTag(payload?.entityType, payload?.entityId, payload?.tagSlug));
+  ipcMain.handle('canon:update-entity-status', async (_event, payload) => updateEntityStatus(payload?.entityType, payload?.entityId, payload?.status));
 }
 
 app.whenReady().then(() => {

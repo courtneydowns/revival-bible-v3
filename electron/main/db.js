@@ -249,6 +249,54 @@ export function getCanonTags() {
   return connection.prepare('SELECT * FROM canon_tags ORDER BY label').all();
 }
 
+export function addEntityTag(entityType, entityId, tagValue) {
+  const tag = ensureCanonTag(tagValue);
+  if (!tag) {
+    return { ok: false, message: 'Tag is required.' };
+  }
+
+  validateEntityReference(entityType, entityId);
+
+  connection
+    .prepare(`
+      INSERT INTO entity_tag_links (tag_id, entity_type, entity_id)
+      VALUES (?, ?, ?)
+      ON CONFLICT(tag_id, entity_type, entity_id) DO NOTHING
+    `)
+    .run(tag.id, entityType, String(entityId));
+
+  return {
+    ok: true,
+    tag,
+    tags: getEntityTags(entityType, entityId),
+    search: rebuildSearchIndex()
+  };
+}
+
+export function removeEntityTag(entityType, entityId, tagSlug) {
+  const slug = normalizeTagSlug(tagSlug);
+  if (!slug) {
+    return { ok: false, message: 'Tag slug is required.' };
+  }
+
+  validateEntityReference(entityType, entityId);
+
+  connection
+    .prepare(`
+      DELETE FROM entity_tag_links
+      WHERE entity_type = ?
+        AND entity_id = ?
+        AND tag_id = (SELECT id FROM canon_tags WHERE slug = ?)
+    `)
+    .run(entityType, String(entityId), slug);
+
+  return {
+    ok: true,
+    tags: getEntityTags(entityType, entityId),
+    search: rebuildSearchIndex()
+  };
+}
+
 export function getEntityTagLinks() {
   return connection
     .prepare(`
@@ -265,6 +313,40 @@ export function getEntityTagLinks() {
       ORDER BY etl.entity_type, etl.entity_id, ct.label
     `)
     .all();
+}
+
+export function updateEntityStatus(entityType, entityId, status) {
+  const nextStatus = normalizeStatusValue(status);
+  if (!nextStatus) {
+    return { ok: false, message: 'Status is required.' };
+  }
+
+  const statusTargets = {
+    character: { table: 'characters', column: 'canon_state' },
+    decision: { table: 'decisions', column: 'status' },
+    question: { table: 'questions', column: 'status' },
+    timeline_event: { table: 'timeline_events', column: 'status' },
+    living_document: { table: 'living_documents', column: 'status' }
+  };
+  const target = statusTargets[entityType];
+
+  if (!target) {
+    return { ok: false, message: `Status editing is not supported for ${entityType}.` };
+  }
+
+  const result = connection
+    .prepare(`UPDATE ${target.table} SET ${target.column} = ? WHERE id = ?`)
+    .run(nextStatus, entityId);
+
+  if (!result.changes) {
+    return { ok: false, message: 'Record not found.' };
+  }
+
+  return {
+    ok: true,
+    record: getEntityRecord(entityType, entityId),
+    search: rebuildSearchIndex()
+  };
 }
 
 export function querySearchIndex(query) {
@@ -367,6 +449,7 @@ export function rebuildSearchIndex() {
       content: compactText([
         character.name,
         character.role,
+        character.canon_state,
         character.status_at_open,
         character.arc_season_1,
         character.arc_season_2,
@@ -878,6 +961,7 @@ function getSearchStatusLookup() {
   };
 
   addRows('bible_section', connection.prepare('SELECT id, status FROM nodes').all());
+  addRows('character', connection.prepare('SELECT id, canon_state AS status FROM characters').all());
   addRows('episode', connection.prepare('SELECT id, status FROM episodes').all());
   addRows('decision', connection.prepare('SELECT id, status FROM decisions').all());
   addRows('question', connection.prepare('SELECT id, status FROM questions').all());
@@ -891,6 +975,70 @@ function formatTagsForSearch(tagLookup, entityType, entityId) {
   return (tagLookup.get(`${entityType}:${entityId}`) || [])
     .map((tag) => `${tag.label} ${tag.slug} ${tag.slug.replace(/-/g, ' ')} ${tag.note || ''}`)
     .join('\n');
+}
+
+function getEntityTags(entityType, entityId) {
+  return getEntityTagLinks().filter((tag) => tag.entity_type === entityType && String(tag.entity_id) === String(entityId));
+}
+
+function ensureCanonTag(value) {
+  const slug = normalizeTagSlug(value);
+  if (!slug) return null;
+
+  const existing = connection.prepare('SELECT * FROM canon_tags WHERE slug = ?').get(slug);
+  if (existing) return existing;
+
+  const label = formatLabel(slug.replace(/-/g, ' '));
+  const result = connection
+    .prepare(`
+      INSERT INTO canon_tags (slug, label, description, color)
+      VALUES (?, ?, ?, 'default')
+    `)
+    .run(slug, label, `User-added canon tag: ${label}`);
+
+  return connection.prepare('SELECT * FROM canon_tags WHERE id = ?').get(result.lastInsertRowid);
+}
+
+function normalizeTagSlug(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/['"]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64);
+}
+
+function normalizeStatusValue(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64);
+}
+
+function validateEntityReference(entityType, entityId) {
+  if (!getEntityRecord(entityType, entityId)) {
+    throw new Error(`Cannot tag missing ${entityType} record.`);
+  }
+}
+
+function getEntityRecord(entityType, entityId) {
+  switch (entityType) {
+    case 'character':
+      return getCharacter(entityId);
+    case 'decision':
+      return getDecision(entityId);
+    case 'question':
+      return getQuestion(entityId);
+    case 'timeline_event':
+      return getTimelineEvent(entityId);
+    case 'living_document':
+      return getLivingDocumentEntry(entityId);
+    default:
+      return null;
+  }
 }
 
 function getMatchedTags(tags, term) {
