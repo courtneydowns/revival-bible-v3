@@ -7,7 +7,8 @@ contextBridge.exposeInMainWorld('revival', {
     hasApiKey: (provider) => invoke('config:has-api-key', provider),
     getPreferences: () => invoke('config:get-preferences'),
     setPreferences: (preferences) => invoke('config:set-preferences', preferences),
-    setApiKey: (payload) => invoke('config:set-api-key', payload)
+    setApiKey: (payload) => invoke('config:set-api-key', payload),
+    testProviderConnection: (provider) => invoke('config:test-provider-connection', provider)
   },
   app: {
     getDatabaseInfo: () => invoke('app:get-database-info')

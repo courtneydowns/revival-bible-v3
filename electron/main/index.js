@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, screen, shell } from 'electron';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { addContextPackLink, addEntityLink, addEntityTag, closeDatabase, createContextPack, deleteContextPack, ensureSearchIndex, getCanonTags, getCharacter, getCharacterRelationshipCount, getCharacterRelationships, getCharacters, getContextPacks, getDatabaseInfo, getDecision, getDecisionBlockers, getDecisions, getEntityLinks, getEntityTagLinks, getEpisode, getEpisodes, getEpisodesBySeason, getLatestNodeContent, getLivingDocumentEntry, getLivingDocuments, getLivingDocumentsByType, getNode, getNodeTree, getQuestion, getQuestions, getTimelineEvent, getTimelineEvents, initDatabase, removeContextPackLink, removeEntityLink, removeEntityTag, updateContextPack, updateEntityStatus } from './db.js';
-import { getPreferences, hasApiKey, initConfig, setApiKey, setPreferences } from './config.js';
+import { getPreferences, hasApiKey, initConfig, setApiKey, setPreferences, testProviderConnection } from './config.js';
 import { seedBible } from './seed-bible.js';
 import { seedCanonTags } from './seed-canon-tags.js';
 import { seedCharacterRelationshipRefinement } from './seed-character-relationships.js';
@@ -59,6 +59,7 @@ function registerCoreHandlers() {
   ipcMain.handle('config:get-preferences', async () => getPreferences());
   ipcMain.handle('config:set-preferences', async (_event, preferences) => setPreferences(preferences));
   ipcMain.handle('config:set-api-key', async (_event, payload) => setApiKey(payload));
+  ipcMain.handle('config:test-provider-connection', async (_event, provider) => testProviderConnection(provider));
   ipcMain.handle('app:get-database-info', async () => getDatabaseInfo());
 
   ipcMain.handle('nodes:get-tree', async () => getNodeTree());

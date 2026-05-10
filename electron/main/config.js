@@ -5,6 +5,10 @@ import { dirname, join } from 'node:path';
 const ALGORITHM = 'aes-256-gcm';
 const KEY_SALT = 'revival-bible-v3-config';
 const providerIds = ['anthropic', 'openai'];
+const providerLabels = {
+  anthropic: 'Claude / Anthropic',
+  openai: 'OpenAI'
+};
 const defaultPreferences = {
   theme: 'dark',
   aiProvider: 'openai',
@@ -16,6 +20,7 @@ const defaultPreferences = {
 let preferences = { ...defaultPreferences, aiModels: { ...defaultPreferences.aiModels } };
 let encryptedApiKeys = {};
 let configFilePath = '';
+const connectionTestsInFlight = new Map();
 
 export function initConfig(app) {
   configFilePath = join(app.getPath('userData'), 'revival-bible-v3-config.json');
@@ -67,14 +72,15 @@ export function hasApiKey(provider = 'default') {
 
 export function setApiKey({ provider = 'default', apiKey = '' } = {}) {
   const providerId = normalizeProvider(provider);
+  const normalizedApiKey = normalizeApiKey(apiKey);
 
-  if (!apiKey.trim()) {
+  if (!normalizedApiKey || isPlaceholderApiKey(normalizedApiKey)) {
     delete encryptedApiKeys[providerId];
     persistConfig();
     return { apiKeySaved: getApiKeySavedStatus(), saved: false, provider: providerId };
   }
 
-  encryptedApiKeys[providerId] = encryptValue(apiKey.trim());
+  encryptedApiKeys[providerId] = encryptValue(normalizedApiKey);
   persistConfig();
   return { apiKeySaved: getApiKeySavedStatus(), saved: true, provider: providerId };
 }
@@ -98,6 +104,54 @@ export function setPreferences(nextPreferences = {}) {
   });
   persistConfig();
   return getPreferences();
+}
+
+export async function testProviderConnection(provider = preferences.aiProvider) {
+  const providerId = normalizeProvider(provider);
+  const inFlight = connectionTestsInFlight.get(providerId);
+  if (inFlight) return inFlight;
+
+  const test = runProviderConnectionTest(providerId).finally(() => {
+    connectionTestsInFlight.delete(providerId);
+  });
+  connectionTestsInFlight.set(providerId, test);
+  return test;
+}
+
+async function runProviderConnectionTest(providerId) {
+  const model = preferences.aiModels[providerId];
+  const encryptedApiKey = encryptedApiKeys[providerId];
+
+  if (!encryptedApiKey) {
+    return failure(providerId, `Save a ${providerLabels[providerId]} API key before testing.`);
+  }
+
+  if (!model) {
+    return failure(providerId, `Save a ${providerLabels[providerId]} model name before testing.`);
+  }
+
+  try {
+    const apiKey = normalizeApiKey(decryptValue(encryptedApiKey));
+    if (!apiKey || isPlaceholderApiKey(apiKey)) {
+      return failure(providerId, `Save a valid ${providerLabels[providerId]} API key before testing.`);
+    }
+
+    if (providerId === 'openai' && !isOpenAiApiKey(apiKey)) {
+      logOpenAiDiagnostic({
+        apiKey,
+        model,
+        providerId,
+        responseBody: 'Saved OpenAI API key failed local prefix validation before request.'
+      });
+      return failure(providerId, 'Saved OpenAI API key does not look like an OpenAI key. Expected a standard OpenAI secret-key prefix.');
+    }
+
+    return await (providerId === 'anthropic'
+      ? testAnthropicConnection({ apiKey, model, providerId })
+      : testOpenAiConnection({ apiKey, model, providerId }));
+  } catch {
+    return failure(providerId, 'Connection test could not be completed. Check the saved key, model name, and network connection.');
+  }
 }
 
 function persistConfig() {
@@ -137,4 +191,168 @@ function normalizeProvider(provider = 'openai') {
 
 function getApiKeySavedStatus() {
   return Object.fromEntries(providerIds.map((provider) => [provider, Boolean(encryptedApiKeys[provider])]));
+}
+
+function normalizeApiKey(apiKey = '') {
+  return String(apiKey).trim().replace(/\s+/g, '');
+}
+
+function isPlaceholderApiKey(apiKey = '') {
+  const value = String(apiKey).trim().toLowerCase();
+  return !value
+    || value === 'enterapikey'
+    || value.includes('savedlocally')
+    || value.includes('enteranewkeytoreplace')
+    || /^[•*]+$/.test(value);
+}
+
+function isOpenAiApiKey(apiKey = '') {
+  return apiKey.startsWith('sk-');
+}
+
+async function testOpenAiConnection({ apiKey, model, providerId }) {
+  const requestBody = {
+    model,
+    input: 'Reply with OK.',
+    max_output_tokens: 16
+  };
+
+  logOpenAiDiagnostic({
+    apiKey,
+    model,
+    providerId
+  });
+
+  const response = await fetch('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(requestBody)
+  });
+
+  const responseBody = await response.text();
+  logOpenAiDiagnostic({
+    apiKey,
+    model,
+    providerId,
+    responseBody,
+    statusCode: response.status
+  });
+
+  if (response.ok) {
+    return {
+      ok: true,
+      provider: providerId,
+      status: 'success',
+      message: 'OpenAI connection succeeded.'
+    };
+  }
+
+  return failure(providerId, getReadableProviderErrorFromText(response, responseBody));
+}
+
+async function testAnthropicConnection({ apiKey, model, providerId }) {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+      'x-api-key': apiKey
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 8,
+      messages: [
+        { role: 'user', content: 'Reply with OK.' }
+      ]
+    })
+  });
+
+  return parseProviderResponse({ providerId, response, successMessage: 'Claude / Anthropic connection succeeded.' });
+}
+
+async function parseProviderResponse({ providerId, response, successMessage }) {
+  if (response.ok) {
+    return {
+      ok: true,
+      provider: providerId,
+      status: 'success',
+      message: successMessage
+    };
+  }
+
+  return failure(providerId, await getReadableProviderError(response));
+}
+
+async function getReadableProviderError(response) {
+  let details = '';
+
+  try {
+    const payload = await response.json();
+    details = payload?.error?.message || payload?.message || '';
+  } catch {
+    details = response.statusText || '';
+  }
+
+  const message = sanitizeProviderMessage(details);
+  return message
+    ? `Connection failed (${response.status}): ${message}`
+    : `Connection failed with HTTP ${response.status}.`;
+}
+
+function getReadableProviderErrorFromText(response, responseBody = '') {
+  let details = '';
+
+  try {
+    const payload = JSON.parse(responseBody);
+    details = payload?.error?.message || payload?.message || responseBody;
+  } catch {
+    details = responseBody || response.statusText || '';
+  }
+
+  const message = sanitizeProviderMessage(details);
+  return message
+    ? `Connection failed (${response.status}): ${message}`
+    : `Connection failed with HTTP ${response.status}.`;
+}
+
+function failure(providerId, message) {
+  return {
+    ok: false,
+    provider: providerId,
+    status: 'failure',
+    message: sanitizeProviderMessage(message)
+  };
+}
+
+function sanitizeProviderMessage(message = '') {
+  return String(message)
+    .replace(/sk-[A-Za-z0-9_.*-]+/g, '[redacted]')
+    .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, 'Bearer [redacted]')
+    .replace(/x-api-key[=:]\s*[A-Za-z0-9._-]+/gi, 'x-api-key=[redacted]')
+    .trim();
+}
+
+function logOpenAiDiagnostic({ apiKey, model, providerId, responseBody, statusCode }) {
+  if (process.env.NODE_ENV === 'production') return;
+
+  const diagnostic = {
+    provider: providerId,
+    model,
+    keyPrefixFamily: getApiKeyPrefixFamily(apiKey),
+    keyLength: apiKey.length
+  };
+
+  if (statusCode) diagnostic.statusCode = statusCode;
+  if (responseBody !== undefined) diagnostic.responseBody = sanitizeProviderMessage(responseBody);
+
+  console.info(`[Revival Bible v3] OpenAI connection diagnostic: ${JSON.stringify(diagnostic)}`);
+}
+
+function getApiKeyPrefixFamily(apiKey = '') {
+  if (apiKey.startsWith('sk-proj-')) return 'sk-proj';
+  if (apiKey.startsWith('sk-')) return 'sk-...';
+  return 'unrecognized';
 }

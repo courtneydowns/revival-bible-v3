@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRevivalStore } from '../store.js';
 
 const providers = [
@@ -14,6 +14,8 @@ export default function SettingsModal() {
   const [apiKeySaved, setApiKeySaved] = useState({});
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [connectionTest, setConnectionTest] = useState({ status: 'idle', message: '' });
+  const connectionTestInFlight = useRef(false);
   const selectedProviderLabel = useMemo(
     () => providers.find(([id]) => id === provider)?.[1] || 'AI provider',
     [provider]
@@ -45,7 +47,19 @@ export default function SettingsModal() {
   const saveSettings = async () => {
     if (loading) return;
 
+    const savedSettings = await persistCurrentSettings();
+    setApiKeySaved(savedSettings.apiKeySaved);
+    setModels(savedSettings.models);
+    setConnectionTest({ status: 'idle', message: '' });
+    setMessage('AI provider settings saved locally.');
+  };
+
+  const persistCurrentSettings = async () => {
     let apiKeyResponse = null;
+    const nextModels = {
+      ...models,
+      [provider]: models[provider] || ''
+    };
 
     if (apiKey.trim()) {
       apiKeyResponse = await window.revival?.config.setApiKey({ provider, apiKey });
@@ -54,22 +68,49 @@ export default function SettingsModal() {
 
     const preferences = await window.revival?.config.setPreferences({
       aiProvider: provider,
-      aiModels: {
-        ...models,
-        [provider]: models[provider] || ''
-      }
+      aiModels: nextModels
     });
     const keyStatus = await loadApiKeyStatus();
 
-    setApiKeySaved({
-      ...keyStatus,
-      ...(apiKeyResponse?.apiKeySaved || {})
-    });
-    setModels({
-      anthropic: preferences?.aiModels?.anthropic || models.anthropic,
-      openai: preferences?.aiModels?.openai || models.openai
-    });
-    setMessage('AI provider settings saved locally.');
+    return {
+      apiKeySaved: {
+        ...keyStatus,
+        ...(apiKeyResponse?.apiKeySaved || {})
+      },
+      models: {
+        anthropic: preferences?.aiModels?.anthropic || nextModels.anthropic,
+        openai: preferences?.aiModels?.openai || nextModels.openai
+      }
+    };
+  };
+
+  const testConnection = async () => {
+    if (loading || connectionTest.status === 'loading' || connectionTestInFlight.current) return;
+
+    connectionTestInFlight.current = true;
+    setMessage('');
+    setConnectionTest({ status: 'idle', message: '' });
+
+    try {
+      const savedSettings = await persistCurrentSettings();
+      setApiKeySaved(savedSettings.apiKeySaved);
+      setModels(savedSettings.models);
+      setConnectionTest({ status: 'loading', message: `Testing ${selectedProviderLabel} connection...` });
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const response = await window.revival?.config.testProviderConnection(provider);
+      setConnectionTest({
+        status: response?.ok ? 'success' : 'failure',
+        message: response?.message || 'Connection test failed.'
+      });
+    } catch (error) {
+      setConnectionTest({
+        status: 'failure',
+        message: error?.message || 'Connection test failed.'
+      });
+    } finally {
+      connectionTestInFlight.current = false;
+    }
   };
 
   return (
@@ -87,6 +128,7 @@ export default function SettingsModal() {
                 setProvider(event.target.value);
                 setApiKey('');
                 setMessage('');
+                setConnectionTest({ status: 'idle', message: '' });
               }}
               value={provider}
             >
@@ -101,7 +143,7 @@ export default function SettingsModal() {
               id="ai-model"
               disabled={loading}
               onChange={(event) => setModels({ ...models, [provider]: event.target.value })}
-              placeholder={provider === 'openai' ? 'Example: gpt-4.1' : 'Example: claude-3-5-sonnet-latest'}
+              placeholder={provider === 'openai' ? 'Example: gpt-4.1' : 'Example: claude-sonnet-4-6'}
               value={models[provider] || ''}
             />
           </div>
@@ -126,8 +168,17 @@ export default function SettingsModal() {
               : `${selectedProviderLabel} API key not saved yet.`}
         </p>
         {message ? <p className="editor-message">{message}</p> : null}
+        {connectionTest.message ? <p className={`editor-message connection-test-message ${connectionTest.status}`}>{connectionTest.message}</p> : null}
         <div className="modal-actions">
           <button className="secondary-button" onClick={closeSettings} type="button">Close</button>
+          <button
+            className="secondary-button"
+            disabled={loading || connectionTest.status === 'loading'}
+            onClick={connectionTest.status === 'loading' ? undefined : testConnection}
+            type="button"
+          >
+            {connectionTest.status === 'loading' ? 'Testing...' : 'Test Connection'}
+          </button>
           <button className="primary-button" disabled={loading} onClick={saveSettings} type="button">Save Settings</button>
         </div>
       </section>

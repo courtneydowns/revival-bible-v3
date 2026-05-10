@@ -1552,6 +1552,14 @@ h1 {
   font-size: 12px;
 }
 
+.connection-test-message.success {
+  color: var(--locked);
+}
+
+.connection-test-message.failure {
+  color: var(--danger);
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
