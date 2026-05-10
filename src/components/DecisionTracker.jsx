@@ -1,6 +1,9 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRevivalStore } from '../store.js';
 import CanonTagBadges from './CanonTagBadges.jsx';
+import EntityPreviewCard from './EntityPreviewCard.jsx';
+import InspectorPanel from './InspectorPanel.jsx';
+import MasterDetailShell from './MasterDetailShell.jsx';
 import StatusBadge from './StatusBadge.jsx';
 
 const tierLabels = {
@@ -12,6 +15,7 @@ const tierLabels = {
 };
 
 export default function DecisionTracker() {
+  const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
   const activeDecisionId = useRevivalStore((state) => state.activeDecisionId);
   const decisions = useRevivalStore((state) => state.decisions);
   const entityTagsByKey = useRevivalStore((state) => state.entityTagsByKey);
@@ -41,44 +45,41 @@ export default function DecisionTracker() {
       <h1>Decision Tracker</h1>
       <p className="dashboard-lede">Phase 3B pre-writing decisions, blockers, and downstream dependencies.</p>
 
-      <div className="phase3b-workspace decision-workspace">
-        <aside className="phase3b-list-panel">
-          {Object.entries(tierLabels).map(([tier, label]) => (
-            <section className="phase3b-group" key={tier}>
-              <h2>{label}</h2>
-              {(groupedDecisions[tier] || []).map((decision) => (
-                <button
-                  className={`phase3b-card ${String(selectedDecision?.id) === String(decision.id) ? 'selected' : ''}`}
-                  key={decision.id}
-                  onClick={() => selectDecision(decision.id)}
-                  type="button"
-                >
-                  <div className="phase3b-card-topline">
-                    <span>Decision #{decision.sequence_number}</span>
-                    <StatusBadge status={decision.status} />
-                  </div>
-                  <strong>{decision.title}</strong>
-                  <DependencyLine label="Blocked by" value={decision.blocked_by} />
-                  <DependencyLine label="Blocks" value={decision.blocks} />
-                  <p>{decision.answer || 'Answer pending.'}</p>
-                </button>
-              ))}
-            </section>
-          ))}
-        </aside>
-
-        <article className={`detail-panel phase3b-detail-panel ${selectedDecision ? 'selected-detail-panel' : ''}`}>
-          {selectedDecision ? (
-            <>
-              <div className="document-header">
-                <div>
-                  <div className="selection-kicker">Selected Decision</div>
-                  <div className="eyebrow">Decision #{selectedDecision.sequence_number}</div>
-                  <h2>{selectedDecision.title}</h2>
-                  <CanonTagBadges tags={entityTagsByKey[`decision:${selectedDecision.id}`] || []} />
-                </div>
-                <StatusBadge status={selectedDecision.status} />
-              </div>
+      <MasterDetailShell
+        className={`decision-master-detail ${inspectorCollapsed ? 'inspector-collapsed' : ''}`}
+        listLabel="Decisions"
+        list={Object.entries(tierLabels).map(([tier, label]) => (
+          <section className="phase3b-group" key={tier}>
+            <h2>{label}</h2>
+            {(groupedDecisions[tier] || []).map((decision) => (
+              <EntityPreviewCard
+                active={String(selectedDecision?.id) === String(decision.id)}
+                kicker={`Decision #${decision.sequence_number}`}
+                key={decision.id}
+                meta={[formatDependencyLine('Blocked by', decision.blocked_by), formatDependencyLine('Blocks', decision.blocks)]}
+                onSelect={() => selectDecision(decision.id)}
+                status={<StatusBadge status={decision.status} />}
+                summary={decision.answer || 'Answer pending.'}
+                tags={entityTagsByKey[`decision:${decision.id}`] || []}
+                title={decision.title}
+                type="Decision"
+              />
+            ))}
+          </section>
+        ))}
+        inspector={(
+          <InspectorPanel
+            badges={selectedDecision ? <CanonTagBadges tags={entityTagsByKey[`decision:${selectedDecision.id}`] || []} /> : null}
+            className="phase3b-detail-panel"
+            collapsed={inspectorCollapsed}
+            emptyText="Decisions are loading. Phase 3B expects 15 seeded records."
+            kicker="Selected Decision"
+            meta={selectedDecision ? `Decision #${selectedDecision.sequence_number}` : null}
+            onToggleCollapsed={() => setInspectorCollapsed((value) => !value)}
+            status={selectedDecision ? <StatusBadge status={selectedDecision.status} /> : null}
+            title={selectedDecision?.title}
+          >
+            {selectedDecision ? (
               <div className="field-grid">
                 <Field title="Question" value={selectedDecision.question} />
                 <Field title="Why First" value={selectedDecision.why_first} />
@@ -88,12 +89,10 @@ export default function DecisionTracker() {
                 <Field title="Blocked By" value={formatList(selectedDecision.blocked_by)} />
                 <Field title="Blocks" value={formatList(selectedDecision.blocks)} />
               </div>
-            </>
-          ) : (
-            <div className="placeholder-block">Decisions are loading. Phase 3B expects 15 seeded records.</div>
-          )}
-        </article>
-      </div>
+            ) : null}
+          </InspectorPanel>
+        )}
+      />
     </section>
   );
 }
@@ -124,12 +123,8 @@ function formatList(value) {
   return list.length ? list.map((item) => `#${item}`).join(', ') : 'None';
 }
 
-function DependencyLine({ label, value }) {
-  return (
-    <span className="dependency-line">
-      {label}: {formatList(value)}
-    </span>
-  );
+function formatDependencyLine(label, value) {
+  return `${label}: ${formatList(value)}`;
 }
 
 function Field({ title, value }) {
