@@ -37,6 +37,7 @@ const views = {
 
 export default function AppShell() {
   const activeView = useRevivalStore((state) => state.activeView);
+  const navMode = useRevivalStore((state) => state.navMode);
   const searchOpen = useRevivalStore((state) => state.searchOpen);
   const settingsOpen = useRevivalStore((state) => state.settingsOpen);
   const hydratePhaseOneData = useRevivalStore((state) => state.hydratePhaseOneData);
@@ -47,7 +48,7 @@ export default function AppShell() {
   }, [hydratePhaseOneData]);
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell nav-${navMode} view-${activeView} ${['session', 'bible', 'living-docs'].includes(activeView) ? 'workspace-wide' : ''}`}>
       <NavRail />
       <main className="main-column">
         <TopBar />

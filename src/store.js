@@ -7,7 +7,13 @@ const initialLivingDocs = {
   caroline_map: []
 };
 
+const getSavedNavMode = () => {
+  if (typeof localStorage === 'undefined') return 'expanded';
+  return localStorage.getItem('revival-nav-mode') === 'compact' ? 'compact' : 'expanded';
+};
+
 export const useRevivalStore = create((set, get) => ({
+  navMode: getSavedNavMode(),
   activeView: 'dashboard',
   activeNodeId: null,
   activeEpisodeId: null,
@@ -67,6 +73,17 @@ export const useRevivalStore = create((set, get) => ({
       navigationHistory: [createNavigationSnapshot(state), ...state.navigationHistory].slice(0, 20)
     };
   }),
+  setNavMode: (navMode) => {
+    const normalizedMode = navMode === 'compact' ? 'compact' : 'expanded';
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('revival-nav-mode', normalizedMode);
+    }
+    set({ navMode: normalizedMode });
+  },
+  toggleNavMode: () => {
+    const nextMode = get().navMode === 'compact' ? 'expanded' : 'compact';
+    get().setNavMode(nextMode);
+  },
   setActiveNodeId: (activeNodeId) => set({ activeNodeId }),
   setActiveEpisodeId: (activeEpisodeId) => set({ activeEpisodeId }),
   setActiveEpisodeSeason: (activeEpisodeSeason) => set({ activeEpisodeSeason }),

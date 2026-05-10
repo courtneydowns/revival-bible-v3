@@ -3,7 +3,7 @@
 Rolling current-task file. Keep this short and update it at the start of each phase.
 
 ## Current Phase / Task
-Phase 15 — Single AI Session Workflow Foundation.
+Phase 16A — Navigation + workspace width polish.
 
 ## Latest Commit
 b62b565 Phase 7: Add tag and status management
@@ -15,16 +15,14 @@ b62b565 Phase 7: Add tag and status management
 - Phase 15 Electron-runtime smoke passed for OpenAI and Anthropic one-response sessions, local save, reload persistence, and reopen.
 
 ## Known Failures
-- User-verified failures remain: Template Instructions and prompt/template fields still cannot be edited, generation toast still does not appear, and prior fixes may not be visible in the user runtime.
+- None for Phase 16A before implementation.
 
 ## Latest Fix
-- Added temporary Phase 15 runtime canaries to prove the rendered code path: visible debug banner, isolated local-state DEBUG EDIT TEST textarea with live value echo, and DEBUG SHOW TOAST button using the same global toast path as generation.
-- Diagnostic result found the canary textarea and DEBUG SHOW TOAST worked, while the in-composer Template Instructions control still missed the native edit path; Template Instructions is now moved to the same top-level panel pattern as the working canary and wired into prompt assembly.
+- Phase 15 passed: AI Sessions can generate OpenAI and Claude one-response sessions, edit Template Instructions, persist history, and show inline success feedback.
 
 ## Allowed Files
 - docs/ACTIVE_SCOPE.md
-- docs/CURRENT_STATE.md after successful verification only
-- Focused Electron main/preload, store, and UI files required for one-response AI session creation and local history
+- Focused UI, store, and CSS files required for navigation collapse, workspace width, AI Sessions history collapse, and Phase 16A workflow polish
 - Focused smoke-test notes under docs/SMOKE_TESTS/ if needed
 
 ## Forbidden Files
@@ -39,23 +37,20 @@ b62b565 Phase 7: Add tag and status management
 - Tag/status changes unless strictly required
 
 ## Patch Class
-Focused additive AI session workflow foundation.
+Focused UI polish for navigation width and AI Sessions workflow ergonomics.
 
 ## Acceptance Criteria
-- User can choose one Session Context source and one Template, add instructions, send one prompt, and receive one provider response.
-- OpenAI Responses API and Anthropic Messages API calls stay in Electron main only.
-- API keys are never exposed in renderer, UI, logs, IPC responses, or errors.
-- Prompt assembly is deterministic and local to the renderer.
-- Sessions save provider, model, prompt, response, and timestamps locally.
-- Session history persists after reload and prior sessions reopen for viewing.
-- Session Context, templates, Copy Full Prompt, search, and inspector/navigation behavior are preserved.
-- Phase 8 navigation/back behavior, inspector stability, Context Pack persistence, search/tag systems, and existing linking behavior are preserved.
-- No chat UI, screenplay generation, streaming, embeddings, vector DB/search, memory orchestration, semantic search, large schema rewrites, broad navigation redesign, or broad export system.
-- Final report is concise and names unresolved blockers.
+- Left navigation supports expanded and compact/icon-only modes and remembers the state locally.
+- AI Sessions, Story Bible, and Living Documents gain more usable width.
+- AI Sessions history supports expanded, compact, and collapsed modes.
+- AI Sessions response area is the primary visual focus, with calmer spacing and reduced scroll pressure.
+- Additional Instructions clears when provider or model changes.
+- Inline generation success feedback remains near Generate.
+- OpenAI/gpt-4.1 and Claude/claude-sonnet-4-6 generation still work.
+- Context Packs still opens normally.
 
 ## Verification
-- `npm run build` passed on 2026-05-10.
-- Electron/Vite were fully killed and `npm run dev` relaunched on 2026-05-10. Hard-runtime canary smoke passed: visible `PHASE 15 DEBUG CANARY ACTIVE`; DEBUG EDIT TEST accepted `DEBUG CAN TYPE` and live echo updated; DEBUG SHOW TOAST showed the global toast; Template Instructions accepted `USER CAN TYPE HERE` and draft length updated to 227; OpenAI/gpt-4.1 generation and Claude/claude-sonnet-4-6 generation both showed visible top-right global toast and Last toast debug.
+- Pending Phase 16A verification.
 
 ## Report Format
 - Files changed.

@@ -1,4 +1,4 @@
-import { Copy, Play, RotateCcw } from 'lucide-react';
+import { Copy, List, PanelRightClose, PanelRightOpen, Play, RotateCcw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import {
   assembleContextPackPrompt,
@@ -18,6 +18,12 @@ const defaultModels = {
   openai: 'gpt-4.1'
 };
 
+const getSavedHistoryMode = () => {
+  if (typeof localStorage === 'undefined') return 'expanded';
+  const mode = localStorage.getItem('revival-ai-history-mode');
+  return ['expanded', 'compact', 'collapsed'].includes(mode) ? mode : 'expanded';
+};
+
 export default function SessionInterface() {
   const [contextPackId, setContextPackId] = useState('');
   const [provider, setProvider] = useState('openai');
@@ -30,6 +36,7 @@ export default function SessionInterface() {
   const [sessionToHydrateId, setSessionToHydrateId] = useState(null);
   const [status, setStatus] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [historyMode, setHistoryMode] = useState(getSavedHistoryMode);
   const [customPromptTemplates] = useState(() => loadCustomPromptTemplates());
   const contextPacks = useRevivalStore((state) => state.contextPacks);
   const characters = useRevivalStore((state) => state.characters);
@@ -175,6 +182,7 @@ export default function SessionInterface() {
 
     setProvider(normalizedProvider);
     setModels(nextModels);
+    setAdditionalInstructions('');
     await saveProviderPreferences(normalizedProvider, nextModels);
   };
 
@@ -185,6 +193,15 @@ export default function SessionInterface() {
     };
 
     setModels(nextModels);
+    setAdditionalInstructions('');
+  };
+
+  const changeHistoryMode = (nextMode) => {
+    const normalizedMode = ['expanded', 'compact', 'collapsed'].includes(nextMode) ? nextMode : 'expanded';
+    setHistoryMode(normalizedMode);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('revival-ai-history-mode', normalizedMode);
+    }
   };
 
   const startSession = async () => {
@@ -245,7 +262,7 @@ export default function SessionInterface() {
         </div>
       </div>
 
-      <div className="session-workspace-grid">
+      <div className={`session-workspace-grid history-${historyMode}`}>
         <article className="panel-card session-composer">
           <div className="session-context-header">
             <h2>Controls</h2>
@@ -372,25 +389,70 @@ export default function SessionInterface() {
 
         <aside className="panel-card session-history-panel">
           <div className="session-context-header">
-            <h2>History</h2>
-            <span>{aiSessions.length}</span>
+            <h2>{historyMode === 'collapsed' ? <List size={16} /> : 'History'}</h2>
+            <div className="session-history-controls">
+              {historyMode !== 'collapsed' ? <span>{aiSessions.length}</span> : null}
+              <button
+                aria-label="Expand history"
+                className={historyMode === 'expanded' ? 'selected' : ''}
+                onClick={() => changeHistoryMode('expanded')}
+                title="Expand history"
+                type="button"
+              >
+                <PanelRightOpen size={14} />
+              </button>
+              <button
+                aria-label="Compact history"
+                className={historyMode === 'compact' ? 'selected' : ''}
+                onClick={() => changeHistoryMode('compact')}
+                title="Compact history"
+                type="button"
+              >
+                <List size={14} />
+              </button>
+              <button
+                aria-label="Collapse history"
+                className={historyMode === 'collapsed' ? 'selected' : ''}
+                onClick={() => changeHistoryMode('collapsed')}
+                title="Collapse history"
+                type="button"
+              >
+                <PanelRightClose size={14} />
+              </button>
+            </div>
           </div>
-          <div className="session-history-list">
+          {historyMode !== 'collapsed' ? <div className="session-history-list">
             {aiSessions.length ? aiSessions.map((session) => (
               <button
                 className={`session-history-item ${activeAiSession?.id === session.id ? 'selected' : ''}`}
                 key={session.id}
                 onClick={() => openSavedSession(session.id)}
+                title={`${formatProvider(session.provider)} / ${session.model || 'model unset'} / ${formatDate(session.created_at)}`}
                 type="button"
               >
                 <strong>{formatProvider(session.provider)}</strong>
-                <span>{session.model || 'model unset'}</span>
-                <span>{formatDate(session.created_at)}</span>
+                {historyMode === 'expanded' ? <span>{session.model || 'model unset'}</span> : null}
+                {historyMode === 'expanded' ? <span>{formatDate(session.created_at)}</span> : null}
               </button>
             )) : (
               <div className="placeholder-block">No AI sessions saved yet.</div>
             )}
-          </div>
+          </div> : (
+            <div className="session-history-list collapsed-list" aria-label="Collapsed session history">
+              {aiSessions.length ? aiSessions.map((session) => (
+                <button
+                  aria-label={`Open ${formatProvider(session.provider)} session from ${formatDate(session.created_at)}`}
+                  className={`session-history-item ${activeAiSession?.id === session.id ? 'selected' : ''}`}
+                  key={session.id}
+                  onClick={() => openSavedSession(session.id)}
+                  title={`${formatProvider(session.provider)} / ${session.model || 'model unset'} / ${formatDate(session.created_at)}`}
+                  type="button"
+                >
+                  <strong>{formatProvider(session.provider).slice(0, 1)}</strong>
+                </button>
+              )) : null}
+            </div>
+          )}
         </aside>
       </div>
     </section>

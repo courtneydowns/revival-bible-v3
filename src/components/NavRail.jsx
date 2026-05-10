@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BookOpen, Brain, Boxes, ChevronRight, CircleHelp, Clock3, FileStack, GitBranch, LayoutDashboard, Map, MessageSquareText, Network, Users } from 'lucide-react';
+import { BookOpen, Brain, Boxes, ChevronLeft, ChevronRight, CircleHelp, Clock3, FileStack, GitBranch, LayoutDashboard, Map, MessageSquareText, Network, PanelLeftClose, PanelLeftOpen, Users } from 'lucide-react';
 import { useRevivalStore } from '../store.js';
 
 const STORY_BIBLE_TREE_ID = 'story-bible';
@@ -21,12 +21,14 @@ const items = [
 
 export default function NavRail() {
   const activeView = useRevivalStore((state) => state.activeView);
+  const navMode = useRevivalStore((state) => state.navMode);
   const activeNodeId = useRevivalStore((state) => state.activeNodeId);
   const expandedNodes = useRevivalStore((state) => state.expandedNodes);
   const nodeTree = useRevivalStore((state) => state.nodeTree);
   const loadNodeTree = useRevivalStore((state) => state.loadNodeTree);
   const setActiveView = useRevivalStore((state) => state.setActiveView);
   const setNodeExpanded = useRevivalStore((state) => state.setNodeExpanded);
+  const toggleNavMode = useRevivalStore((state) => state.toggleNavMode);
   const toggleExpandedNode = useRevivalStore((state) => state.toggleExpandedNode);
   const selectNode = useRevivalStore((state) => state.selectNode);
   const storyBibleExpanded = expandedNodes.includes(STORY_BIBLE_TREE_ID);
@@ -45,10 +47,25 @@ export default function NavRail() {
   }, [loadNodeTree, nodeTree.length]);
 
   return (
-    <nav className="nav-rail">
+    <nav className={`nav-rail ${navMode === 'compact' ? 'compact' : ''}`}>
       <div className="brand">
-        <div className="brand-title">Revival Bible v3</div>
-        <div className="brand-subtitle">local story memory</div>
+        {navMode === 'compact' ? (
+          <div className="brand-mark">RB</div>
+        ) : (
+          <>
+            <div className="brand-title">Revival Bible v3</div>
+            <div className="brand-subtitle">local story memory</div>
+          </>
+        )}
+        <button
+          aria-label={navMode === 'compact' ? 'Expand navigation' : 'Collapse navigation'}
+          className="nav-collapse-button"
+          onClick={toggleNavMode}
+          title={navMode === 'compact' ? 'Expand navigation' : 'Collapse navigation'}
+          type="button"
+        >
+          {navMode === 'compact' ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+        </button>
       </div>
       <div className="nav-list">
         {items.map(([id, label, Icon]) => {
@@ -56,12 +73,15 @@ export default function NavRail() {
             return (
               <button
                 className={`nav-button ${activeView === id ? 'active' : ''}`}
+                data-tooltip={label}
                 key={id}
                 onClick={() => setActiveView(id)}
+                title={label}
                 type="button"
               >
                 <Icon size={17} />
-                <span>{label}</span>
+                <span className="nav-label">{label}</span>
+                <span className="nav-tooltip" aria-hidden="true">{label}</span>
               </button>
             );
           }
@@ -71,6 +91,7 @@ export default function NavRail() {
               <div className={`nav-branch-row ${activeView === id ? 'active' : ''}`}>
                 <button
                   className="nav-branch-label"
+                  data-tooltip={label}
                   onClick={async () => {
                     setActiveView(id);
                     if (!nodeTree.length) {
@@ -80,10 +101,12 @@ export default function NavRail() {
                       setNodeExpanded(STORY_BIBLE_TREE_ID, true);
                     }
                   }}
+                  title={label}
                   type="button"
                 >
                   <Icon size={17} />
-                  <span>{label}</span>
+                  <span className="nav-label">{label}</span>
+                  <span className="nav-tooltip" aria-hidden="true">{label}</span>
                 </button>
                 <button
                   aria-label={storyBibleExpanded ? 'Collapse Story Bible' : 'Expand Story Bible'}
@@ -98,10 +121,12 @@ export default function NavRail() {
                   title={storyBibleExpanded ? 'Collapse Story Bible' : 'Expand Story Bible'}
                   type="button"
                 >
-                  <ChevronRight className={`nav-chevron ${storyBibleExpanded ? 'expanded' : ''}`} size={14} />
+                  {navMode === 'compact'
+                    ? <ChevronLeft className="nav-chevron" size={14} />
+                    : <ChevronRight className={`nav-chevron ${storyBibleExpanded ? 'expanded' : ''}`} size={14} />}
                 </button>
               </div>
-              {storyBibleExpanded ? (
+              {storyBibleExpanded && navMode !== 'compact' ? (
                 <div className="bible-tree">
                   {sections.length ? sections.map((section) => {
                     const expanded = expandedNodes.includes(section.id);
