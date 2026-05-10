@@ -27,8 +27,10 @@ export default function ContextPacks() {
   const [targetType, setTargetType] = useState('character');
   const [targetId, setTargetId] = useState('');
   const [message, setMessage] = useState('');
+  const [generateMessage, setGenerateMessage] = useState('');
   const [copyMessage, setCopyMessage] = useState('');
   const [promptCopyMessage, setPromptCopyMessage] = useState('');
+  const [fullPromptDraft, setFullPromptDraft] = useState('');
   const [customPromptTemplates, setCustomPromptTemplates] = useState(() => loadCustomPromptTemplates());
   const [templateDraftLabel, setTemplateDraftLabel] = useState('');
   const [templateDraftInstructions, setTemplateDraftInstructions] = useState('');
@@ -78,11 +80,11 @@ export default function ContextPacks() {
     : sessionPromptTemplates[0].id;
   const selectedTemplate = getSessionPromptTemplate(selectedTemplateId, promptTemplates);
   const promptTemplatesWithDraft = promptTemplates.map((template) => (
-    template.id === selectedTemplateId && !template.builtIn
+    template.id === selectedTemplateId
       ? {
         ...template,
-        label: templateDraftLabel.trim() || template.label,
-        instructions: templateDraftInstructions.trim() || template.instructions
+        label: template.builtIn ? template.label : templateDraftLabel.trim() || template.label,
+        instructions: templateDraftInstructions
       }
       : template
   ));
@@ -103,11 +105,13 @@ export default function ContextPacks() {
     if (!selectedPack) {
       setDraftTitle('');
       setDraftPurpose('');
+      setGenerateMessage('');
       return;
     }
 
     setDraftTitle(selectedPack.title || '');
     setDraftPurpose(selectedPack.purpose || '');
+    setGenerateMessage('');
   }, [selectedPack?.id, selectedPack?.purpose, selectedPack?.title, selectedPackLinkSignature]);
 
   useEffect(() => {
@@ -121,6 +125,10 @@ export default function ContextPacks() {
     setTemplateDraftInstructions(selectedTemplate.instructions || '');
   }, [selectedTemplate?.id, sessionContext]);
 
+  useEffect(() => {
+    setFullPromptDraft(fullPrompt);
+  }, [fullPrompt]);
+
   const createPack = async (event) => {
     event.preventDefault();
     if (!newTitle.trim() || saving) return;
@@ -130,6 +138,7 @@ export default function ContextPacks() {
       if (response?.ok) {
         setNewTitle('');
         setMessage('Context pack created.');
+        setGenerateMessage('');
       }
       return response;
     });
@@ -145,7 +154,10 @@ export default function ContextPacks() {
         title: draftTitle,
         purpose: draftPurpose
       });
-      if (response?.ok) setMessage('Context pack saved.');
+      if (response?.ok) {
+        setMessage('Context pack saved.');
+        setGenerateMessage('');
+      }
       return response;
     });
   };
@@ -155,7 +167,10 @@ export default function ContextPacks() {
 
     await runAction(async () => {
       const response = await deleteContextPack(selectedPack.id);
-      if (response?.ok) setMessage('Context pack deleted.');
+      if (response?.ok) {
+        setMessage('Context pack deleted.');
+        setGenerateMessage('');
+      }
       return response;
     });
   };
@@ -173,6 +188,7 @@ export default function ContextPacks() {
       if (response?.ok) {
         setTargetId('');
         setMessage('Record added.');
+        setGenerateMessage('');
       }
       return response;
     });
@@ -183,7 +199,10 @@ export default function ContextPacks() {
 
     await runAction(async () => {
       const response = await removeContextPackLink(linkId);
-      if (response?.ok) setMessage('Record removed.');
+      if (response?.ok) {
+        setMessage('Record removed.');
+        setGenerateMessage('');
+      }
       return response;
     });
   };
@@ -210,9 +229,10 @@ export default function ContextPacks() {
         }
       })
     });
-    setCopyMessage('Session context generated.');
+    setGenerateMessage('Session context generated');
+    setCopyMessage('');
     setPromptCopyMessage('');
-    setMessage('Session context generated.');
+    setMessage('');
   };
 
   const selectPromptTemplate = (templateId) => {
@@ -224,6 +244,20 @@ export default function ContextPacks() {
       templateId,
       text: sessionContext
     });
+    setPromptCopyMessage('');
+  };
+
+  const updateSessionContextDraft = (text) => {
+    if (!selectedPack) return;
+
+    setContextPackSessionContext(selectedPack.id, {
+      ...storedSessionContext,
+      signature: sessionContextSignature,
+      templateId: selectedTemplateId,
+      text
+    });
+    setGenerateMessage('');
+    setCopyMessage('');
     setPromptCopyMessage('');
   };
 
@@ -241,6 +275,7 @@ export default function ContextPacks() {
     setTemplateDraftLabel(nextTemplate.label);
     setTemplateDraftInstructions(nextTemplate.instructions);
     setMessage('Custom prompt template created.');
+    setGenerateMessage('');
   };
 
   const savePromptTemplate = () => {
@@ -259,6 +294,7 @@ export default function ContextPacks() {
     setCustomPromptTemplates(nextTemplates);
     setPromptCopyMessage('');
     setMessage('Custom prompt template saved.');
+    setGenerateMessage('');
   };
 
   const deletePromptTemplate = () => {
@@ -269,6 +305,7 @@ export default function ContextPacks() {
     setCustomPromptTemplates(nextTemplates);
     selectPromptTemplate(sessionPromptTemplates[0].id);
     setMessage('Custom prompt template deleted.');
+    setGenerateMessage('');
   };
 
   const copySessionContext = async () => {
@@ -285,10 +322,10 @@ export default function ContextPacks() {
   };
 
   const copyFullPrompt = async () => {
-    if (!fullPrompt) return;
+    if (!fullPromptDraft) return;
 
     try {
-      await writeClipboardText(fullPrompt);
+      await writeClipboardText(fullPromptDraft);
       setPromptCopyMessage('Full prompt copied.');
       setMessage('Full prompt copied.');
     } catch (error) {
@@ -364,6 +401,7 @@ export default function ContextPacks() {
                     />
                   </div>
                   <div className="context-pack-actions">
+                    {generateMessage ? <span className="context-generate-success">{generateMessage}</span> : null}
                     <button className="secondary-button context-generate-button" onClick={generateSessionContext} title="Generate Session Context" type="button">
                       <FileText size={15} />
                       <span>Generate Session Context</span>
@@ -469,7 +507,11 @@ export default function ContextPacks() {
                       ) : null
                     ))}
                   </div>
-                  <textarea readOnly rows={16} value={sessionContext} />
+                  <textarea
+                    onChange={(event) => updateSessionContextDraft(event.target.value)}
+                    rows={16}
+                    value={sessionContext}
+                  />
                   <div className="session-prompt-template-panel" aria-label="Prompt template builder">
                     <div className="session-context-header">
                       <h2>Full Prompt</h2>
@@ -516,14 +558,21 @@ export default function ContextPacks() {
                       <label>
                         <span>Template Instructions</span>
                         <textarea
-                          disabled={!selectedTemplate || selectedTemplate.builtIn}
+                          disabled={!selectedTemplate}
                           onChange={(event) => setTemplateDraftInstructions(event.target.value)}
                           rows={6}
                           value={templateDraftInstructions}
                         />
                       </label>
                     </div>
-                    <textarea readOnly rows={18} value={fullPrompt} />
+                    <textarea
+                      onChange={(event) => {
+                        setFullPromptDraft(event.target.value);
+                        setPromptCopyMessage('');
+                      }}
+                      rows={18}
+                      value={fullPromptDraft}
+                    />
                   </div>
                 </section>
               ) : null}

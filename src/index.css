@@ -1100,6 +1100,12 @@ h1 {
   gap: 7px;
 }
 
+.context-generate-success {
+  align-self: center;
+  color: var(--locked);
+  font-size: 12px;
+}
+
 .session-context-output {
   display: grid;
   gap: 9px;

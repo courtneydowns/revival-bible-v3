@@ -3,7 +3,7 @@
 Rolling current-task file. Keep this short and update it at the start of each phase.
 
 ## Current Phase / Task
-Phase 16A — Navigation + workspace width polish.
+Phase 16B — Session Context / Context Packs workflow polish.
 
 ## Latest Commit
 b62b565 Phase 7: Add tag and status management
@@ -18,11 +18,11 @@ b62b565 Phase 7: Add tag and status management
 - None for Phase 16A before implementation.
 
 ## Latest Fix
-- Phase 15 passed: AI Sessions can generate OpenAI and Claude one-response sessions, edit Template Instructions, persist history, and show inline success feedback.
+- Phase 16A passed: AI Sessions workflow is usable, collapsible nav works, compact nav tooltips work, OpenAI and Claude generation work, and Context Packs still opens.
 
 ## Allowed Files
 - docs/ACTIVE_SCOPE.md
-- Focused UI, store, and CSS files required for navigation collapse, workspace width, AI Sessions history collapse, and Phase 16A workflow polish
+- Focused UI and CSS files required for Context Packs / Session Context editability and inline generation feedback
 - Focused smoke-test notes under docs/SMOKE_TESTS/ if needed
 
 ## Forbidden Files
@@ -37,20 +37,23 @@ b62b565 Phase 7: Add tag and status management
 - Tag/status changes unless strictly required
 
 ## Patch Class
-Focused UI polish for navigation width and AI Sessions workflow ergonomics.
+Focused UI polish for Context Packs / Session Context workflow ergonomics.
 
 ## Acceptance Criteria
-- Left navigation supports expanded and compact/icon-only modes and remembers the state locally.
-- AI Sessions, Story Bible, and Living Documents gain more usable width.
-- AI Sessions history supports expanded, compact, and collapsed modes.
-- AI Sessions response area is the primary visual focus, with calmer spacing and reduced scroll pressure.
-- Additional Instructions clears when provider or model changes.
-- Inline generation success feedback remains near Generate.
+- Context Packs opens normally.
+- Generate Session Context shows inline success feedback near the generate control.
+- Generated session context text can be edited before copy.
+- Prompt template instructions can be edited for the current generated prompt where appropriate.
+- Generated full prompt text can be edited before copy.
+- Copy Full Prompt copies edited prompt text.
+- Context Pack save/delete behavior remains intact.
+- AI Sessions still opens and remains distinct from Context Packs / Session Context.
 - OpenAI/gpt-4.1 and Claude/claude-sonnet-4-6 generation still work.
+- Compact nav still works.
 - Context Packs still opens normally.
 
 ## Verification
-- Pending Phase 16A verification.
+- Pending Phase 16B verification.
 
 ## Report Format
 - Files changed.
