@@ -1,6 +1,10 @@
 import { Clipboard, FileText, Plus, Save, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { assembleContextPackSessionContext } from '../contextPackSessionContext.js';
+import {
+  assembleContextPackPrompt,
+  assembleContextPackSessionContext,
+  sessionPromptTemplates
+} from '../contextPackSessionContext.js';
 import { useRevivalStore } from '../store.js';
 
 const entityTypes = [
@@ -20,6 +24,7 @@ export default function ContextPacks() {
   const [targetId, setTargetId] = useState('');
   const [message, setMessage] = useState('');
   const [copyMessage, setCopyMessage] = useState('');
+  const [promptCopyMessage, setPromptCopyMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const activeContextPackId = useRevivalStore((state) => state.activeContextPackId);
   const contextPacks = useRevivalStore((state) => state.contextPacks);
@@ -60,6 +65,8 @@ export default function ContextPacks() {
   const sessionContextSignature = selectedPack ? `${selectedPack.title || ''}|${selectedPack.purpose || ''}|${selectedPackLinkSignature}` : '';
   const storedSessionContext = selectedPack ? contextPackSessionContexts[selectedPack.id] : null;
   const sessionContext = storedSessionContext?.signature === sessionContextSignature ? storedSessionContext.text : '';
+  const selectedTemplateId = storedSessionContext?.templateId || sessionPromptTemplates[0].id;
+  const fullPrompt = sessionContext ? assembleContextPackPrompt({ sessionContext, templateId: selectedTemplateId }) : '';
 
   useEffect(() => {
     loadContextPacks();
@@ -155,6 +162,7 @@ export default function ContextPacks() {
 
     setContextPackSessionContext(selectedPack.id, {
       signature: sessionContextSignature,
+      templateId: storedSessionContext?.templateId || sessionPromptTemplates[0].id,
       text: assembleContextPackSessionContext({
         title: draftTitle || selectedPack.title,
         purpose: draftPurpose || selectedPack.purpose,
@@ -172,7 +180,20 @@ export default function ContextPacks() {
       })
     });
     setCopyMessage('');
+    setPromptCopyMessage('');
     setMessage('Session context generated.');
+  };
+
+  const selectPromptTemplate = (templateId) => {
+    if (!selectedPack || !sessionContext) return;
+
+    setContextPackSessionContext(selectedPack.id, {
+      ...storedSessionContext,
+      signature: sessionContextSignature,
+      templateId,
+      text: sessionContext
+    });
+    setPromptCopyMessage('');
   };
 
   const copySessionContext = async () => {
@@ -185,6 +206,19 @@ export default function ContextPacks() {
     } catch (error) {
       setCopyMessage('');
       setMessage(error?.message || 'Session context copy failed.');
+    }
+  };
+
+  const copyFullPrompt = async () => {
+    if (!fullPrompt) return;
+
+    try {
+      await writeClipboardText(fullPrompt);
+      setPromptCopyMessage('Full prompt copied.');
+      setMessage('Full prompt copied.');
+    } catch (error) {
+      setPromptCopyMessage('');
+      setMessage(error?.message || 'Full prompt copy failed.');
     }
   };
 
@@ -361,6 +395,27 @@ export default function ContextPacks() {
                     ))}
                   </div>
                   <textarea readOnly rows={16} value={sessionContext} />
+                  <div className="session-prompt-template-panel" aria-label="Prompt template builder">
+                    <div className="session-context-header">
+                      <h2>Full Prompt</h2>
+                      <div className="session-context-copy">
+                        {promptCopyMessage ? <span className="session-context-copy-message">{promptCopyMessage}</span> : null}
+                        <button className="secondary-button context-copy-button" onClick={copyFullPrompt} type="button">
+                          <Clipboard size={15} />
+                          <span>Copy Full Prompt</span>
+                        </button>
+                      </div>
+                    </div>
+                    <label className="session-prompt-template-select">
+                      <span>Prompt Preset</span>
+                      <select onChange={(event) => selectPromptTemplate(event.target.value)} value={selectedTemplateId}>
+                        {sessionPromptTemplates.map((template) => (
+                          <option key={template.id} value={template.id}>{template.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <textarea readOnly rows={18} value={fullPrompt} />
+                  </div>
                 </section>
               ) : null}
               {message ? <p className="editor-message">{message}</p> : null}

@@ -16,6 +16,73 @@ const entityTypeLabels = {
   question: 'Questions'
 };
 
+export const sessionPromptTemplates = [
+  {
+    id: 'writing-session',
+    label: 'Writing Session',
+    instructions: [
+      'Use this context to prepare a focused writing session.',
+      'Prioritize scene goals, emotional continuity, character stakes, and unresolved decisions.',
+      'Call out useful canon constraints before drafting or outlining.'
+    ].join('\n')
+  },
+  {
+    id: 'continuity-check',
+    label: 'Continuity Check',
+    instructions: [
+      'Review this context for continuity risks.',
+      'Identify timeline, character, decision, relationship, and canon-state conflicts.',
+      'Separate confirmed issues from questions that need human review.'
+    ].join('\n')
+  },
+  {
+    id: 'character-voice-pass',
+    label: 'Character Voice Pass',
+    instructions: [
+      'Use this context to check character voice and behavior.',
+      'Focus on motives, wounds, recurring language, relational pressure, and emotional consistency.',
+      'Flag any moment where a character sounds or acts outside the supplied canon.'
+    ].join('\n')
+  },
+  {
+    id: 'episode-planning',
+    label: 'Episode Planning',
+    instructions: [
+      'Use this context to plan episode structure.',
+      'Track story turns, thematic pressure, continuity dependencies, and open questions.',
+      'Keep suggestions compatible with locked canon and the current episode/season shape.'
+    ].join('\n')
+  },
+  {
+    id: 'contradiction-review',
+    label: 'Contradiction Review',
+    instructions: [
+      'Review this context for contradictions and unresolved tensions.',
+      'List direct conflicts, soft conflicts, missing bridge logic, and records that need clarification.',
+      'Do not invent new canon to resolve a contradiction.'
+    ].join('\n')
+  }
+];
+
+export function getSessionPromptTemplate(templateId) {
+  return sessionPromptTemplates.find((template) => template.id === templateId) || sessionPromptTemplates[0];
+}
+
+export function assembleContextPackPrompt({ sessionContext = '', templateId = '' } = {}) {
+  const template = getSessionPromptTemplate(templateId);
+
+  return [
+    '# Prompt Template',
+    '',
+    `## ${template.label}`,
+    template.instructions,
+    '',
+    '# Generated Session Context',
+    '',
+    sessionContext
+  ].join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
 export function assembleContextPackSessionContext({
   entityLinksByKey = {},
   entityTagsByKey = {},
