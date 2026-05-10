@@ -293,7 +293,9 @@ function useContextPackTargetOptions() {
   return useMemo(() => ({
     character: characters.map((character) => ({ id: character.id, title: character.name })),
     episode: episodes.map((episode) => ({ id: episode.id, title: `S${episode.season}E${episode.episode_number} ${episode.title}` })),
-    decision: decisions.map((decision) => ({ id: decision.id, title: `#${decision.sequence_number} ${decision.title}` })),
+    decision: [...decisions]
+      .sort(compareDecisions)
+      .map((decision) => ({ id: decision.id, title: `#${decision.sequence_number} ${decision.title}` })),
     question: questions.map((question) => ({ id: question.id, title: question.question })),
     living_document: Object.values(livingDocs).flat().map((document) => ({
       id: document.id,
@@ -307,8 +309,26 @@ function groupLinksByType(links) {
   return links.reduce((groups, link) => {
     groups[link.entity_type] = groups[link.entity_type] || [];
     groups[link.entity_type].push(link);
+    if (link.entity_type === 'decision') {
+      groups[link.entity_type].sort(compareContextPackLinks);
+    }
     return groups;
   }, {});
+}
+
+function compareDecisions(a, b) {
+  return Number(a.sequence_number || 0) - Number(b.sequence_number || 0)
+    || Number(a.id || 0) - Number(b.id || 0);
+}
+
+function compareContextPackLinks(a, b) {
+  return getDecisionLinkNumber(a) - getDecisionLinkNumber(b)
+    || Number(a.entity_id || 0) - Number(b.entity_id || 0)
+    || Number(a.id || 0) - Number(b.id || 0);
+}
+
+function getDecisionLinkNumber(link) {
+  return Number(String(link.section || '').match(/#(\d+)/)?.[1] || link.entity_id || 0);
 }
 
 function formatDocType(docType) {

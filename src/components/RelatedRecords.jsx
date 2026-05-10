@@ -158,7 +158,9 @@ function useLinkTargetOptions() {
 
   return useMemo(() => ({
     character: characters.map((character) => ({ id: character.id, title: character.name })),
-    decision: decisions.map((decision) => ({ id: decision.id, title: `#${decision.sequence_number} ${decision.title}` })),
+    decision: [...decisions]
+      .sort(compareDecisions)
+      .map((decision) => ({ id: decision.id, title: `#${decision.sequence_number} ${decision.title}` })),
     question: questions.map((question) => ({ id: question.id, title: question.question })),
     episode: episodes.map((episode) => ({ id: episode.id, title: `S${episode.season}E${episode.episode_number} ${episode.title}` })),
     timeline_event: timelineEvents.map((event) => ({ id: event.id, title: event.title })),
@@ -168,6 +170,11 @@ function useLinkTargetOptions() {
     })),
     bible_section: nodeTree.map((node) => ({ id: node.id, title: node.title }))
   }), [characters, decisions, episodes, livingDocs, nodeTree, questions, timelineEvents]);
+}
+
+function compareDecisions(a, b) {
+  return Number(a.sequence_number || 0) - Number(b.sequence_number || 0)
+    || Number(a.id || 0) - Number(b.id || 0);
 }
 
 function formatEntityType(entityType) {

@@ -30,11 +30,12 @@ export default function DecisionTracker() {
   const navigationFocusTick = useRevivalStore((state) => state.navigationFocusTick);
   const loadDecisions = useRevivalStore((state) => state.loadDecisions);
   const selectDecision = useRevivalStore((state) => state.selectDecision);
+  const orderedDecisions = useMemo(() => [...decisions].sort(compareDecisions), [decisions]);
   const selectedDecision = useMemo(
-    () => decisions.find((decision) => String(decision.id) === String(activeDecisionId)) || decisions[0],
-    [activeDecisionId, decisions]
+    () => orderedDecisions.find((decision) => String(decision.id) === String(activeDecisionId)) || orderedDecisions[0],
+    [activeDecisionId, orderedDecisions]
   );
-  const groupedDecisions = useMemo(() => groupByTier(decisions), [decisions]);
+  const groupedDecisions = useMemo(() => groupByTier(orderedDecisions), [orderedDecisions]);
 
   useEffect(() => {
     if (!decisions.length) {
@@ -43,10 +44,10 @@ export default function DecisionTracker() {
   }, [decisions.length, loadDecisions]);
 
   useEffect(() => {
-    if (!activeDecisionId && decisions.length) {
-      selectDecision(decisions[0].id);
+    if (!activeDecisionId && orderedDecisions.length) {
+      selectDecision(orderedDecisions[0].id);
     }
-  }, [activeDecisionId, decisions, selectDecision]);
+  }, [activeDecisionId, orderedDecisions, selectDecision]);
 
   useEffect(() => {
     if (!activeDecisionId) return;
@@ -160,6 +161,11 @@ function groupByTier(decisions) {
     groups[tier].push(decision);
     return groups;
   }, {});
+}
+
+function compareDecisions(a, b) {
+  return Number(a.sequence_number || 0) - Number(b.sequence_number || 0)
+    || Number(a.id || 0) - Number(b.id || 0);
 }
 
 function parseList(value) {
