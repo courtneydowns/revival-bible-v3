@@ -1,4 +1,4 @@
-import { createAiSession, getAiSession, getAiSessions } from './db.js';
+import { createAiSession, deleteAiSession, getAiSession, getAiSessions } from './db.js';
 import { createProviderResponse, getActiveProviderModel } from './config.js';
 
 const placeholder = (feature) => ({
@@ -12,6 +12,13 @@ export function registerAiHandlers(ipcMain) {
   ipcMain.handle('ai:sessions:list', async () => getAiSessions());
   ipcMain.handle('ai:sessions:get', async (_event, id) => getAiSession(id));
   ipcMain.handle('ai:sessions:create', async (_event, payload = {}) => createSingleResponseSession(payload));
+  ipcMain.handle('ai:sessions:delete', async (_event, id) => {
+    try {
+      return deleteAiSession(id);
+    } catch (error) {
+      return { ok: false, message: error?.message || 'AI session delete failed.' };
+    }
+  });
   ipcMain.handle('ai:validate-key', async () => placeholder('validate-key'));
   ipcMain.handle('ai:qa', async () => placeholder('qa'));
   ipcMain.handle('ai:draft-assist', async () => placeholder('draft-assist'));

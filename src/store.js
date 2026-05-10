@@ -313,9 +313,13 @@ export const useRevivalStore = create((set, get) => ({
     const aiSessions = await window.revival?.ai.listSessions();
     const activeAiSessionId = get().activeAiSessionId || aiSessions?.[0]?.id || null;
     const activeAiSession = activeAiSessionId
-      ? aiSessions?.find((session) => String(session.id) === String(activeAiSessionId)) || get().activeAiSession
+      ? aiSessions?.find((session) => String(session.id) === String(activeAiSessionId))
       : null;
-    set({ aiSessions: aiSessions || [], activeAiSessionId, activeAiSession: activeAiSession || null });
+    set({
+      aiSessions: aiSessions || [],
+      activeAiSessionId: activeAiSession?.id || aiSessions?.[0]?.id || null,
+      activeAiSession: activeAiSession || aiSessions?.[0] || null
+    });
     return aiSessions || [];
   },
   selectAiSession: async (sessionId) => {
@@ -341,6 +345,31 @@ export const useRevivalStore = create((set, get) => ({
       activeView: 'session',
       activeAiSessionId: response.session.id,
       activeAiSession: response.session
+    });
+    return response;
+  },
+  deleteAiSession: async (sessionId) => {
+    if (!sessionId) return { ok: false, message: 'AI session is required.' };
+
+    if (!window.revival?.ai?.deleteSession) {
+      return { ok: false, message: 'AI session delete API is unavailable. Restart the app and try again.' };
+    }
+
+    let response;
+    try {
+      response = await window.revival.ai.deleteSession(sessionId);
+    } catch (error) {
+      return { ok: false, message: error?.message || 'AI session delete failed.' };
+    }
+
+    if (!response?.ok) return response;
+
+    const aiSessions = await window.revival?.ai.listSessions();
+    const nextActiveSession = aiSessions?.find((session) => String(session.id) !== String(sessionId)) || null;
+    set({
+      aiSessions: aiSessions || [],
+      activeAiSessionId: nextActiveSession?.id || null,
+      activeAiSession: nextActiveSession
     });
     return response;
   },

@@ -80,6 +80,7 @@ contextBridge.exposeInMainWorld('revival', {
     listSessions: () => invoke('ai:sessions:list'),
     getSession: (id) => invoke('ai:sessions:get', id),
     createSession: (payload) => invoke('ai:sessions:create', payload),
+    deleteSession: (id) => invoke('ai:sessions:delete', id),
     validateKey: (payload) => invoke('ai:validate-key', payload),
     qa: (payload) => invoke('ai:qa', payload),
     draftAssist: (payload) => invoke('ai:draft-assist', payload),

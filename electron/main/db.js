@@ -447,6 +447,20 @@ export function getAiSession(id) {
     .get(id);
 }
 
+export function deleteAiSession(id) {
+  const existing = getAiSession(id);
+  if (!existing) {
+    return { ok: false, message: 'AI session was not found.' };
+  }
+
+  const result = connection.prepare('DELETE FROM ai_sessions WHERE id = ?').run(existing.id);
+  if (!result.changes) {
+    return { ok: false, message: 'AI session delete did not change the database.' };
+  }
+
+  return { ok: true, deletedId: existing.id };
+}
+
 export function createAiSession({
   contextId = '',
   contextType = 'context_pack',

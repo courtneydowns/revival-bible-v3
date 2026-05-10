@@ -1,4 +1,4 @@
-import { Copy, List, PanelRightClose, PanelRightOpen, Play, RotateCcw } from 'lucide-react';
+import { Check, Copy, List, Pencil, PanelRightClose, PanelRightOpen, Play, RotateCcw, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import {
   assembleContextPackPrompt,
@@ -24,6 +24,8 @@ const getSavedHistoryMode = () => {
   return ['expanded', 'compact', 'collapsed'].includes(mode) ? mode : 'expanded';
 };
 
+const customSessionTitleStorageKey = 'revival-ai-session-titles';
+
 export default function SessionInterface() {
   const [contextPackId, setContextPackId] = useState('');
   const [provider, setProvider] = useState('openai');
@@ -32,9 +34,12 @@ export default function SessionInterface() {
   const [templateInstructionsDraft, setTemplateInstructionsDraft] = useState(sessionPromptTemplates[0].instructions);
   const [additionalInstructions, setAdditionalInstructions] = useState('');
   const [copyMessage, setCopyMessage] = useState('');
+  const [customSessionTitles, setCustomSessionTitles] = useState(loadCustomSessionTitles);
+  const [editingTitle, setEditingTitle] = useState(false);
   const [hydratedSessionId, setHydratedSessionId] = useState(null);
   const [sessionToHydrateId, setSessionToHydrateId] = useState(null);
   const [status, setStatus] = useState('');
+  const [titleDraft, setTitleDraft] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [historyMode, setHistoryMode] = useState(getSavedHistoryMode);
   const [customPromptTemplates] = useState(() => loadCustomPromptTemplates());
@@ -52,6 +57,7 @@ export default function SessionInterface() {
   const loadContextPacks = useRevivalStore((state) => state.loadContextPacks);
   const loadAiSessions = useRevivalStore((state) => state.loadAiSessions);
   const createAiSession = useRevivalStore((state) => state.createAiSession);
+  const deleteAiSession = useRevivalStore((state) => state.deleteAiSession);
   const selectAiSession = useRevivalStore((state) => state.selectAiSession);
   const showToast = useRevivalStore((state) => state.showToast);
   const templates = useMemo(() => [...sessionPromptTemplates, ...customPromptTemplates], [customPromptTemplates]);
@@ -89,6 +95,8 @@ export default function SessionInterface() {
       ? assembleContextPackPrompt({ additionalInstructions, sessionContext, templateId, templates: activePromptTemplates })
       : ''
   ), [activePromptTemplates, additionalInstructions, sessionContext, templateId]);
+  const activeSessionTitle = activeAiSession ? getSessionTitle(activeAiSession, customSessionTitles) : '';
+  const sessionStatusTone = status.toLowerCase().includes('failed') ? 'failure' : 'success';
 
   useEffect(() => {
     loadContextPacks();
@@ -162,6 +170,7 @@ export default function SessionInterface() {
 
   const openSavedSession = (sessionId) => {
     setCopyMessage('');
+    setEditingTitle(false);
     setSessionToHydrateId(sessionId);
     selectAiSession(sessionId);
   };
@@ -217,6 +226,7 @@ export default function SessionInterface() {
 
     setSubmitting(true);
     setCopyMessage('');
+    setEditingTitle(false);
     setStatus('Sending prompt to selected provider...');
 
     try {
@@ -251,6 +261,34 @@ export default function SessionInterface() {
     setStatus('');
   };
 
+  const startTitleEdit = () => {
+    if (!activeAiSession) return;
+    setTitleDraft(activeSessionTitle);
+    setEditingTitle(true);
+  };
+
+  const cancelTitleEdit = () => {
+    setTitleDraft('');
+    setEditingTitle(false);
+  };
+
+  const saveTitleEdit = () => {
+    if (!activeAiSession?.id) return;
+
+    const nextTitles = {
+      ...customSessionTitles,
+      [activeAiSession.id]: titleDraft.trim()
+    };
+
+    if (!nextTitles[activeAiSession.id]) {
+      delete nextTitles[activeAiSession.id];
+    }
+
+    persistCustomSessionTitles(nextTitles);
+    setCustomSessionTitles(nextTitles);
+    setEditingTitle(false);
+  };
+
   const copyResponse = async () => {
     if (!activeAiSession?.response) return;
 
@@ -259,6 +297,31 @@ export default function SessionInterface() {
       setCopyMessage('Response copied.');
     } catch {
       setCopyMessage('Response copy failed.');
+    }
+  };
+
+  const confirmDeleteSession = async () => {
+    if (!activeAiSession?.id || submitting) return;
+
+    const confirmed = window.confirm(`Delete "${activeSessionTitle}"? This only removes the selected saved AI session.`);
+    if (!confirmed) return;
+
+    const deletedSessionId = activeAiSession.id;
+    const response = await deleteAiSession(deletedSessionId);
+
+    if (response?.ok) {
+      const nextTitles = { ...customSessionTitles };
+      delete nextTitles[deletedSessionId];
+      persistCustomSessionTitles(nextTitles);
+      setCustomSessionTitles(nextTitles);
+      setCopyMessage('');
+      setEditingTitle(false);
+      setHydratedSessionId(null);
+      setSessionToHydrateId(null);
+      setStatus('Selected session deleted.');
+      showToast('Selected session deleted');
+    } else {
+      setStatus(response?.message || 'AI session delete failed.');
     }
   };
 
@@ -358,8 +421,42 @@ export default function SessionInterface() {
             <h2>{activeAiSession ? 'Selected Session' : 'Latest Session'}</h2>
             {activeAiSession ? <span>{formatProvider(activeAiSession.provider)} / {activeAiSession.model}</span> : null}
           </div>
+          {submitting || status ? (
+            <div className={`session-run-state ${submitting ? 'loading' : sessionStatusTone}`} role="status">
+              <strong>{submitting ? 'Generating session...' : status}</strong>
+              <span>{submitting ? 'Waiting for the selected provider response.' : sessionStatusTone === 'failure' ? 'No session was saved for this attempt.' : 'Session state updated.'}</span>
+            </div>
+          ) : null}
           {activeAiSession ? (
             <>
+              <div className="session-title-row">
+                {editingTitle ? (
+                  <>
+                    <input
+                      aria-label="Session title"
+                      onChange={(event) => setTitleDraft(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') saveTitleEdit();
+                        if (event.key === 'Escape') cancelTitleEdit();
+                      }}
+                      value={titleDraft}
+                    />
+                    <button aria-label="Save session title" className="icon-button" onClick={saveTitleEdit} type="button">
+                      <Check size={14} />
+                    </button>
+                    <button aria-label="Cancel session title edit" className="icon-button" onClick={cancelTitleEdit} type="button">
+                      <X size={14} />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <strong>{activeSessionTitle}</strong>
+                    <button aria-label="Rename session" className="icon-button" onClick={startTitleEdit} type="button" title="Rename session">
+                      <Pencil size={14} />
+                    </button>
+                  </>
+                )}
+              </div>
               <div className="session-response-actions">
                 <button className="secondary-button context-copy-button" onClick={copyResponse} type="button">
                   <Copy size={14} />
@@ -369,6 +466,10 @@ export default function SessionInterface() {
                 <button className="secondary-button" disabled={!selectedPack || !finalPrompt || submitting} onClick={startSession} type="button">
                   <RotateCcw size={14} />
                   <span>Re-run</span>
+                </button>
+                <button className="secondary-button danger-button" disabled={submitting} onClick={confirmDeleteSession} type="button">
+                  <Trash2 size={14} />
+                  <span>Delete</span>
                 </button>
               </div>
               <div className="session-response-grid">
@@ -388,10 +489,14 @@ export default function SessionInterface() {
           ) : (
             <section className="prompt-preview" aria-label="Final prompt preview">
               <div className="session-context-header">
-                <h3>Prompt Preview</h3>
+                <h3>No Session Selected</h3>
                 <span>{finalPrompt.length.toLocaleString()} chars</span>
               </div>
-              <pre>{finalPrompt || 'Create a context pack before starting an AI session.'}</pre>
+              <div className="session-empty-state">
+                <strong>{aiSessions.length ? 'Choose a saved session from history.' : 'No AI sessions saved yet.'}</strong>
+                <span>{finalPrompt ? 'Your current prompt preview is ready below.' : 'Create a context pack before starting an AI session.'}</span>
+              </div>
+              {finalPrompt ? <pre>{finalPrompt}</pre> : null}
             </section>
           )}
         </article>
@@ -433,23 +538,27 @@ export default function SessionInterface() {
           {historyMode !== 'collapsed' ? <div className="session-history-list">
             {aiSessions.length ? aiSessions.map((session) => {
               const isSelected = activeAiSession?.id === session.id;
+              const sessionTitle = getSessionTitle(session, customSessionTitles);
 
               return (
-                <button
+                <div
                   aria-current={isSelected ? 'true' : undefined}
                   className={`session-history-item ${isSelected ? 'selected' : ''}`}
                   key={session.id}
-                  onClick={() => openSavedSession(session.id)}
-                  title={`${formatProvider(session.provider)} / ${session.model || 'model unset'} / ${formatDate(session.created_at)}`}
-                  type="button"
                 >
-                  <strong>
-                    <span>{formatProvider(session.provider)}</span>
-                    {isSelected ? <span className="session-history-current">Current</span> : null}
-                  </strong>
+                  <button
+                    onClick={() => openSavedSession(session.id)}
+                    title={`${sessionTitle} / ${formatProvider(session.provider)} / ${session.model || 'model unset'} / ${formatDate(session.created_at)}`}
+                    type="button"
+                  >
+                    <strong>
+                      <span>{sessionTitle}</span>
+                      {isSelected ? <span className="session-history-current">Current</span> : null}
+                    </strong>
+                  </button>
                   {historyMode === 'expanded' ? <span>{session.model || 'model unset'}</span> : null}
                   {historyMode === 'expanded' ? <span>{formatDate(session.created_at)}</span> : null}
-                </button>
+                </div>
               );
             }) : (
               <div className="placeholder-block">No AI sessions saved yet.</div>
@@ -458,6 +567,7 @@ export default function SessionInterface() {
             <div className="session-history-list collapsed-list" aria-label="Collapsed session history">
               {aiSessions.length ? aiSessions.map((session) => {
                 const isSelected = activeAiSession?.id === session.id;
+                const sessionTitle = getSessionTitle(session, customSessionTitles);
 
                 return (
                   <button
@@ -466,10 +576,10 @@ export default function SessionInterface() {
                     className={`session-history-item ${isSelected ? 'selected' : ''}`}
                     key={session.id}
                     onClick={() => openSavedSession(session.id)}
-                    title={`${formatProvider(session.provider)} / ${session.model || 'model unset'} / ${formatDate(session.created_at)}`}
+                    title={`${sessionTitle} / ${formatProvider(session.provider)} / ${session.model || 'model unset'} / ${formatDate(session.created_at)}`}
                     type="button"
                   >
-                    <strong>{formatProvider(session.provider).slice(0, 1)}</strong>
+                    <strong>{sessionTitle.slice(0, 1).toUpperCase()}</strong>
                   </button>
                 );
               }) : null}
@@ -498,6 +608,59 @@ function formatDate(value) {
 
 function getTemplateInstructions(templateId, templates) {
   return templates.find((template) => template.id === templateId)?.instructions || '';
+}
+
+function loadCustomSessionTitles() {
+  if (typeof localStorage === 'undefined') return {};
+
+  try {
+    return JSON.parse(localStorage.getItem(customSessionTitleStorageKey) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function persistCustomSessionTitles(titles) {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.setItem(customSessionTitleStorageKey, JSON.stringify(titles));
+}
+
+function getSessionTitle(session, customTitles = {}) {
+  const customTitle = customTitles[session.id]?.trim();
+  if (customTitle) return customTitle;
+
+  const instructionTitle = titleFromUserInstructions(session.user_instructions);
+  if (instructionTitle) return instructionTitle;
+
+  const promptTitle = titleFromPrompt(session.prompt);
+  if (promptTitle) return promptTitle;
+
+  return `${formatProvider(session.provider)} session`;
+}
+
+function titleFromUserInstructions(instructions = '') {
+  const clean = cleanTitleLine(instructions);
+  return clean ? limitTitle(clean) : '';
+}
+
+function titleFromPrompt(prompt = '') {
+  const text = String(prompt || '');
+  const templateMatch = text.match(/##\s+(.+)/);
+  const contextMatch = text.match(/Context Pack:\s*(.+)/i);
+  const candidate = cleanTitleLine(contextMatch?.[1] || templateMatch?.[1] || '');
+  return candidate ? limitTitle(candidate) : '';
+}
+
+function cleanTitleLine(value = '') {
+  return String(value || '')
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^[-*#\s]+/, '').trim())
+    .find(Boolean) || '';
+}
+
+function limitTitle(value = '') {
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  return normalized.length > 54 ? `${normalized.slice(0, 51)}...` : normalized;
 }
 
 function extractTemplateInstructions(prompt = '') {
