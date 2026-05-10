@@ -900,7 +900,9 @@ h1 {
 .context-pack-actions {
   display: flex;
   flex: 0 0 auto;
+  flex-wrap: wrap;
   gap: 7px;
+  justify-content: flex-end;
 }
 
 .context-pack-purpose {
@@ -933,6 +935,118 @@ h1 {
 
 .context-pack-group h2 {
   margin: 0;
+}
+
+.context-generate-button,
+.context-copy-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.session-context-output {
+  display: grid;
+  gap: 9px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.session-context-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.session-context-header h2 {
+  margin: 0;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.session-context-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.session-context-copy-message {
+  color: var(--locked);
+  font-size: 12px;
+}
+
+.session-context-records {
+  display: grid;
+  gap: 10px;
+}
+
+.session-context-record-group {
+  display: grid;
+  gap: 6px;
+}
+
+.session-context-record-group h3 {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.session-context-record-group div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.session-context-record-group button {
+  display: grid;
+  max-width: 260px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg-soft);
+  color: var(--text);
+  cursor: pointer;
+  gap: 2px;
+  padding: 7px 9px;
+  text-align: left;
+}
+
+.session-context-record-group button:hover {
+  border-color: var(--line-strong);
+  background: #2b2925;
+}
+
+.session-context-record-group button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.session-context-record-group span {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.session-context-record-group strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-context-output textarea {
+  width: 100%;
+  min-height: 280px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #10100f;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.55;
+  padding: 12px;
+  resize: vertical;
 }
 
 .danger-button:hover {

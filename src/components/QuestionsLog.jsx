@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useRevivalStore } from '../store.js';
 import CanonTagBadges from './CanonTagBadges.jsx';
 import StatusBadge from './StatusBadge.jsx';
@@ -13,9 +13,13 @@ const urgencyLabels = {
 };
 
 export default function QuestionsLog() {
+  const appliedNavigationFocusTick = useRef(0);
+  const questionCardRefs = useRef(new Map());
+  const detailPanelRef = useRef(null);
   const activeQuestionId = useRevivalStore((state) => state.activeQuestionId);
   const questions = useRevivalStore((state) => state.questions);
   const entityTagsByKey = useRevivalStore((state) => state.entityTagsByKey);
+  const navigationFocusTick = useRevivalStore((state) => state.navigationFocusTick);
   const loadQuestions = useRevivalStore((state) => state.loadQuestions);
   const selectQuestion = useRevivalStore((state) => state.selectQuestion);
   const selectedQuestion = useMemo(
@@ -36,6 +40,20 @@ export default function QuestionsLog() {
     }
   }, [activeQuestionId, questions, selectQuestion]);
 
+  useEffect(() => {
+    if (!activeQuestionId || !navigationFocusTick) return;
+    if (appliedNavigationFocusTick.current === navigationFocusTick) return;
+
+    appliedNavigationFocusTick.current = navigationFocusTick;
+    const card = questionCardRefs.current.get(String(activeQuestionId));
+    card?.scrollIntoView({ block: 'center', behavior: 'auto' });
+    card?.focus({ preventScroll: true });
+
+    if (detailPanelRef.current) {
+      detailPanelRef.current.scrollTo({ top: 0, behavior: 'auto' });
+    }
+  }, [activeQuestionId, navigationFocusTick, questions.length]);
+
   return (
     <section className="view phase3b-view">
       <div className="eyebrow">Questions</div>
@@ -52,6 +70,13 @@ export default function QuestionsLog() {
                   className={`phase3b-card ${String(selectedQuestion?.id) === String(question.id) ? 'selected' : ''}`}
                   key={question.id}
                   onClick={() => selectQuestion(question.id)}
+                  ref={(node) => {
+                    if (node) {
+                      questionCardRefs.current.set(String(question.id), node);
+                    } else {
+                      questionCardRefs.current.delete(String(question.id));
+                    }
+                  }}
                   type="button"
                 >
                   <div className="phase3b-card-topline">
@@ -65,7 +90,7 @@ export default function QuestionsLog() {
           ))}
         </aside>
 
-        <article className="detail-panel phase3b-detail-panel">
+        <article className="detail-panel phase3b-detail-panel" ref={detailPanelRef}>
           {selectedQuestion ? (
             <>
               <div className="document-header">

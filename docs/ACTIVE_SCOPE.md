@@ -3,7 +3,7 @@
 Rolling current-task file. Keep this short and update it at the start of each phase.
 
 ## Current Phase / Task
-Phase 9 — AI Context Pack Foundation.
+Phase 10 — Session Prep + Prompt Assembly Foundation.
 
 ## Latest Commit
 b62b565 Phase 7: Add tag and status management
@@ -19,27 +19,29 @@ b62b565 Phase 7: Add tag and status management
 ## Allowed Files
 - docs/ACTIVE_SCOPE.md
 - docs/CURRENT_STATE.md after successful verification only
-- Focused UI, store, schema, persistence, preload/main bridge, and seed files required for Context Packs
+- Focused UI and utility files required for lightweight Context Pack session-context assembly
 - Focused smoke-test notes under docs/SMOKE_TESTS/ if needed
 
 ## Forbidden Files
 - AI API integration
-- Prompt generation
+- Streaming chat
+- Embeddings, vector DB/search, memory orchestration, semantic search
+- Large schema rewrites
 - Export system
 - Broad search refactor
 - Broad schema/store/navigation redesigns
 - Tag/status changes unless strictly required
 
 ## Patch Class
-PERSISTENCE plus focused UI addition for Context Packs.
+Focused UI addition plus lightweight context assembly utility for Context Packs.
 
 ## Acceptance Criteria
-- Context Packs workspace/nav entry exists.
-- User can create, rename/edit, delete, and persist context packs locally.
-- User can add/remove linked existing records and view included records grouped by type.
-- Notes/purpose field is editable and persisted.
-- Linked records open from a pack and return safely via existing back behavior.
-- No AI API, prompt generation, export, broad search, broad schema, inspector, navigation, or tag/status redesign.
+- Context Pack detail view has a Generate Session Context action.
+- Generated context is structured, readable, and grouped by record/entity type.
+- Output includes titles/names, summaries/descriptions, useful tags/status, and lightweight linked-record references where already available.
+- Generated output can be copied to clipboard.
+- Phase 8 navigation/back behavior, inspector stability, Context Pack persistence, search/tag systems, and existing linking behavior are preserved.
+- No AI APIs, streaming chat, embeddings, vector DB/search, memory orchestration, semantic search, large schema rewrites, broad navigation redesign, or broad export system.
 - Final report is concise and names unresolved blockers.
 
 ## Verification

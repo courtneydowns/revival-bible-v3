@@ -1,5 +1,6 @@
-import { Plus, Save, Trash2, X } from 'lucide-react';
+import { Clipboard, FileText, Plus, Save, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { assembleContextPackSessionContext } from '../contextPackSessionContext.js';
 import { useRevivalStore } from '../store.js';
 
 const entityTypes = [
@@ -18,23 +19,35 @@ export default function ContextPacks() {
   const [targetType, setTargetType] = useState('character');
   const [targetId, setTargetId] = useState('');
   const [message, setMessage] = useState('');
+  const [copyMessage, setCopyMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const activeContextPackId = useRevivalStore((state) => state.activeContextPackId);
   const contextPacks = useRevivalStore((state) => state.contextPacks);
+  const contextPackSessionContexts = useRevivalStore((state) => state.contextPackSessionContexts);
   const loadContextPacks = useRevivalStore((state) => state.loadContextPacks);
   const setActiveContextPackId = useRevivalStore((state) => state.setActiveContextPackId);
+  const setContextPackSessionContext = useRevivalStore((state) => state.setContextPackSessionContext);
   const createContextPack = useRevivalStore((state) => state.createContextPack);
   const updateContextPack = useRevivalStore((state) => state.updateContextPack);
   const deleteContextPack = useRevivalStore((state) => state.deleteContextPack);
   const addContextPackLink = useRevivalStore((state) => state.addContextPackLink);
   const removeContextPackLink = useRevivalStore((state) => state.removeContextPackLink);
   const navigateToEntity = useRevivalStore((state) => state.navigateToEntity);
+  const entityLinksByKey = useRevivalStore((state) => state.entityLinksByKey);
+  const entityTagsByKey = useRevivalStore((state) => state.entityTagsByKey);
+  const characters = useRevivalStore((state) => state.characters);
+  const episodes = useRevivalStore((state) => state.episodes);
+  const decisions = useRevivalStore((state) => state.decisions);
+  const questions = useRevivalStore((state) => state.questions);
+  const livingDocs = useRevivalStore((state) => state.livingDocs);
+  const nodeTree = useRevivalStore((state) => state.nodeTree);
   const loadCharacters = useRevivalStore((state) => state.loadCharacters);
   const loadEpisodes = useRevivalStore((state) => state.loadEpisodes);
   const loadDecisions = useRevivalStore((state) => state.loadDecisions);
   const loadQuestions = useRevivalStore((state) => state.loadQuestions);
   const loadLivingDocs = useRevivalStore((state) => state.loadLivingDocs);
   const loadNodeTree = useRevivalStore((state) => state.loadNodeTree);
+  const loadCanonTags = useRevivalStore((state) => state.loadCanonTags);
   const selectedPack = useMemo(
     () => contextPacks.find((pack) => String(pack.id) === String(activeContextPackId)) || contextPacks[0] || null,
     [activeContextPackId, contextPacks]
@@ -43,6 +56,10 @@ export default function ContextPacks() {
   const linkedKeys = new Set((selectedPack?.links || []).map((link) => `${link.entity_type}:${link.entity_id}`));
   const optionsForType = (targetOptions[targetType] || []).filter((option) => !linkedKeys.has(`${targetType}:${option.id}`));
   const groupedLinks = groupLinksByType(selectedPack?.links || []);
+  const selectedPackLinkSignature = (selectedPack?.links || []).map((link) => `${link.entity_type}:${link.entity_id}`).join('|');
+  const sessionContextSignature = selectedPack ? `${selectedPack.title || ''}|${selectedPack.purpose || ''}|${selectedPackLinkSignature}` : '';
+  const storedSessionContext = selectedPack ? contextPackSessionContexts[selectedPack.id] : null;
+  const sessionContext = storedSessionContext?.signature === sessionContextSignature ? storedSessionContext.text : '';
 
   useEffect(() => {
     loadContextPacks();
@@ -52,7 +69,8 @@ export default function ContextPacks() {
     loadQuestions();
     loadLivingDocs();
     loadNodeTree();
-  }, [loadCharacters, loadContextPacks, loadDecisions, loadEpisodes, loadLivingDocs, loadNodeTree, loadQuestions]);
+    loadCanonTags();
+  }, [loadCanonTags, loadCharacters, loadContextPacks, loadDecisions, loadEpisodes, loadLivingDocs, loadNodeTree, loadQuestions]);
 
   useEffect(() => {
     if (!selectedPack) {
@@ -63,7 +81,7 @@ export default function ContextPacks() {
 
     setDraftTitle(selectedPack.title || '');
     setDraftPurpose(selectedPack.purpose || '');
-  }, [selectedPack?.id, selectedPack?.purpose, selectedPack?.title]);
+  }, [selectedPack?.id, selectedPack?.purpose, selectedPack?.title, selectedPackLinkSignature]);
 
   const createPack = async (event) => {
     event.preventDefault();
@@ -130,6 +148,44 @@ export default function ContextPacks() {
       if (response?.ok) setMessage('Record removed.');
       return response;
     });
+  };
+
+  const generateSessionContext = () => {
+    if (!selectedPack) return;
+
+    setContextPackSessionContext(selectedPack.id, {
+      signature: sessionContextSignature,
+      text: assembleContextPackSessionContext({
+        title: draftTitle || selectedPack.title,
+        purpose: draftPurpose || selectedPack.purpose,
+        links: selectedPack.links || [],
+        entityTagsByKey,
+        entityLinksByKey,
+        recordsByType: {
+          bible_section: nodeTree,
+          character: characters,
+          decision: decisions,
+          episode: episodes,
+          living_document: Object.values(livingDocs).flat(),
+          question: questions
+        }
+      })
+    });
+    setCopyMessage('');
+    setMessage('Session context generated.');
+  };
+
+  const copySessionContext = async () => {
+    if (!sessionContext) return;
+
+    try {
+      await writeClipboardText(sessionContext);
+      setCopyMessage('Session context copied.');
+      setMessage('Session context copied.');
+    } catch (error) {
+      setCopyMessage('');
+      setMessage(error?.message || 'Session context copy failed.');
+    }
   };
 
   const runAction = async (action) => {
@@ -199,6 +255,10 @@ export default function ContextPacks() {
                     />
                   </div>
                   <div className="context-pack-actions">
+                    <button className="secondary-button context-generate-button" onClick={generateSessionContext} title="Generate Session Context" type="button">
+                      <FileText size={15} />
+                      <span>Generate Session Context</span>
+                    </button>
                     <button className="icon-button" disabled={saving || !draftTitle.trim()} title="Save context pack" type="submit">
                       <Save size={15} />
                     </button>
@@ -271,6 +331,38 @@ export default function ContextPacks() {
                   <div className="placeholder-block">No records added yet.</div>
                 )}
               </div>
+              {sessionContext ? (
+                <section className="session-context-output" aria-label="Generated session context">
+                  <div className="session-context-header">
+                    <h2>Generated Session Context</h2>
+                    <div className="session-context-copy">
+                      {copyMessage ? <span className="session-context-copy-message">{copyMessage}</span> : null}
+                      <button className="secondary-button context-copy-button" onClick={copySessionContext} type="button">
+                        <Clipboard size={15} />
+                        <span>Copy</span>
+                      </button>
+                    </div>
+                  </div>
+                  <div className="session-context-records" aria-label="Generated context linked records">
+                    {entityTypes.map(([type, label]) => (
+                      groupedLinks[type]?.length ? (
+                        <section className="session-context-record-group" key={type}>
+                          <h3>{label}</h3>
+                          <div>
+                            {groupedLinks[type].map((link) => (
+                              <button disabled={link.missing} key={link.id} onClick={() => navigateToEntity(link.entity_type, link.entity_id)} type="button">
+                                <span>{link.section}</span>
+                                <strong>{link.title}</strong>
+                              </button>
+                            ))}
+                          </div>
+                        </section>
+                      ) : null
+                    ))}
+                  </div>
+                  <textarea readOnly rows={16} value={sessionContext} />
+                </section>
+              ) : null}
               {message ? <p className="editor-message">{message}</p> : null}
             </>
           ) : (
@@ -329,6 +421,32 @@ function compareContextPackLinks(a, b) {
 
 function getDecisionLinkNumber(link) {
   return Number(String(link.section || '').match(/#(\d+)/)?.[1] || link.entity_id || 0);
+}
+
+async function writeClipboardText(text) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+      // Fall back below when Electron exposes clipboard but the document is not focused.
+    }
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  try {
+    const copied = document.execCommand('copy');
+    if (!copied) throw new Error('Clipboard command was not accepted.');
+  } finally {
+    document.body.removeChild(textarea);
+  }
 }
 
 function formatDocType(docType) {

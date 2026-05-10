@@ -32,6 +32,7 @@ export const useRevivalStore = create((set, get) => ({
   decisions: [],
   questions: [],
   contextPacks: [],
+  contextPackSessionContexts: {},
   timelineEvents: [],
   canonTags: [],
   entityTagsByKey: {},
@@ -66,6 +67,12 @@ export const useRevivalStore = create((set, get) => ({
   setActiveDecisionId: (activeDecisionId) => set({ activeDecisionId }),
   setActiveQuestionId: (activeQuestionId) => set({ activeQuestionId }),
   setActiveContextPackId: (activeContextPackId) => set({ activeContextPackId }),
+  setContextPackSessionContext: (contextPackId, sessionContext) => set((state) => ({
+    contextPackSessionContexts: {
+      ...state.contextPackSessionContexts,
+      [contextPackId]: sessionContext
+    }
+  })),
   setActiveTimelineEventId: (activeTimelineEventId) => set({ activeTimelineEventId }),
   setActiveLivingDocType: (activeLivingDocType) => {
     const entries = get().livingDocs[activeLivingDocType] || [];
@@ -243,7 +250,11 @@ export const useRevivalStore = create((set, get) => ({
     const response = await window.revival?.contextPacks.delete(contextPackId);
     if (!response?.ok) return response;
     const contextPacks = await get().loadContextPacks();
-    set({ activeContextPackId: contextPacks[0]?.id || null });
+    set((state) => {
+      const contextPackSessionContexts = { ...state.contextPackSessionContexts };
+      delete contextPackSessionContexts[contextPackId];
+      return { activeContextPackId: contextPacks[0]?.id || null, contextPackSessionContexts };
+    });
     return response;
   },
   addContextPackLink: async (payload) => {

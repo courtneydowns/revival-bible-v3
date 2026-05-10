@@ -14,6 +14,7 @@ Stable completed-phase summary only. Use docs/ACTIVE_SCOPE.md for current work.
 - Phase 7: Tag and status management.
 - Phase 8: Passed navigation regressions for detail scroll reset, back navigation restoration, and scroll visibility.
 - Phase 9: Context Packs foundation for reusable bundles of selected story-bible records, with local persistence and linked-record navigation.
+- Phase 10: Context Packs can generate grouped, copyable session-context text from linked records without AI integrations.
 
 ## Known preferences
 - Keep UI uncluttered.
