@@ -427,6 +427,93 @@ export function removeContextPackLink(linkId) {
   };
 }
 
+export function getAiSessions() {
+  return connection
+    .prepare(`
+      SELECT id, provider, model, context_type, context_id, template_id, user_instructions, prompt, response, created_at, updated_at
+      FROM ai_sessions
+      ORDER BY COALESCE(updated_at, created_at) DESC, id DESC
+    `)
+    .all();
+}
+
+export function getAiSession(id) {
+  return connection
+    .prepare(`
+      SELECT id, provider, model, context_type, context_id, template_id, user_instructions, prompt, response, created_at, updated_at
+      FROM ai_sessions
+      WHERE id = ?
+    `)
+    .get(id);
+}
+
+export function createAiSession({
+  contextId = '',
+  contextType = 'context_pack',
+  model = '',
+  prompt = '',
+  provider = '',
+  response = '',
+  templateId = '',
+  userInstructions = ''
+} = {}) {
+  const normalizedPrompt = String(prompt || '').trim();
+  const normalizedResponse = String(response || '').trim();
+
+  if (!normalizedPrompt) {
+    return { ok: false, message: 'Prompt is required.' };
+  }
+
+  if (!normalizedResponse) {
+    return { ok: false, message: 'Provider response is required.' };
+  }
+
+  const result = connection
+    .prepare(`
+      INSERT INTO ai_sessions (
+        session_type,
+        context_type,
+        context_id,
+        messages,
+        result,
+        provider,
+        model,
+        prompt,
+        response,
+        template_id,
+        user_instructions
+      )
+      VALUES (
+        'single-response',
+        @contextType,
+        @contextId,
+        @prompt,
+        @response,
+        @provider,
+        @model,
+        @prompt,
+        @response,
+        @templateId,
+        @userInstructions
+      )
+    `)
+    .run({
+      contextId: String(contextId || ''),
+      contextType: String(contextType || 'context_pack'),
+      model: String(model || ''),
+      prompt: normalizedPrompt,
+      provider: String(provider || ''),
+      response: normalizedResponse,
+      templateId: String(templateId || ''),
+      userInstructions: String(userInstructions || '').trim()
+    });
+
+  return {
+    ok: true,
+    session: getAiSession(result.lastInsertRowid)
+  };
+}
+
 export function addEntityLink({ sourceType, sourceId, targetType, targetId, relationshipType = 'related', note = '' } = {}) {
   const normalized = normalizeEntityLinkInput({ sourceType, sourceId, targetType, targetId, relationshipType, note });
   validateEntityReference(normalized.source_type, normalized.source_id);

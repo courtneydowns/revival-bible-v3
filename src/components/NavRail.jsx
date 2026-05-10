@@ -12,7 +12,7 @@ const items = [
   ['context-packs', 'Context Packs', Boxes],
   ['decisions', 'Decisions', GitBranch],
   ['questions', 'Questions', CircleHelp],
-  ['session', 'Session', MessageSquareText],
+  ['session', 'AI Sessions', MessageSquareText],
   ['flanagan', 'Flanagan', Brain],
   ['relationship-map', 'Relationship Map', Network],
   ['timeline', 'Timeline', Clock3],

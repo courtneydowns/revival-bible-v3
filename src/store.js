@@ -33,6 +33,9 @@ export const useRevivalStore = create((set, get) => ({
   questions: [],
   contextPacks: [],
   contextPackSessionContexts: {},
+  aiSessions: [],
+  activeAiSessionId: null,
+  activeAiSession: null,
   timelineEvents: [],
   canonTags: [],
   entityTagsByKey: {},
@@ -45,6 +48,10 @@ export const useRevivalStore = create((set, get) => ({
   needsApiKey: false,
   hasUnsaved: false,
   streamingState: null,
+  toastMessage: '',
+  toastId: 0,
+  lastToastMessage: '',
+  lastToastId: 0,
   navigationHistory: [],
   navigationFocusTick: 0,
   databaseInfo: {
@@ -67,6 +74,7 @@ export const useRevivalStore = create((set, get) => ({
   setActiveDecisionId: (activeDecisionId) => set({ activeDecisionId }),
   setActiveQuestionId: (activeQuestionId) => set({ activeQuestionId }),
   setActiveContextPackId: (activeContextPackId) => set({ activeContextPackId }),
+  setActiveAiSessionId: (activeAiSessionId) => set({ activeAiSessionId }),
   setContextPackSessionContext: (contextPackId, sessionContext) => set((state) => ({
     contextPackSessionContexts: {
       ...state.contextPackSessionContexts,
@@ -145,6 +153,17 @@ export const useRevivalStore = create((set, get) => ({
   },
   setHasUnsaved: (hasUnsaved) => set({ hasUnsaved }),
   setStreamingState: (streamingState) => set({ streamingState }),
+  showToast: (toastMessage) => {
+    const message = String(toastMessage || '');
+    const id = Date.now();
+    set({
+      toastMessage: message,
+      toastId: id,
+      lastToastMessage: message,
+      lastToastId: id
+    });
+  },
+  clearToast: () => set({ toastMessage: '' }),
   setNeedsApiKey: (needsApiKey) => set({ needsApiKey }),
   setDatabaseInfo: (databaseInfo) => set({ databaseInfo }),
   loadNodeTree: async () => {
@@ -271,6 +290,41 @@ export const useRevivalStore = create((set, get) => ({
     set((state) => ({
       contextPacks: replaceById(state.contextPacks, response.pack)
     }));
+    return response;
+  },
+  loadAiSessions: async () => {
+    const aiSessions = await window.revival?.ai.listSessions();
+    const activeAiSessionId = get().activeAiSessionId || aiSessions?.[0]?.id || null;
+    const activeAiSession = activeAiSessionId
+      ? aiSessions?.find((session) => String(session.id) === String(activeAiSessionId)) || get().activeAiSession
+      : null;
+    set({ aiSessions: aiSessions || [], activeAiSessionId, activeAiSession: activeAiSession || null });
+    return aiSessions || [];
+  },
+  selectAiSession: async (sessionId) => {
+    if (!sessionId) {
+      set({ activeAiSessionId: null, activeAiSession: null });
+      return null;
+    }
+
+    const localSession = get().aiSessions.find((session) => String(session.id) === String(sessionId));
+    const activeAiSession = localSession || await window.revival?.ai.getSession(sessionId);
+    set({
+      activeView: 'session',
+      activeAiSessionId: activeAiSession?.id || sessionId,
+      activeAiSession: activeAiSession || null
+    });
+    return activeAiSession || null;
+  },
+  createAiSession: async (payload) => {
+    const response = await window.revival?.ai.createSession(payload);
+    if (!response?.ok || !response.session) return response;
+    await get().loadAiSessions();
+    set({
+      activeView: 'session',
+      activeAiSessionId: response.session.id,
+      activeAiSession: response.session
+    });
     return response;
   },
   selectQuestion: async (questionId) => {
@@ -462,7 +516,7 @@ export const useRevivalStore = create((set, get) => ({
     const api = window.revival;
     if (!api) return;
 
-    const [databaseInfo, nodeTree, episodes, characters, decisions, questions, contextPacks, livingRows, timelineEvents, canonTags, entityTagLinks, characterRelationshipCount] = await Promise.all([
+    const [databaseInfo, nodeTree, episodes, characters, decisions, questions, contextPacks, aiSessions, livingRows, timelineEvents, canonTags, entityTagLinks, characterRelationshipCount] = await Promise.all([
       api.app.getDatabaseInfo(),
       api.nodes.getTree(),
       api.episodes.getAll(),
@@ -470,6 +524,7 @@ export const useRevivalStore = create((set, get) => ({
       api.decisions.getAll(),
       api.questions.getAll(),
       api.contextPacks.getAll(),
+      api.ai.listSessions(),
       api.living.getAll(),
       api.timeline.getEvents(),
       api.canon.getTags(),
@@ -480,7 +535,23 @@ export const useRevivalStore = create((set, get) => ({
     const livingDocs = groupLivingDocs(livingRows || []);
     const entityTagsByKey = groupEntityTags(entityTagLinks || []);
 
-    set({ databaseInfo, nodeTree, episodes, characters, decisions, questions, contextPacks: contextPacks || [], livingDocs, timelineEvents: timelineEvents || [], canonTags: canonTags || [], entityTagsByKey, characterRelationshipCount });
+    set({
+      databaseInfo,
+      nodeTree,
+      episodes,
+      characters,
+      decisions,
+      questions,
+      contextPacks: contextPacks || [],
+      aiSessions: aiSessions || [],
+      activeAiSessionId: get().activeAiSessionId || aiSessions?.[0]?.id || null,
+      activeAiSession: get().activeAiSession || aiSessions?.[0] || null,
+      livingDocs,
+      timelineEvents: timelineEvents || [],
+      canonTags: canonTags || [],
+      entityTagsByKey,
+      characterRelationshipCount
+    });
   }
 }));
 
@@ -556,6 +627,8 @@ function createNavigationSnapshot(state) {
     activeDecisionId: state.activeDecisionId,
     activeQuestionId: state.activeQuestionId,
     activeContextPackId: state.activeContextPackId,
+    activeAiSessionId: state.activeAiSessionId,
+    activeAiSession: state.activeAiSession,
     activeTimelineEventId: state.activeTimelineEventId,
     activeLivingDocType: state.activeLivingDocType,
     activeLivingDocEntryId: state.activeLivingDocEntryId,

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, screen, shell } from 'electron';
+import { app, BrowserWindow, clipboard, ipcMain, screen, shell } from 'electron';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { addContextPackLink, addEntityLink, addEntityTag, closeDatabase, createContextPack, deleteContextPack, ensureSearchIndex, getCanonTags, getCharacter, getCharacterRelationshipCount, getCharacterRelationships, getCharacters, getContextPacks, getDatabaseInfo, getDecision, getDecisionBlockers, getDecisions, getEntityLinks, getEntityTagLinks, getEpisode, getEpisodes, getEpisodesBySeason, getLatestNodeContent, getLivingDocumentEntry, getLivingDocuments, getLivingDocumentsByType, getNode, getNodeTree, getQuestion, getQuestions, getTimelineEvent, getTimelineEvents, initDatabase, removeContextPackLink, removeEntityLink, removeEntityTag, updateContextPack, updateEntityStatus } from './db.js';
@@ -61,6 +61,10 @@ function registerCoreHandlers() {
   ipcMain.handle('config:set-api-key', async (_event, payload) => setApiKey(payload));
   ipcMain.handle('config:test-provider-connection', async (_event, provider) => testProviderConnection(provider));
   ipcMain.handle('app:get-database-info', async () => getDatabaseInfo());
+  ipcMain.handle('clipboard:write-text', async (_event, text) => {
+    clipboard.writeText(String(text || ''));
+    return { ok: true };
+  });
 
   ipcMain.handle('nodes:get-tree', async () => getNodeTree());
   ipcMain.handle('nodes:get', async (_event, id) => getNode(id));

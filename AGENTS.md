@@ -54,3 +54,117 @@ Final report must include:
 5. Unresolved blockers
 
 No PASS claim is allowed without the exact retest that passed.
+
+## Codex Output Rules
+
+For all Codex tasks in this repo:
+
+- Do not narrate your process while working.
+- Do not provide step-by-step progress updates.
+- Do not explain what you are about to do.
+- Do not summarize files while still working.
+- Do not paste large diffs or logs unless there is a blocking error.
+- Do not output long reasoning paragraphs.
+
+During execution, remain mostly silent unless blocked.
+
+Final reports must contain ONLY:
+1. Files changed
+2. Root cause (if fixing a bug)
+3. One sentence fix
+4. Build result
+5. Smoke result
+
+Keep final reports under 120 words unless a blocker requires more.
+
+## Token Management Rules
+
+- Keep patches surgical and phase-scoped.
+- Touch the fewest files possible.
+- Prefer modifying existing systems over adding new architecture.
+- Avoid unnecessary abstractions.
+- Avoid broad rewrites during active phases.
+- Use ACTIVE_SCOPE.md as the primary task boundary.
+- Do not dump large diffs.
+- Do not restate the entire task context in final reports.
+
+## Workflow Stability Priorities
+
+Prioritize:
+- persistence reliability
+- workflow smoothness
+- keyboard usability
+- focus retention
+- low-friction iteration
+- uncluttered layouts
+- stable navigation
+
+Avoid overengineering.
+
+Do not proactively add:
+- agents
+- embeddings/vector systems
+- orchestration layers
+- autonomous workflows
+- plugin systems
+- cloud sync
+- complex markdown rendering
+unless explicitly requested by the active phase scope.
+
+
+## Codex Output Rules
+
+For all Codex tasks in this repo:
+
+- Do not narrate your process while working.
+- Do not provide step-by-step progress updates.
+- Do not explain what you are about to do.
+- Do not summarize files while still working.
+- Do not paste large diffs or logs unless there is a blocking error.
+- Do not output long reasoning paragraphs.
+
+During execution, remain mostly silent unless blocked.
+
+Final reports must contain ONLY:
+1. Files changed
+2. Root cause (if fixing a bug)
+3. One sentence fix
+4. Build result
+5. Smoke result
+
+Keep final reports under 120 words unless a blocker requires more.
+
+## Token Management Rules
+
+- Keep patches surgical and phase-scoped.
+- Touch the fewest files possible.
+- Prefer modifying existing systems over adding new architecture.
+- Avoid unnecessary abstractions.
+- Avoid broad rewrites during active phases.
+- Use ACTIVE_SCOPE.md as the primary task boundary.
+- Do not dump large diffs.
+- Do not restate the entire task context in final reports.
+
+## Workflow Stability Priorities
+
+Prioritize:
+- persistence reliability
+- workflow smoothness
+- keyboard usability
+- focus retention
+- low-friction iteration
+- uncluttered layouts
+- stable navigation
+
+Avoid overengineering.
+
+Do not proactively add:
+- agents
+- embeddings/vector systems
+- orchestration layers
+- autonomous workflows
+- plugin systems
+- cloud sync
+- complex markdown rendering
+unless explicitly requested by the active phase scope.
+

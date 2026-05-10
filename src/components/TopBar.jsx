@@ -8,7 +8,7 @@ const titles = {
   characters: 'Character Workspace',
   decisions: 'Decision Tracker',
   questions: 'Questions Log',
-  session: 'Session Interface',
+  session: 'AI Sessions',
   flanagan: 'Flanagan Companion',
   'relationship-map': 'Relationship Map',
   timeline: 'Outbreak Timeline',

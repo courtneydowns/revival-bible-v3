@@ -13,6 +13,9 @@ contextBridge.exposeInMainWorld('revival', {
   app: {
     getDatabaseInfo: () => invoke('app:get-database-info')
   },
+  clipboard: {
+    writeText: (text) => invoke('clipboard:write-text', text)
+  },
   nodes: {
     getTree: () => invoke('nodes:get-tree'),
     get: (id) => invoke('nodes:get', id)
@@ -74,6 +77,9 @@ contextBridge.exposeInMainWorld('revival', {
     rebuildIndex: () => invoke('search:rebuild-index')
   },
   ai: {
+    listSessions: () => invoke('ai:sessions:list'),
+    getSession: (id) => invoke('ai:sessions:get', id),
+    createSession: (payload) => invoke('ai:sessions:create', payload),
     validateKey: (payload) => invoke('ai:validate-key', payload),
     qa: (payload) => invoke('ai:qa', payload),
     draftAssist: (payload) => invoke('ai:draft-assist', payload),

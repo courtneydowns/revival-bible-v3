@@ -201,6 +201,13 @@ export function initializeSchema(db) {
       context_id TEXT,
       messages TEXT,
       result TEXT,
+      provider TEXT,
+      model TEXT,
+      prompt TEXT,
+      response TEXT,
+      template_id TEXT,
+      user_instructions TEXT,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -238,8 +245,16 @@ export function initializeSchema(db) {
   createUpdatedAtTrigger(db, 'canon_tags');
   createUpdatedAtTrigger(db, 'entity_links');
   createUpdatedAtTrigger(db, 'context_packs');
+  createUpdatedAtTrigger(db, 'ai_sessions');
 
   ensureColumn(db, 'characters', 'canon_state', "TEXT DEFAULT 'developing'");
+  ensureColumn(db, 'ai_sessions', 'provider', 'TEXT');
+  ensureColumn(db, 'ai_sessions', 'model', 'TEXT');
+  ensureColumn(db, 'ai_sessions', 'prompt', 'TEXT');
+  ensureColumn(db, 'ai_sessions', 'response', 'TEXT');
+  ensureColumn(db, 'ai_sessions', 'template_id', 'TEXT');
+  ensureColumn(db, 'ai_sessions', 'user_instructions', 'TEXT');
+  ensureColumn(db, 'ai_sessions', 'updated_at', 'DATETIME DEFAULT CURRENT_TIMESTAMP');
 }
 
 function createUpdatedAtTrigger(db, tableName) {

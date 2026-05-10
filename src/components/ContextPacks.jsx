@@ -4,6 +4,9 @@ import {
   assembleContextPackPrompt,
   assembleContextPackSessionContext,
   getSessionPromptTemplate,
+  loadCustomPromptTemplates,
+  normalizeCustomPromptTemplate,
+  persistCustomPromptTemplates,
   sessionPromptTemplates
 } from '../contextPackSessionContext.js';
 import { useRevivalStore } from '../store.js';
@@ -16,7 +19,6 @@ const entityTypes = [
   ['living_document', 'Living Documents'],
   ['bible_section', 'Story Bible']
 ];
-const customTemplateStorageKey = 'revival-bible-v3-custom-prompt-templates';
 
 export default function ContextPacks() {
   const [newTitle, setNewTitle] = useState('');
@@ -534,37 +536,6 @@ export default function ContextPacks() {
       </div>
     </section>
   );
-}
-
-function loadCustomPromptTemplates() {
-  if (typeof window === 'undefined') return [];
-
-  try {
-    const parsed = JSON.parse(window.localStorage?.getItem(customTemplateStorageKey) || '[]');
-    return Array.isArray(parsed) ? parsed.map(normalizeCustomPromptTemplate).filter(Boolean) : [];
-  } catch {
-    return [];
-  }
-}
-
-function persistCustomPromptTemplates(templates) {
-  try {
-    window.localStorage?.setItem(customTemplateStorageKey, JSON.stringify(templates.map(normalizeCustomPromptTemplate).filter(Boolean)));
-  } catch {
-    // Local prompt templates are convenience data; keep the app usable if storage is unavailable.
-  }
-}
-
-function normalizeCustomPromptTemplate(template) {
-  const id = String(template?.id || '').trim();
-  if (!id) return null;
-
-  return {
-    id,
-    label: String(template?.label || 'Untitled Custom Template').trim(),
-    instructions: String(template?.instructions || '').trim(),
-    builtIn: false
-  };
 }
 
 function useContextPackTargetOptions() {

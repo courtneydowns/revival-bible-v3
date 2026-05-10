@@ -69,11 +69,13 @@ export const sessionPromptTemplates = [
   }
 ];
 
+export const customTemplateStorageKey = 'revival-bible-v3-custom-prompt-templates';
+
 export function getSessionPromptTemplate(templateId, templates = sessionPromptTemplates) {
   return templates.find((template) => template.id === templateId) || templates[0] || sessionPromptTemplates[0];
 }
 
-export function assembleContextPackPrompt({ sessionContext = '', templateId = '', templates = sessionPromptTemplates } = {}) {
+export function assembleContextPackPrompt({ additionalInstructions = '', sessionContext = '', templateId = '', templates = sessionPromptTemplates } = {}) {
   const template = getSessionPromptTemplate(templateId, templates);
 
   return [
@@ -81,11 +83,41 @@ export function assembleContextPackPrompt({ sessionContext = '', templateId = ''
     '',
     `## ${template.label}`,
     template.instructions,
+    additionalInstructions ? ['', '# User Instructions', '', additionalInstructions] : '',
     '',
     '# Generated Session Context',
     '',
     sessionContext
   ].join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+export function loadCustomPromptTemplates(storage = globalThis.localStorage) {
+  try {
+    const parsed = JSON.parse(storage?.getItem(customTemplateStorageKey) || '[]');
+    return Array.isArray(parsed) ? parsed.map(normalizeCustomPromptTemplate).filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function persistCustomPromptTemplates(templates, storage = globalThis.localStorage) {
+  try {
+    storage?.setItem(customTemplateStorageKey, JSON.stringify(templates.map(normalizeCustomPromptTemplate).filter(Boolean)));
+  } catch {
+    // Local prompt templates are convenience data; keep the app usable if storage is unavailable.
+  }
+}
+
+export function normalizeCustomPromptTemplate(template) {
+  const id = String(template?.id || '').trim();
+  if (!id) return null;
+
+  return {
+    id,
+    builtIn: false,
+    label: String(template?.label || 'Untitled Custom Template').trim(),
+    instructions: String(template?.instructions || '').trim(),
+  };
 }
 
 export function assembleContextPackSessionContext({

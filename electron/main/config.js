@@ -118,6 +118,50 @@ export async function testProviderConnection(provider = preferences.aiProvider) 
   return test;
 }
 
+export async function createProviderResponse(prompt = '') {
+  const providerId = normalizeProvider(preferences.aiProvider);
+  const model = preferences.aiModels[providerId];
+  const encryptedApiKey = encryptedApiKeys[providerId];
+  const normalizedPrompt = String(prompt || '').trim();
+
+  if (!normalizedPrompt) {
+    return failure(providerId, 'Prompt is required.');
+  }
+
+  if (!encryptedApiKey) {
+    return failure(providerId, `Save a ${providerLabels[providerId]} API key before starting an AI session.`);
+  }
+
+  if (!model) {
+    return failure(providerId, `Save a ${providerLabels[providerId]} model name before starting an AI session.`);
+  }
+
+  try {
+    const apiKey = normalizeApiKey(decryptValue(encryptedApiKey));
+    if (!apiKey || isPlaceholderApiKey(apiKey)) {
+      return failure(providerId, `Save a valid ${providerLabels[providerId]} API key before starting an AI session.`);
+    }
+
+    if (providerId === 'openai' && !isOpenAiApiKey(apiKey)) {
+      return failure(providerId, 'Saved OpenAI API key does not look like an OpenAI key. Expected a standard OpenAI secret-key prefix.');
+    }
+
+    return providerId === 'anthropic'
+      ? createAnthropicResponse({ apiKey, model, prompt: normalizedPrompt, providerId })
+      : createOpenAiResponse({ apiKey, model, prompt: normalizedPrompt, providerId });
+  } catch {
+    return failure(providerId, 'AI session could not be completed. Check the saved key, model name, and network connection.');
+  }
+}
+
+export function getActiveProviderModel() {
+  const provider = normalizeProvider(preferences.aiProvider);
+  return {
+    provider,
+    model: preferences.aiModels[provider] || ''
+  };
+}
+
 async function runProviderConnectionTest(providerId) {
   const model = preferences.aiModels[providerId];
   const encryptedApiKey = encryptedApiKeys[providerId];
@@ -253,6 +297,34 @@ async function testOpenAiConnection({ apiKey, model, providerId }) {
   return failure(providerId, getReadableProviderErrorFromText(response, responseBody));
 }
 
+async function createOpenAiResponse({ apiKey, model, prompt, providerId }) {
+  const response = await fetch('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model,
+      input: prompt,
+      max_output_tokens: 900
+    })
+  });
+
+  const responseBody = await response.text();
+
+  if (!response.ok) {
+    return failure(providerId, getReadableProviderErrorFromText(response, responseBody));
+  }
+
+  return {
+    ok: true,
+    provider: providerId,
+    model,
+    response: extractOpenAiText(responseBody)
+  };
+}
+
 async function testAnthropicConnection({ apiKey, model, providerId }) {
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -271,6 +343,37 @@ async function testAnthropicConnection({ apiKey, model, providerId }) {
   });
 
   return parseProviderResponse({ providerId, response, successMessage: 'Claude / Anthropic connection succeeded.' });
+}
+
+async function createAnthropicResponse({ apiKey, model, prompt, providerId }) {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+      'x-api-key': apiKey
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 900,
+      messages: [
+        { role: 'user', content: prompt }
+      ]
+    })
+  });
+
+  const responseBody = await response.text();
+
+  if (!response.ok) {
+    return failure(providerId, getReadableProviderErrorFromText(response, responseBody));
+  }
+
+  return {
+    ok: true,
+    provider: providerId,
+    model,
+    response: extractAnthropicText(responseBody)
+  };
 }
 
 async function parseProviderResponse({ providerId, response, successMessage }) {
@@ -316,6 +419,35 @@ function getReadableProviderErrorFromText(response, responseBody = '') {
   return message
     ? `Connection failed (${response.status}): ${message}`
     : `Connection failed with HTTP ${response.status}.`;
+}
+
+function extractOpenAiText(responseBody = '') {
+  try {
+    const payload = JSON.parse(responseBody);
+    if (payload.output_text) return String(payload.output_text).trim();
+
+    const parts = (payload.output || [])
+      .flatMap((item) => item.content || [])
+      .map((part) => part.text || part.content || '')
+      .filter(Boolean);
+
+    return parts.join('\n').trim();
+  } catch {
+    return '';
+  }
+}
+
+function extractAnthropicText(responseBody = '') {
+  try {
+    const payload = JSON.parse(responseBody);
+    return (payload.content || [])
+      .map((part) => part.text || '')
+      .filter(Boolean)
+      .join('\n')
+      .trim();
+  } catch {
+    return '';
+  }
 }
 
 function failure(providerId, message) {
