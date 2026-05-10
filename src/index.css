@@ -1183,6 +1183,23 @@ h1 {
   font-size: 12px;
 }
 
+.session-copy-feedback {
+  align-self: center;
+  border: 1px solid color-mix(in srgb, var(--locked) 35%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--locked) 10%, transparent);
+  color: var(--locked);
+  font-size: 12px;
+  line-height: 1;
+  padding: 6px 9px;
+}
+
+.session-copy-feedback.failure {
+  border-color: color-mix(in srgb, var(--danger) 35%, transparent);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--danger);
+}
+
 .session-context-records {
   display: grid;
   gap: 10px;
@@ -2219,7 +2236,7 @@ h1 {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--bg-soft);
+  background: #20201d;
   color: var(--text);
   cursor: pointer;
   padding: 10px;
@@ -2228,7 +2245,36 @@ h1 {
 
 .session-history-item.selected {
   border-color: var(--accent);
-  box-shadow: inset 3px 0 0 var(--accent);
+  background: #28251f;
+  box-shadow: inset 3px 0 0 var(--accent), 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.session-history-item strong {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.session-history-item strong span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-history-current {
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 999px;
+  color: var(--accent);
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 4px 6px;
+  text-transform: uppercase;
 }
 
 .session-history-item span {
@@ -2238,8 +2284,8 @@ h1 {
 
 .session-response-grid {
   display: grid;
-  grid-template-rows: minmax(110px, 0.45fr) minmax(280px, 1fr);
-  gap: 14px;
+  grid-template-rows: minmax(110px, 0.38fr) minmax(320px, 1fr);
+  gap: 16px;
   min-height: 0;
   overflow: hidden;
 }
@@ -2258,9 +2304,18 @@ h1 {
 }
 
 .session-response-grid section:last-child pre {
+  border-color: var(--line-strong);
+  background: #12110f;
   color: var(--text);
-  font-size: 13px;
-  line-height: 1.6;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.72;
+  overflow-wrap: anywhere;
+  padding: 18px;
+}
+
+.session-response-text {
+  white-space: pre-wrap;
 }
 
 .session-response-actions {
@@ -2345,6 +2400,10 @@ h1 {
   white-space: nowrap;
 }
 
+.history-compact .session-history-current {
+  display: none;
+}
+
 .history-collapsed .session-history-panel {
   grid-template-rows: auto minmax(0, 1fr);
 }
@@ -2370,6 +2429,10 @@ h1 {
   align-items: center;
   justify-items: center;
   padding: 0;
+}
+
+.history-collapsed .session-history-item.selected {
+  box-shadow: 0 0 0 1px var(--accent);
 }
 
 .history-collapsed .session-history-item strong {

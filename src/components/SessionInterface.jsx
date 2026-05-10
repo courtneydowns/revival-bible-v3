@@ -122,6 +122,13 @@ export default function SessionInterface() {
   }, []);
 
   useEffect(() => {
+    if (!copyMessage) return undefined;
+
+    const timeoutId = window.setTimeout(() => setCopyMessage(''), 2200);
+    return () => window.clearTimeout(timeoutId);
+  }, [copyMessage]);
+
+  useEffect(() => {
     if (!contextPackId && contextPacks[0]?.id) {
       setContextPackId(String(contextPacks[0].id));
     }
@@ -154,6 +161,7 @@ export default function SessionInterface() {
   }, [activeAiSession, contextPacks, hydratedSessionId, sessionToHydrateId, submitting, templates]);
 
   const openSavedSession = (sessionId) => {
+    setCopyMessage('');
     setSessionToHydrateId(sessionId);
     selectAiSession(sessionId);
   };
@@ -208,6 +216,7 @@ export default function SessionInterface() {
     if (!selectedPack || !finalPrompt || submitting) return;
 
     setSubmitting(true);
+    setCopyMessage('');
     setStatus('Sending prompt to selected provider...');
 
     try {
@@ -352,11 +361,11 @@ export default function SessionInterface() {
           {activeAiSession ? (
             <>
               <div className="session-response-actions">
-                {copyMessage ? <span className="session-context-copy-message">{copyMessage}</span> : null}
                 <button className="secondary-button context-copy-button" onClick={copyResponse} type="button">
                   <Copy size={14} />
                   <span>Copy Response</span>
                 </button>
+                {copyMessage ? <span className={`session-copy-feedback ${copyMessage.includes('failed') ? 'failure' : 'success'}`} role="status">{copyMessage}</span> : null}
                 <button className="secondary-button" disabled={!selectedPack || !finalPrompt || submitting} onClick={startSession} type="button">
                   <RotateCcw size={14} />
                   <span>Re-run</span>
@@ -372,7 +381,7 @@ export default function SessionInterface() {
                 </section>
                 <section>
                   <h3>Response</h3>
-                  <pre>{activeAiSession.response}</pre>
+                  <pre className="session-response-text">{activeAiSession.response}</pre>
                 </section>
               </div>
             </>
@@ -422,35 +431,48 @@ export default function SessionInterface() {
             </div>
           </div>
           {historyMode !== 'collapsed' ? <div className="session-history-list">
-            {aiSessions.length ? aiSessions.map((session) => (
-              <button
-                className={`session-history-item ${activeAiSession?.id === session.id ? 'selected' : ''}`}
-                key={session.id}
-                onClick={() => openSavedSession(session.id)}
-                title={`${formatProvider(session.provider)} / ${session.model || 'model unset'} / ${formatDate(session.created_at)}`}
-                type="button"
-              >
-                <strong>{formatProvider(session.provider)}</strong>
-                {historyMode === 'expanded' ? <span>{session.model || 'model unset'}</span> : null}
-                {historyMode === 'expanded' ? <span>{formatDate(session.created_at)}</span> : null}
-              </button>
-            )) : (
-              <div className="placeholder-block">No AI sessions saved yet.</div>
-            )}
-          </div> : (
-            <div className="session-history-list collapsed-list" aria-label="Collapsed session history">
-              {aiSessions.length ? aiSessions.map((session) => (
+            {aiSessions.length ? aiSessions.map((session) => {
+              const isSelected = activeAiSession?.id === session.id;
+
+              return (
                 <button
-                  aria-label={`Open ${formatProvider(session.provider)} session from ${formatDate(session.created_at)}`}
-                  className={`session-history-item ${activeAiSession?.id === session.id ? 'selected' : ''}`}
+                  aria-current={isSelected ? 'true' : undefined}
+                  className={`session-history-item ${isSelected ? 'selected' : ''}`}
                   key={session.id}
                   onClick={() => openSavedSession(session.id)}
                   title={`${formatProvider(session.provider)} / ${session.model || 'model unset'} / ${formatDate(session.created_at)}`}
                   type="button"
                 >
-                  <strong>{formatProvider(session.provider).slice(0, 1)}</strong>
+                  <strong>
+                    <span>{formatProvider(session.provider)}</span>
+                    {isSelected ? <span className="session-history-current">Current</span> : null}
+                  </strong>
+                  {historyMode === 'expanded' ? <span>{session.model || 'model unset'}</span> : null}
+                  {historyMode === 'expanded' ? <span>{formatDate(session.created_at)}</span> : null}
                 </button>
-              )) : null}
+              );
+            }) : (
+              <div className="placeholder-block">No AI sessions saved yet.</div>
+            )}
+          </div> : (
+            <div className="session-history-list collapsed-list" aria-label="Collapsed session history">
+              {aiSessions.length ? aiSessions.map((session) => {
+                const isSelected = activeAiSession?.id === session.id;
+
+                return (
+                  <button
+                    aria-current={isSelected ? 'true' : undefined}
+                    aria-label={`Open ${formatProvider(session.provider)} session from ${formatDate(session.created_at)}`}
+                    className={`session-history-item ${isSelected ? 'selected' : ''}`}
+                    key={session.id}
+                    onClick={() => openSavedSession(session.id)}
+                    title={`${formatProvider(session.provider)} / ${session.model || 'model unset'} / ${formatDate(session.created_at)}`}
+                    type="button"
+                  >
+                    <strong>{formatProvider(session.provider).slice(0, 1)}</strong>
+                  </button>
+                );
+              }) : null}
             </div>
           )}
         </aside>
