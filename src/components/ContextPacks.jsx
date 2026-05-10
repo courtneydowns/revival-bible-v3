@@ -208,7 +208,7 @@ export default function ContextPacks() {
         }
       })
     });
-    setCopyMessage('');
+    setCopyMessage('Session context generated.');
     setPromptCopyMessage('');
     setMessage('Session context generated.');
   };

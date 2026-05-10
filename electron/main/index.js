@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, screen, shell } from 'electron';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { addContextPackLink, addEntityLink, addEntityTag, closeDatabase, createContextPack, deleteContextPack, ensureSearchIndex, getCanonTags, getCharacter, getCharacterRelationshipCount, getCharacterRelationships, getCharacters, getContextPacks, getDatabaseInfo, getDecision, getDecisionBlockers, getDecisions, getEntityLinks, getEntityTagLinks, getEpisode, getEpisodes, getEpisodesBySeason, getLatestNodeContent, getLivingDocumentEntry, getLivingDocuments, getLivingDocumentsByType, getNode, getNodeTree, getQuestion, getQuestions, getTimelineEvent, getTimelineEvents, initDatabase, removeContextPackLink, removeEntityLink, removeEntityTag, updateContextPack, updateEntityStatus } from './db.js';
-import { getPreferences, hasApiKey, setApiKey, setPreferences } from './config.js';
+import { getPreferences, hasApiKey, initConfig, setApiKey, setPreferences } from './config.js';
 import { seedBible } from './seed-bible.js';
 import { seedCanonTags } from './seed-canon-tags.js';
 import { seedCharacterRelationshipRefinement } from './seed-character-relationships.js';
@@ -98,6 +98,7 @@ function registerCoreHandlers() {
 }
 
 app.whenReady().then(() => {
+  initConfig(app);
   initDatabase(app);
   const seedResult = seedBible();
   console.info(`[Revival Bible v3] Phase 2 bible seed checked: ${JSON.stringify(seedResult)}`);
