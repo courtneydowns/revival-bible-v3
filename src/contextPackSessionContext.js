@@ -20,6 +20,7 @@ export const sessionPromptTemplates = [
   {
     id: 'writing-session',
     label: 'Writing Session',
+    builtIn: true,
     instructions: [
       'Use this context to prepare a focused writing session.',
       'Prioritize scene goals, emotional continuity, character stakes, and unresolved decisions.',
@@ -29,6 +30,7 @@ export const sessionPromptTemplates = [
   {
     id: 'continuity-check',
     label: 'Continuity Check',
+    builtIn: true,
     instructions: [
       'Review this context for continuity risks.',
       'Identify timeline, character, decision, relationship, and canon-state conflicts.',
@@ -38,6 +40,7 @@ export const sessionPromptTemplates = [
   {
     id: 'character-voice-pass',
     label: 'Character Voice Pass',
+    builtIn: true,
     instructions: [
       'Use this context to check character voice and behavior.',
       'Focus on motives, wounds, recurring language, relational pressure, and emotional consistency.',
@@ -47,6 +50,7 @@ export const sessionPromptTemplates = [
   {
     id: 'episode-planning',
     label: 'Episode Planning',
+    builtIn: true,
     instructions: [
       'Use this context to plan episode structure.',
       'Track story turns, thematic pressure, continuity dependencies, and open questions.',
@@ -56,6 +60,7 @@ export const sessionPromptTemplates = [
   {
     id: 'contradiction-review',
     label: 'Contradiction Review',
+    builtIn: true,
     instructions: [
       'Review this context for contradictions and unresolved tensions.',
       'List direct conflicts, soft conflicts, missing bridge logic, and records that need clarification.',
@@ -64,12 +69,12 @@ export const sessionPromptTemplates = [
   }
 ];
 
-export function getSessionPromptTemplate(templateId) {
-  return sessionPromptTemplates.find((template) => template.id === templateId) || sessionPromptTemplates[0];
+export function getSessionPromptTemplate(templateId, templates = sessionPromptTemplates) {
+  return templates.find((template) => template.id === templateId) || templates[0] || sessionPromptTemplates[0];
 }
 
-export function assembleContextPackPrompt({ sessionContext = '', templateId = '' } = {}) {
-  const template = getSessionPromptTemplate(templateId);
+export function assembleContextPackPrompt({ sessionContext = '', templateId = '', templates = sessionPromptTemplates } = {}) {
+  const template = getSessionPromptTemplate(templateId, templates);
 
   return [
     '# Prompt Template',

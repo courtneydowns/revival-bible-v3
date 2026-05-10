@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   assembleContextPackPrompt,
   assembleContextPackSessionContext,
+  getSessionPromptTemplate,
   sessionPromptTemplates
 } from '../contextPackSessionContext.js';
 import { useRevivalStore } from '../store.js';
@@ -15,6 +16,7 @@ const entityTypes = [
   ['living_document', 'Living Documents'],
   ['bible_section', 'Story Bible']
 ];
+const customTemplateStorageKey = 'revival-bible-v3-custom-prompt-templates';
 
 export default function ContextPacks() {
   const [newTitle, setNewTitle] = useState('');
@@ -25,6 +27,9 @@ export default function ContextPacks() {
   const [message, setMessage] = useState('');
   const [copyMessage, setCopyMessage] = useState('');
   const [promptCopyMessage, setPromptCopyMessage] = useState('');
+  const [customPromptTemplates, setCustomPromptTemplates] = useState(() => loadCustomPromptTemplates());
+  const [templateDraftLabel, setTemplateDraftLabel] = useState('');
+  const [templateDraftInstructions, setTemplateDraftInstructions] = useState('');
   const [saving, setSaving] = useState(false);
   const activeContextPackId = useRevivalStore((state) => state.activeContextPackId);
   const contextPacks = useRevivalStore((state) => state.contextPacks);
@@ -65,8 +70,21 @@ export default function ContextPacks() {
   const sessionContextSignature = selectedPack ? `${selectedPack.title || ''}|${selectedPack.purpose || ''}|${selectedPackLinkSignature}` : '';
   const storedSessionContext = selectedPack ? contextPackSessionContexts[selectedPack.id] : null;
   const sessionContext = storedSessionContext?.signature === sessionContextSignature ? storedSessionContext.text : '';
-  const selectedTemplateId = storedSessionContext?.templateId || sessionPromptTemplates[0].id;
-  const fullPrompt = sessionContext ? assembleContextPackPrompt({ sessionContext, templateId: selectedTemplateId }) : '';
+  const promptTemplates = useMemo(() => [...sessionPromptTemplates, ...customPromptTemplates], [customPromptTemplates]);
+  const selectedTemplateId = promptTemplates.some((template) => template.id === storedSessionContext?.templateId)
+    ? storedSessionContext.templateId
+    : sessionPromptTemplates[0].id;
+  const selectedTemplate = getSessionPromptTemplate(selectedTemplateId, promptTemplates);
+  const promptTemplatesWithDraft = promptTemplates.map((template) => (
+    template.id === selectedTemplateId && !template.builtIn
+      ? {
+        ...template,
+        label: templateDraftLabel.trim() || template.label,
+        instructions: templateDraftInstructions.trim() || template.instructions
+      }
+      : template
+  ));
+  const fullPrompt = sessionContext ? assembleContextPackPrompt({ sessionContext, templateId: selectedTemplateId, templates: promptTemplatesWithDraft }) : '';
 
   useEffect(() => {
     loadContextPacks();
@@ -89,6 +107,17 @@ export default function ContextPacks() {
     setDraftTitle(selectedPack.title || '');
     setDraftPurpose(selectedPack.purpose || '');
   }, [selectedPack?.id, selectedPack?.purpose, selectedPack?.title, selectedPackLinkSignature]);
+
+  useEffect(() => {
+    if (!sessionContext || !selectedTemplate) {
+      setTemplateDraftLabel('');
+      setTemplateDraftInstructions('');
+      return;
+    }
+
+    setTemplateDraftLabel(selectedTemplate.label || '');
+    setTemplateDraftInstructions(selectedTemplate.instructions || '');
+  }, [selectedTemplate?.id, sessionContext]);
 
   const createPack = async (event) => {
     event.preventDefault();
@@ -162,7 +191,7 @@ export default function ContextPacks() {
 
     setContextPackSessionContext(selectedPack.id, {
       signature: sessionContextSignature,
-      templateId: storedSessionContext?.templateId || sessionPromptTemplates[0].id,
+      templateId: promptTemplates.some((template) => template.id === storedSessionContext?.templateId) ? storedSessionContext.templateId : sessionPromptTemplates[0].id,
       text: assembleContextPackSessionContext({
         title: draftTitle || selectedPack.title,
         purpose: draftPurpose || selectedPack.purpose,
@@ -194,6 +223,50 @@ export default function ContextPacks() {
       text: sessionContext
     });
     setPromptCopyMessage('');
+  };
+
+  const createPromptTemplate = () => {
+    const nextTemplate = {
+      id: `custom-${Date.now()}`,
+      label: 'Custom Prompt Template',
+      instructions: 'Add plain-text instructions for this prompt preset.',
+      builtIn: false
+    };
+    const nextTemplates = [...customPromptTemplates, nextTemplate];
+    persistCustomPromptTemplates(nextTemplates);
+    setCustomPromptTemplates(nextTemplates);
+    selectPromptTemplate(nextTemplate.id);
+    setTemplateDraftLabel(nextTemplate.label);
+    setTemplateDraftInstructions(nextTemplate.instructions);
+    setMessage('Custom prompt template created.');
+  };
+
+  const savePromptTemplate = () => {
+    if (!selectedTemplate || selectedTemplate.builtIn) return;
+
+    const nextTemplates = customPromptTemplates.map((template) => (
+      template.id === selectedTemplate.id
+        ? {
+          ...template,
+          label: templateDraftLabel.trim() || 'Untitled Custom Template',
+          instructions: templateDraftInstructions.trim() || 'Add plain-text instructions for this prompt preset.'
+        }
+        : template
+    ));
+    persistCustomPromptTemplates(nextTemplates);
+    setCustomPromptTemplates(nextTemplates);
+    setPromptCopyMessage('');
+    setMessage('Custom prompt template saved.');
+  };
+
+  const deletePromptTemplate = () => {
+    if (!selectedTemplate || selectedTemplate.builtIn) return;
+
+    const nextTemplates = customPromptTemplates.filter((template) => template.id !== selectedTemplate.id);
+    persistCustomPromptTemplates(nextTemplates);
+    setCustomPromptTemplates(nextTemplates);
+    selectPromptTemplate(sessionPromptTemplates[0].id);
+    setMessage('Custom prompt template deleted.');
   };
 
   const copySessionContext = async () => {
@@ -409,11 +482,45 @@ export default function ContextPacks() {
                     <label className="session-prompt-template-select">
                       <span>Prompt Preset</span>
                       <select onChange={(event) => selectPromptTemplate(event.target.value)} value={selectedTemplateId}>
-                        {sessionPromptTemplates.map((template) => (
-                          <option key={template.id} value={template.id}>{template.label}</option>
+                        {promptTemplates.map((template) => (
+                          <option key={template.id} value={template.id}>
+                            {template.builtIn ? template.label : `${template.label} (Custom)`}
+                          </option>
                         ))}
                       </select>
                     </label>
+                    <div className="session-prompt-template-editor">
+                      <div className="session-prompt-template-editor-actions">
+                        <button className="secondary-button" onClick={createPromptTemplate} type="button">
+                          <Plus size={15} />
+                          <span>New Custom Template</span>
+                        </button>
+                        <button className="secondary-button" disabled={!selectedTemplate || selectedTemplate.builtIn} onClick={savePromptTemplate} type="button">
+                          <Save size={15} />
+                          <span>Save Template</span>
+                        </button>
+                        <button className="icon-button danger-button" disabled={!selectedTemplate || selectedTemplate.builtIn} onClick={deletePromptTemplate} title="Delete custom template" type="button">
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                      <label>
+                        <span>Template Name</span>
+                        <input
+                          disabled={!selectedTemplate || selectedTemplate.builtIn}
+                          onChange={(event) => setTemplateDraftLabel(event.target.value)}
+                          value={templateDraftLabel}
+                        />
+                      </label>
+                      <label>
+                        <span>Template Instructions</span>
+                        <textarea
+                          disabled={!selectedTemplate || selectedTemplate.builtIn}
+                          onChange={(event) => setTemplateDraftInstructions(event.target.value)}
+                          rows={6}
+                          value={templateDraftInstructions}
+                        />
+                      </label>
+                    </div>
                     <textarea readOnly rows={18} value={fullPrompt} />
                   </div>
                 </section>
@@ -427,6 +534,37 @@ export default function ContextPacks() {
       </div>
     </section>
   );
+}
+
+function loadCustomPromptTemplates() {
+  if (typeof window === 'undefined') return [];
+
+  try {
+    const parsed = JSON.parse(window.localStorage?.getItem(customTemplateStorageKey) || '[]');
+    return Array.isArray(parsed) ? parsed.map(normalizeCustomPromptTemplate).filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistCustomPromptTemplates(templates) {
+  try {
+    window.localStorage?.setItem(customTemplateStorageKey, JSON.stringify(templates.map(normalizeCustomPromptTemplate).filter(Boolean)));
+  } catch {
+    // Local prompt templates are convenience data; keep the app usable if storage is unavailable.
+  }
+}
+
+function normalizeCustomPromptTemplate(template) {
+  const id = String(template?.id || '').trim();
+  if (!id) return null;
+
+  return {
+    id,
+    label: String(template?.label || 'Untitled Custom Template').trim(),
+    instructions: String(template?.instructions || '').trim(),
+    builtIn: false
+  };
 }
 
 function useContextPackTargetOptions() {

@@ -965,11 +965,34 @@ h1 {
   gap: 7px;
 }
 
-.session-prompt-template-select span {
+.session-prompt-template-select span,
+.session-prompt-template-editor span {
   color: var(--accent);
   font-family: var(--font-mono);
   font-size: 12px;
   text-transform: uppercase;
+}
+
+.session-prompt-template-editor {
+  display: grid;
+  gap: 9px;
+}
+
+.session-prompt-template-editor label {
+  display: grid;
+  gap: 7px;
+}
+
+.session-prompt-template-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.session-prompt-template-editor-actions .secondary-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
 }
 
 .session-context-header {
