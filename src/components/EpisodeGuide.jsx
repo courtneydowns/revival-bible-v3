@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useRevivalStore } from '../store.js';
 import EpisodeDetail from './EpisodeDetail.jsx';
 import StatusBadge from './StatusBadge.jsx';
@@ -13,6 +13,8 @@ export default function EpisodeGuide() {
   const loadEpisodes = useRevivalStore((state) => state.loadEpisodes);
   const selectEpisode = useRevivalStore((state) => state.selectEpisode);
   const setActiveEpisodeSeason = useRevivalStore((state) => state.setActiveEpisodeSeason);
+  const episodeCardRefs = useRef(new Map());
+  const detailPanelRef = useRef(null);
   const seasonEpisodes = useMemo(
     () => episodes.filter((episode) => episode.season === activeEpisodeSeason),
     [activeEpisodeSeason, episodes]
@@ -33,6 +35,17 @@ export default function EpisodeGuide() {
       selectEpisode(seasonEpisodes[0].id);
     }
   }, [activeEpisodeSeason, seasonEpisodes, selectEpisode, selectedEpisode]);
+
+  useEffect(() => {
+    if (!activeEpisodeId) return;
+
+    const card = episodeCardRefs.current.get(String(activeEpisodeId));
+    card?.scrollIntoView({ block: 'nearest', behavior: 'auto' });
+
+    if (detailPanelRef.current) {
+      detailPanelRef.current.scrollTo({ top: 0, behavior: 'auto' });
+    }
+  }, [activeEpisodeId, activeEpisodeSeason, seasonEpisodes.length]);
 
   const handleSeasonSelect = (season) => {
     setActiveEpisodeSeason(season);
@@ -72,6 +85,13 @@ export default function EpisodeGuide() {
                     event.stopPropagation();
                     selectEpisode(episode.id);
                   }}
+                  ref={(node) => {
+                    if (node) {
+                      episodeCardRefs.current.set(String(episode.id), node);
+                    } else {
+                      episodeCardRefs.current.delete(String(episode.id));
+                    }
+                  }}
                   type="button"
                 >
                   <div className="episode-card-topline">
@@ -85,7 +105,7 @@ export default function EpisodeGuide() {
               ))}
             </div>
           </div>
-          <div className="episode-detail-panel">
+          <div className="episode-detail-panel" ref={detailPanelRef}>
             <EpisodeDetail episode={selectedEpisode} />
           </div>
         </div>

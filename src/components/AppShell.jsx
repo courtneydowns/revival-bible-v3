@@ -4,6 +4,7 @@ import AIPanel from './AIPanel.jsx';
 import BibleSection from './BibleSection.jsx';
 import CharacterRelationshipMap from './CharacterRelationshipMap.jsx';
 import CharacterWorkspace from './CharacterWorkspace.jsx';
+import ContextPacks from './ContextPacks.jsx';
 import Dashboard from './Dashboard.jsx';
 import DecisionTracker from './DecisionTracker.jsx';
 import EpisodeGuide from './EpisodeGuide.jsx';
@@ -24,6 +25,7 @@ const views = {
   bible: BibleSection,
   episodes: EpisodeGuide,
   characters: CharacterWorkspace,
+  'context-packs': ContextPacks,
   decisions: DecisionTracker,
   questions: QuestionsLog,
   session: SessionInterface,

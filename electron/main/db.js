@@ -315,6 +315,158 @@ export function getEntityTagLinks() {
     .all();
 }
 
+export function getEntityLinks(entityType, entityId) {
+  validateEntityReference(entityType, entityId);
+
+  const rows = connection
+    .prepare(`
+      SELECT *
+      FROM entity_links
+      WHERE (source_type = ? AND source_id = ?)
+        OR (target_type = ? AND target_id = ?)
+      ORDER BY relationship_type, id
+    `)
+    .all(entityType, String(entityId), entityType, String(entityId));
+
+  return rows.map((link) => hydrateEntityLink(link, entityType, entityId));
+}
+
+export function getAllEntityLinks() {
+  return connection
+    .prepare('SELECT * FROM entity_links ORDER BY source_type, source_id, relationship_type, target_type, target_id')
+    .all()
+    .map((link) => hydrateEntityLink(link));
+}
+
+export function getContextPacks() {
+  const packs = connection.prepare('SELECT * FROM context_packs ORDER BY updated_at DESC, id DESC').all();
+  return packs.map((pack) => ({
+    ...pack,
+    links: getContextPackLinks(pack.id)
+  }));
+}
+
+export function createContextPack({ title = '', purpose = '' } = {}) {
+  const normalizedTitle = normalizeContextPackTitle(title);
+  if (!normalizedTitle) {
+    return { ok: false, message: 'Context pack title is required.' };
+  }
+
+  const result = connection
+    .prepare('INSERT INTO context_packs (title, purpose) VALUES (?, ?)')
+    .run(normalizedTitle, String(purpose || '').trim());
+
+  return {
+    ok: true,
+    pack: getContextPack(result.lastInsertRowid)
+  };
+}
+
+export function updateContextPack(id, { title = '', purpose = '' } = {}) {
+  const normalizedTitle = normalizeContextPackTitle(title);
+  if (!normalizedTitle) {
+    return { ok: false, message: 'Context pack title is required.' };
+  }
+
+  const result = connection
+    .prepare('UPDATE context_packs SET title = ?, purpose = ? WHERE id = ?')
+    .run(normalizedTitle, String(purpose || '').trim(), id);
+
+  if (!result.changes) {
+    return { ok: false, message: 'Context pack not found.' };
+  }
+
+  return {
+    ok: true,
+    pack: getContextPack(id)
+  };
+}
+
+export function deleteContextPack(id) {
+  const result = connection.prepare('DELETE FROM context_packs WHERE id = ?').run(id);
+  return {
+    ok: result.changes > 0,
+    message: result.changes ? undefined : 'Context pack not found.'
+  };
+}
+
+export function addContextPackLink({ packId, entityType, entityId } = {}) {
+  const pack = getContextPack(packId);
+  if (!pack) {
+    return { ok: false, message: 'Context pack not found.' };
+  }
+
+  const normalizedType = normalizeEntityType(entityType);
+  validateEntityReference(normalizedType, entityId);
+
+  connection
+    .prepare(`
+      INSERT INTO context_pack_links (pack_id, entity_type, entity_id)
+      VALUES (?, ?, ?)
+      ON CONFLICT(pack_id, entity_type, entity_id) DO NOTHING
+    `)
+    .run(packId, normalizedType, String(entityId));
+
+  return {
+    ok: true,
+    pack: getContextPack(packId)
+  };
+}
+
+export function removeContextPackLink(linkId) {
+  const existing = connection.prepare('SELECT * FROM context_pack_links WHERE id = ?').get(linkId);
+  if (!existing) {
+    return { ok: false, message: 'Context pack link not found.' };
+  }
+
+  connection.prepare('DELETE FROM context_pack_links WHERE id = ?').run(linkId);
+
+  return {
+    ok: true,
+    pack: getContextPack(existing.pack_id)
+  };
+}
+
+export function addEntityLink({ sourceType, sourceId, targetType, targetId, relationshipType = 'related', note = '' } = {}) {
+  const normalized = normalizeEntityLinkInput({ sourceType, sourceId, targetType, targetId, relationshipType, note });
+  validateEntityReference(normalized.source_type, normalized.source_id);
+  validateEntityReference(normalized.target_type, normalized.target_id);
+
+  if (normalized.source_type === normalized.target_type && normalized.source_id === normalized.target_id) {
+    return { ok: false, message: 'A record cannot link to itself.' };
+  }
+
+  connection
+    .prepare(`
+      INSERT INTO entity_links (source_type, source_id, target_type, target_id, relationship_type, note)
+      VALUES (@source_type, @source_id, @target_type, @target_id, @relationship_type, @note)
+      ON CONFLICT(source_type, source_id, target_type, target_id, relationship_type)
+      DO UPDATE SET note = excluded.note
+    `)
+    .run(normalized);
+
+  return {
+    ok: true,
+    links: getEntityLinks(normalized.source_type, normalized.source_id),
+    search: rebuildSearchIndex()
+  };
+}
+
+export function removeEntityLink(linkId) {
+  const existing = connection.prepare('SELECT * FROM entity_links WHERE id = ?').get(linkId);
+  if (!existing) {
+    return { ok: false, message: 'Link not found.' };
+  }
+
+  connection.prepare('DELETE FROM entity_links WHERE id = ?').run(linkId);
+
+  return {
+    ok: true,
+    links: getEntityLinks(existing.source_type, existing.source_id),
+    search: rebuildSearchIndex()
+  };
+}
+
 export function updateEntityStatus(entityType, entityId, status) {
   const nextStatus = normalizeStatusValue(status);
   if (!nextStatus) {
@@ -397,7 +549,7 @@ export function ensureSearchIndex() {
   const indexed = connection.prepare('SELECT COUNT(*) AS count FROM search_index').get().count;
   const expected = getSearchSourceCount();
 
-  if (indexed === expected && indexed > 0 && searchIndexHasCanonTagContent()) {
+  if (indexed === expected && indexed > 0 && searchIndexHasCanonTagContent() && searchIndexHasEntityLinkContent()) {
     return { rebuilt: false, indexed, expected };
   }
 
@@ -420,6 +572,7 @@ export function rebuildSearchIndex() {
   );
   const rows = [];
   const tagLookup = getTagLookup();
+  const linkLookup = getEntityLinkSearchLookup();
 
   for (const node of connection.prepare(`
     SELECT n.*, nc.content
@@ -459,6 +612,7 @@ export function rebuildSearchIndex() {
         character.voice_notes,
         character.end_state,
         character.notes,
+        formatLinksForSearch(linkLookup, 'character', character.id),
         formatTagsForSearch(tagLookup, 'character', character.id)
       ]),
       section_path: character.role || 'Character'
@@ -481,6 +635,7 @@ export function rebuildSearchIndex() {
         episode.flanagan_moment,
         episode.rewatch_notes,
         episode.status,
+        formatLinksForSearch(linkLookup, 'episode', episode.id),
         formatTagsForSearch(tagLookup, 'episode', episode.id)
       ]),
       section_path: `Season ${episode.season} / Episode ${episode.episode_number}`
@@ -502,6 +657,7 @@ export function rebuildSearchIndex() {
         decision.status,
         decision.blocks,
         decision.blocked_by,
+        formatLinksForSearch(linkLookup, 'decision', decision.id),
         formatTagsForSearch(tagLookup, 'decision', decision.id)
       ]),
       section_path: `Tier ${decision.tier} / Decision #${decision.sequence_number}`
@@ -521,6 +677,7 @@ export function rebuildSearchIndex() {
         question.context,
         question.blocks,
         question.blocked_by,
+        formatLinksForSearch(linkLookup, 'question', question.id),
         formatTagsForSearch(tagLookup, 'question', question.id)
       ]),
       section_path: formatUrgency(question.urgency)
@@ -533,7 +690,13 @@ export function rebuildSearchIndex() {
       entity_type: 'living_document',
       entity_id: String(document.id),
       title: `${formatDocType(document.doc_type)} Entry ${document.entry_number || document.id}`,
-      content: compactText([formatDocType(document.doc_type), document.status, flattenJsonText(fields), formatTagsForSearch(tagLookup, 'living_document', document.id)]),
+      content: compactText([
+        formatDocType(document.doc_type),
+        document.status,
+        flattenJsonText(fields),
+        formatLinksForSearch(linkLookup, 'living_document', document.id),
+        formatTagsForSearch(tagLookup, 'living_document', document.id)
+      ]),
       section_path: formatDocType(document.doc_type)
     });
   }
@@ -551,6 +714,7 @@ export function rebuildSearchIndex() {
         event.event_type,
         event.source_note,
         event.status,
+        formatLinksForSearch(linkLookup, 'timeline_event', event.id),
         formatTagsForSearch(tagLookup, 'timeline_event', event.id)
       ]),
       section_path: formatTimelineLocation(event)
@@ -565,6 +729,13 @@ export function rebuildSearchIndex() {
   });
 
   transaction();
+  connection
+    .prepare(`
+      INSERT INTO config (key, value)
+      VALUES ('search_index_entity_links', '1')
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value
+    `)
+    .run();
 
   const counts = connection
     .prepare('SELECT entity_type, COUNT(*) AS count FROM search_index GROUP BY entity_type ORDER BY entity_type')
@@ -926,6 +1097,44 @@ export function seedCanonTagsIfNeeded({ tags, links }) {
   };
 }
 
+export function seedEntityLinksIfNeeded(links) {
+  const existingCount = connection.prepare('SELECT COUNT(*) AS count FROM entity_links').get().count;
+  const insertLink = connection.prepare(`
+    INSERT INTO entity_links (source_type, source_id, target_type, target_id, relationship_type, note)
+    VALUES (@source_type, @source_id, @target_type, @target_id, @relationship_type, @note)
+    ON CONFLICT(source_type, source_id, target_type, target_id, relationship_type) DO NOTHING
+  `);
+
+  const transaction = connection.transaction(() => {
+    for (const link of links) {
+      const sourceId = resolveEntityId(link.source_type, link.source);
+      const targetId = resolveEntityId(link.target_type, link.target);
+
+      if (!sourceId || !targetId) continue;
+      if (!getEntityRecord(link.source_type, sourceId) || !getEntityRecord(link.target_type, targetId)) continue;
+      if (link.source_type === link.target_type && String(sourceId) === String(targetId)) continue;
+
+      insertLink.run({
+        source_type: link.source_type,
+        source_id: String(sourceId),
+        target_type: link.target_type,
+        target_id: String(targetId),
+        relationship_type: normalizeRelationshipType(link.relationship_type),
+        note: link.note || null
+      });
+    }
+  });
+
+  transaction();
+
+  const finalCount = connection.prepare('SELECT COUNT(*) AS count FROM entity_links').get().count;
+  return {
+    seeded: finalCount > existingCount,
+    links: finalCount,
+    expectedLinks: links.length
+  };
+}
+
 function buildSearchQuery(term) {
   return term
     .replace(/-/g, ' ')
@@ -946,6 +1155,31 @@ function getTagLookup() {
       lookup.set(key, []);
     }
     lookup.get(key).push(tag);
+  }
+
+  return lookup;
+}
+
+function getEntityLinkSearchLookup() {
+  const lookup = new Map();
+
+  for (const link of getAllEntityLinks()) {
+    if (link.target_missing) continue;
+    const sourceKey = `${link.source_type}:${link.source_id}`;
+    const targetKey = `${link.target_type}:${link.target_id}`;
+    const linkText = formatEntityLinkForSearch(link);
+    const reciprocalText = formatEntityLinkForSearch({
+      ...link,
+      target_type: link.source_type,
+      target_id: link.source_id,
+      target_title: link.source_title,
+      target_section: link.source_section
+    });
+
+    if (!lookup.has(sourceKey)) lookup.set(sourceKey, []);
+    if (!lookup.has(targetKey)) lookup.set(targetKey, []);
+    lookup.get(sourceKey).push(linkText);
+    lookup.get(targetKey).push(reciprocalText);
   }
 
   return lookup;
@@ -977,8 +1211,52 @@ function formatTagsForSearch(tagLookup, entityType, entityId) {
     .join('\n');
 }
 
+function formatLinksForSearch(linkLookup, entityType, entityId) {
+  return (linkLookup.get(`${entityType}:${entityId}`) || []).join('\n');
+}
+
+function formatEntityLinkForSearch(link) {
+  return compactText([
+    'linked record',
+    formatEntityType(link.target_type),
+    link.target_title,
+    link.relationship_type,
+    link.relationship_type?.replace(/[-_]/g, ' '),
+    link.note
+  ]);
+}
+
 function getEntityTags(entityType, entityId) {
   return getEntityTagLinks().filter((tag) => tag.entity_type === entityType && String(tag.entity_id) === String(entityId));
+}
+
+function getContextPack(id) {
+  const pack = connection.prepare('SELECT * FROM context_packs WHERE id = ?').get(id);
+  if (!pack) return null;
+
+  return {
+    ...pack,
+    links: getContextPackLinks(pack.id)
+  };
+}
+
+function getContextPackLinks(packId) {
+  return connection
+    .prepare('SELECT * FROM context_pack_links WHERE pack_id = ? ORDER BY entity_type, id')
+    .all(packId)
+    .map((link) => {
+      const record = getEntityRecord(link.entity_type, link.entity_id);
+      return {
+        ...link,
+        title: getEntityTitle(link.entity_type, record),
+        section: getEntitySection(link.entity_type, record),
+        missing: !record
+      };
+    });
+}
+
+function normalizeContextPackTitle(value) {
+  return String(value || '').trim().slice(0, 120);
 }
 
 function ensureCanonTag(value) {
@@ -1026,6 +1304,10 @@ function validateEntityReference(entityType, entityId) {
 
 function getEntityRecord(entityType, entityId) {
   switch (entityType) {
+    case 'bible_section':
+      return getNode(entityId);
+    case 'episode':
+      return getEpisode(entityId);
     case 'character':
       return getCharacter(entityId);
     case 'decision':
@@ -1039,6 +1321,141 @@ function getEntityRecord(entityType, entityId) {
     default:
       return null;
   }
+}
+
+function hydrateEntityLink(link, currentType, currentId) {
+  const currentIsTarget = currentType
+    && String(link.target_type) === String(currentType)
+    && String(link.target_id) === String(currentId);
+  const relatedType = currentIsTarget ? link.source_type : link.target_type;
+  const relatedId = currentIsTarget ? link.source_id : link.target_id;
+  const relatedRecord = getEntityRecord(relatedType, relatedId);
+  const sourceRecord = getEntityRecord(link.source_type, link.source_id);
+  const targetRecord = getEntityRecord(link.target_type, link.target_id);
+
+  return {
+    ...link,
+    direction: currentIsTarget ? 'incoming' : 'outgoing',
+    related_type: relatedType,
+    related_id: relatedId,
+    related_title: getEntityTitle(relatedType, relatedRecord),
+    related_section: getEntitySection(relatedType, relatedRecord),
+    source_title: getEntityTitle(link.source_type, sourceRecord),
+    source_section: getEntitySection(link.source_type, sourceRecord),
+    target_title: getEntityTitle(link.target_type, targetRecord),
+    target_section: getEntitySection(link.target_type, targetRecord),
+    target_missing: !relatedRecord || !sourceRecord || !targetRecord
+  };
+}
+
+function normalizeEntityLinkInput({ sourceType, sourceId, targetType, targetId, relationshipType, note }) {
+  return {
+    source_type: normalizeEntityType(sourceType),
+    source_id: String(sourceId || '').trim(),
+    target_type: normalizeEntityType(targetType),
+    target_id: String(targetId || '').trim(),
+    relationship_type: normalizeRelationshipType(relationshipType),
+    note: String(note || '').trim() || null
+  };
+}
+
+function normalizeEntityType(entityType) {
+  const normalized = String(entityType || '').trim();
+  const allowed = new Set(['bible_section', 'episode', 'character', 'decision', 'question', 'timeline_event', 'living_document']);
+  if (!allowed.has(normalized)) {
+    throw new Error(`Unsupported linked record type: ${entityType}.`);
+  }
+  return normalized;
+}
+
+function normalizeRelationshipType(value) {
+  return String(value || 'related')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64) || 'related';
+}
+
+function resolveEntityId(entityType, reference = {}) {
+  switch (entityType) {
+    case 'bible_section':
+      return reference.node_id || reference.id;
+    case 'episode':
+      return connection.prepare('SELECT id FROM episodes WHERE season = ? AND episode_number = ?').get(reference.season, reference.episode_number)?.id || reference.id;
+    case 'character':
+      return connection.prepare('SELECT id FROM characters WHERE name = ?').get(reference.name)?.id || reference.id;
+    case 'decision':
+      return connection.prepare('SELECT id FROM decisions WHERE sequence_number = ?').get(reference.sequence_number)?.id || reference.id;
+    case 'question':
+      return connection.prepare('SELECT id FROM questions WHERE question = ?').get(reference.question)?.id || reference.id;
+    case 'timeline_event':
+      return connection.prepare('SELECT id FROM timeline_events WHERE seed_key = ?').get(reference.seed_key)?.id || reference.id;
+    case 'living_document':
+      return connection.prepare('SELECT id FROM living_documents WHERE doc_type = ? AND entry_number = ?').get(reference.doc_type, reference.entry_number)?.id || reference.id;
+    default:
+      return null;
+  }
+}
+
+function getEntityTitle(entityType, record) {
+  if (!record) return 'Missing record';
+
+  switch (entityType) {
+    case 'bible_section':
+      return record.title;
+    case 'episode':
+      return record.title || `S${record.season}E${record.episode_number}`;
+    case 'character':
+      return record.name;
+    case 'decision':
+      return record.title;
+    case 'question':
+      return record.question;
+    case 'timeline_event':
+      return record.title;
+    case 'living_document':
+      return `${formatDocType(record.doc_type)} Entry ${record.entry_number || record.id}`;
+    default:
+      return 'Record';
+  }
+}
+
+function getEntitySection(entityType, record) {
+  if (!record) return 'Missing';
+
+  switch (entityType) {
+    case 'bible_section':
+      return record.node_type || 'Story Bible';
+    case 'episode':
+      return `Season ${record.season} / Episode ${record.episode_number}`;
+    case 'character':
+      return record.role || 'Character';
+    case 'decision':
+      return `Decision #${record.sequence_number}`;
+    case 'question':
+      return formatUrgency(record.urgency);
+    case 'timeline_event':
+      return formatTimelineLocation(record);
+    case 'living_document':
+      return formatDocType(record.doc_type);
+    default:
+      return formatEntityType(entityType);
+  }
+}
+
+function formatEntityType(entityType) {
+  const labels = {
+    bible_section: 'Story Bible',
+    episode: 'Episode',
+    character: 'Character',
+    decision: 'Decision',
+    question: 'Question',
+    timeline_event: 'Timeline',
+    living_document: 'Living Doc'
+  };
+
+  return labels[entityType] || formatLabel(entityType);
 }
 
 function getMatchedTags(tags, term) {
@@ -1128,6 +1545,13 @@ function searchIndexHasCanonTagContent() {
         )
     `)
     .get().count > 0;
+}
+
+function searchIndexHasEntityLinkContent() {
+  const linkedRecords = connection.prepare('SELECT COUNT(*) AS count FROM entity_links').get().count;
+  if (!linkedRecords) return true;
+
+  return connection.prepare("SELECT value FROM config WHERE key = 'search_index_entity_links'").get()?.value === '1';
 }
 
 function compactText(parts) {

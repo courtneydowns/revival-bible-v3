@@ -1,20 +1,26 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRevivalStore } from '../store.js';
 import CanonTagBadges from './CanonTagBadges.jsx';
 import EntityPreviewCard from './EntityPreviewCard.jsx';
 import InspectorPanel from './InspectorPanel.jsx';
 import MasterDetailShell from './MasterDetailShell.jsx';
+import RelatedRecords from './RelatedRecords.jsx';
 import StatusBadge from './StatusBadge.jsx';
 import StatusSelector from './StatusSelector.jsx';
 import TagEditor from './TagEditor.jsx';
 
 export default function CharacterWorkspace() {
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
+  const appliedNavigationFocusTick = useRef(0);
+  const characterCardRefs = useRef(new Map());
+  const listPanelRef = useRef(null);
   const activeCharacterId = useRevivalStore((state) => state.activeCharacterId);
   const characters = useRevivalStore((state) => state.characters);
+  const navigationFocusTick = useRevivalStore((state) => state.navigationFocusTick);
   const selectedCharacter = useRevivalStore((state) => state.selectedCharacter);
   const relationships = useRevivalStore((state) => state.selectedCharacterRelationships);
   const entityTagsByKey = useRevivalStore((state) => state.entityTagsByKey);
+  const entityLinksByKey = useRevivalStore((state) => state.entityLinksByKey);
   const selectCharacter = useRevivalStore((state) => state.selectCharacter);
 
   useEffect(() => {
@@ -23,6 +29,14 @@ export default function CharacterWorkspace() {
     }
   }, [activeCharacterId, characters, selectCharacter]);
 
+  useEffect(() => {
+    if (!activeCharacterId || !navigationFocusTick) return;
+    if (appliedNavigationFocusTick.current === navigationFocusTick) return;
+
+    appliedNavigationFocusTick.current = navigationFocusTick;
+    scheduleRecordScroll(characterCardRefs.current.get(String(activeCharacterId)), listPanelRef.current);
+  }, [activeCharacterId, characters.length, navigationFocusTick]);
+
   return (
     <section className="view character-workspace">
       <div className="eyebrow">Characters</div>
@@ -30,6 +44,7 @@ export default function CharacterWorkspace() {
       <MasterDetailShell
         className={`character-master-detail ${inspectorCollapsed ? 'inspector-collapsed' : ''}`}
         listLabel="Characters"
+        listRef={listPanelRef}
         list={characters.map((character) => (
           <EntityPreviewCard
             active={String(activeCharacterId) === String(character.id)}
@@ -40,6 +55,13 @@ export default function CharacterWorkspace() {
             tags={entityTagsByKey[`character:${character.id}`] || []}
             title={character.name}
             type="Character"
+            ref={(node) => {
+              if (node) {
+                characterCardRefs.current.set(String(character.id), node);
+              } else {
+                characterCardRefs.current.delete(String(character.id));
+              }
+            }}
           />
         ))}
         inspector={(
@@ -82,6 +104,11 @@ export default function CharacterWorkspace() {
                   <Field title="Season 3 Arc" value={selectedCharacter.arc_season_3} />
                   <Field title="Notes" value={selectedCharacter.notes} />
                 </div>
+                <RelatedRecords
+                  entityId={selectedCharacter.id}
+                  entityType="character"
+                  links={entityLinksByKey[`character:${selectedCharacter.id}`] || []}
+                />
                 <h3>Relationships</h3>
                 {relationships.length ? (
                   <div className="relationship-list">
@@ -139,4 +166,54 @@ function Field({ title, value }) {
       <p>{value || 'Pending later character seeding.'}</p>
     </div>
   );
+}
+
+function scheduleRecordScroll(card, listPanel) {
+  if (!card || !listPanel) return;
+
+  const scroll = () => {
+    if (!card.isConnected || !listPanel.isConnected) return;
+
+    const scrollContainer = getScrollContainer(card, listPanel);
+    const cardRect = card.getBoundingClientRect();
+    const containerRect = scrollContainer.getBoundingClientRect();
+    const centerOffset = Math.max((scrollContainer.clientHeight - cardRect.height) / 2, 0);
+    const nextTop = scrollContainer.scrollTop + cardRect.top - containerRect.top - centerOffset;
+
+    scrollContainer.scrollTop = Math.max(nextTop, 0);
+    ensureViewportVisible(card);
+
+    card.focus({ preventScroll: true });
+  };
+
+  requestAnimationFrame(scroll);
+  setTimeout(scroll, 50);
+  setTimeout(scroll, 150);
+  setTimeout(scroll, 500);
+  setTimeout(scroll, 1000);
+}
+
+function getScrollContainer(card, fallback) {
+  let current = card.parentElement;
+
+  while (current && current !== document.body) {
+    const style = window.getComputedStyle(current);
+    const canScroll = /(auto|scroll)/.test(style.overflowY) && current.scrollHeight > current.clientHeight + 1;
+    if (canScroll) return current;
+    current = current.parentElement;
+  }
+
+  return fallback;
+}
+
+function ensureViewportVisible(card) {
+  const rect = card.getBoundingClientRect();
+  if (rect.bottom > 0 && rect.top < window.innerHeight) return;
+
+  const content = document.querySelector('.content');
+  if (!content || content.scrollHeight <= content.clientHeight + 1) return;
+
+  const contentRect = content.getBoundingClientRect();
+  const centerOffset = Math.max((content.clientHeight - rect.height) / 2, 0);
+  content.scrollTop = Math.max(content.scrollTop + rect.top - contentRect.top - centerOffset, 0);
 }

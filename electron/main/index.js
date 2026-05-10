@@ -1,11 +1,12 @@
 import { app, BrowserWindow, ipcMain, screen, shell } from 'electron';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { addEntityTag, closeDatabase, ensureSearchIndex, getCanonTags, getCharacter, getCharacterRelationshipCount, getCharacterRelationships, getCharacters, getDatabaseInfo, getDecision, getDecisionBlockers, getDecisions, getEntityTagLinks, getEpisode, getEpisodes, getEpisodesBySeason, getLatestNodeContent, getLivingDocumentEntry, getLivingDocuments, getLivingDocumentsByType, getNode, getNodeTree, getQuestion, getQuestions, getTimelineEvent, getTimelineEvents, initDatabase, removeEntityTag, updateEntityStatus } from './db.js';
+import { addContextPackLink, addEntityLink, addEntityTag, closeDatabase, createContextPack, deleteContextPack, ensureSearchIndex, getCanonTags, getCharacter, getCharacterRelationshipCount, getCharacterRelationships, getCharacters, getContextPacks, getDatabaseInfo, getDecision, getDecisionBlockers, getDecisions, getEntityLinks, getEntityTagLinks, getEpisode, getEpisodes, getEpisodesBySeason, getLatestNodeContent, getLivingDocumentEntry, getLivingDocuments, getLivingDocumentsByType, getNode, getNodeTree, getQuestion, getQuestions, getTimelineEvent, getTimelineEvents, initDatabase, removeContextPackLink, removeEntityLink, removeEntityTag, updateContextPack, updateEntityStatus } from './db.js';
 import { getPreferences, hasApiKey, setApiKey, setPreferences } from './config.js';
 import { seedBible } from './seed-bible.js';
 import { seedCanonTags } from './seed-canon-tags.js';
 import { seedCharacterRelationshipRefinement } from './seed-character-relationships.js';
+import { seedEntityLinks } from './seed-entity-links.js';
 import { seedEpisodes } from './seed-episodes.js';
 import { seedPhase3B } from './seed-phase3b.js';
 import { seedTimeline } from './seed-timeline.js';
@@ -85,6 +86,15 @@ function registerCoreHandlers() {
   ipcMain.handle('canon:add-entity-tag', async (_event, payload) => addEntityTag(payload?.entityType, payload?.entityId, payload?.tag));
   ipcMain.handle('canon:remove-entity-tag', async (_event, payload) => removeEntityTag(payload?.entityType, payload?.entityId, payload?.tagSlug));
   ipcMain.handle('canon:update-entity-status', async (_event, payload) => updateEntityStatus(payload?.entityType, payload?.entityId, payload?.status));
+  ipcMain.handle('links:get-entity-links', async (_event, payload) => getEntityLinks(payload?.entityType, payload?.entityId));
+  ipcMain.handle('links:add-entity-link', async (_event, payload) => addEntityLink(payload));
+  ipcMain.handle('links:remove-entity-link', async (_event, linkId) => removeEntityLink(linkId));
+  ipcMain.handle('context-packs:get-all', async () => getContextPacks());
+  ipcMain.handle('context-packs:create', async (_event, payload) => createContextPack(payload));
+  ipcMain.handle('context-packs:update', async (_event, payload) => updateContextPack(payload?.id, payload));
+  ipcMain.handle('context-packs:delete', async (_event, id) => deleteContextPack(id));
+  ipcMain.handle('context-packs:add-link', async (_event, payload) => addContextPackLink(payload));
+  ipcMain.handle('context-packs:remove-link', async (_event, linkId) => removeContextPackLink(linkId));
 }
 
 app.whenReady().then(() => {
@@ -101,6 +111,8 @@ app.whenReady().then(() => {
   console.info(`[Revival Bible v3] Phase 5A timeline seed checked: ${JSON.stringify(timelineSeedResult)}`);
   const canonTagSeedResult = seedCanonTags();
   console.info(`[Revival Bible v3] Phase 5C canon tag seed checked: ${JSON.stringify(canonTagSeedResult)}`);
+  const entityLinkSeedResult = seedEntityLinks();
+  console.info(`[Revival Bible v3] Phase 8 entity link seed checked: ${JSON.stringify(entityLinkSeedResult)}`);
   const searchIndexResult = ensureSearchIndex();
   console.info(`[Revival Bible v3] Search index checked: ${JSON.stringify(searchIndexResult)}`);
   registerCoreHandlers();

@@ -15,6 +15,7 @@ export const useRevivalStore = create((set, get) => ({
   activeCharacterId: null,
   activeDecisionId: null,
   activeQuestionId: null,
+  activeContextPackId: null,
   activeTimelineEventId: null,
   activeLivingDocType: 'rewatch_ledger',
   activeLivingDocEntryId: null,
@@ -30,9 +31,11 @@ export const useRevivalStore = create((set, get) => ({
   characterRelationshipCount: 0,
   decisions: [],
   questions: [],
+  contextPacks: [],
   timelineEvents: [],
   canonTags: [],
   entityTagsByKey: {},
+  entityLinksByKey: {},
   livingDocs: initialLivingDocs,
   searchOpen: false,
   settingsOpen: false,
@@ -41,18 +44,28 @@ export const useRevivalStore = create((set, get) => ({
   needsApiKey: false,
   hasUnsaved: false,
   streamingState: null,
+  navigationHistory: [],
+  navigationFocusTick: 0,
   databaseInfo: {
     connected: false,
     path: ''
   },
 
-  setActiveView: (activeView) => set({ activeView }),
+  setActiveView: (activeView) => set((state) => {
+    if (state.activeView === activeView) return {};
+
+    return {
+      activeView,
+      navigationHistory: [createNavigationSnapshot(state), ...state.navigationHistory].slice(0, 20)
+    };
+  }),
   setActiveNodeId: (activeNodeId) => set({ activeNodeId }),
   setActiveEpisodeId: (activeEpisodeId) => set({ activeEpisodeId }),
   setActiveEpisodeSeason: (activeEpisodeSeason) => set({ activeEpisodeSeason }),
   setActiveCharacterId: (activeCharacterId) => set({ activeCharacterId }),
   setActiveDecisionId: (activeDecisionId) => set({ activeDecisionId }),
   setActiveQuestionId: (activeQuestionId) => set({ activeQuestionId }),
+  setActiveContextPackId: (activeContextPackId) => set({ activeContextPackId }),
   setActiveTimelineEventId: (activeTimelineEventId) => set({ activeTimelineEventId }),
   setActiveLivingDocType: (activeLivingDocType) => {
     const entries = get().livingDocs[activeLivingDocType] || [];
@@ -113,6 +126,16 @@ export const useRevivalStore = create((set, get) => ({
   openAiPanel: (aiPanelTab = 'ask') => set({ aiPanelOpen: true, aiPanelTab }),
   closeAiPanel: () => set({ aiPanelOpen: false }),
   setAiPanelTab: (aiPanelTab) => set({ aiPanelTab }),
+  goBack: () => {
+    const [previous, ...rest] = get().navigationHistory;
+    if (!previous) return;
+
+    set({
+      ...previous,
+      navigationHistory: rest,
+      navigationFocusTick: get().navigationFocusTick + 1
+    });
+  },
   setHasUnsaved: (hasUnsaved) => set({ hasUnsaved }),
   setStreamingState: (streamingState) => set({ streamingState }),
   setNeedsApiKey: (needsApiKey) => set({ needsApiKey }),
@@ -168,9 +191,14 @@ export const useRevivalStore = create((set, get) => ({
     if (!api || !decisionId) return;
 
     const localDecision = get().decisions.find((decision) => String(decision.id) === String(decisionId));
+    const decisionLinks = await api.links.getEntityLinks({ entityType: 'decision', entityId: decisionId });
     set({
       activeView: 'decisions',
-      activeDecisionId: decisionId
+      activeDecisionId: decisionId,
+      entityLinksByKey: {
+        ...get().entityLinksByKey,
+        [`decision:${decisionId}`]: decisionLinks || []
+      }
     });
 
     if (!localDecision) {
@@ -189,6 +217,50 @@ export const useRevivalStore = create((set, get) => ({
     const activeQuestionId = get().activeQuestionId || questions?.[0]?.id || null;
     set({ questions: questions || [], activeQuestionId });
     return questions || [];
+  },
+  loadContextPacks: async () => {
+    const contextPacks = await window.revival?.contextPacks.getAll();
+    const activeContextPackId = get().activeContextPackId || contextPacks?.[0]?.id || null;
+    set({ contextPacks: contextPacks || [], activeContextPackId });
+    return contextPacks || [];
+  },
+  createContextPack: async (payload) => {
+    const response = await window.revival?.contextPacks.create(payload);
+    if (!response?.ok || !response.pack) return response;
+    await get().loadContextPacks();
+    set({ activeView: 'context-packs', activeContextPackId: response.pack.id });
+    return response;
+  },
+  updateContextPack: async (payload) => {
+    const response = await window.revival?.contextPacks.update(payload);
+    if (!response?.ok || !response.pack) return response;
+    set((state) => ({
+      contextPacks: replaceById(state.contextPacks, response.pack)
+    }));
+    return response;
+  },
+  deleteContextPack: async (contextPackId) => {
+    const response = await window.revival?.contextPacks.delete(contextPackId);
+    if (!response?.ok) return response;
+    const contextPacks = await get().loadContextPacks();
+    set({ activeContextPackId: contextPacks[0]?.id || null });
+    return response;
+  },
+  addContextPackLink: async (payload) => {
+    const response = await window.revival?.contextPacks.addLink(payload);
+    if (!response?.ok || !response.pack) return response;
+    set((state) => ({
+      contextPacks: replaceById(state.contextPacks, response.pack)
+    }));
+    return response;
+  },
+  removeContextPackLink: async (linkId) => {
+    const response = await window.revival?.contextPacks.removeLink(linkId);
+    if (!response?.ok || !response.pack) return response;
+    set((state) => ({
+      contextPacks: replaceById(state.contextPacks, response.pack)
+    }));
+    return response;
   },
   selectQuestion: async (questionId) => {
     const api = window.revival;
@@ -255,6 +327,32 @@ export const useRevivalStore = create((set, get) => ({
     set((state) => applyEntityRecordUpdate(state, entityType, response.record));
     return response;
   },
+  loadEntityLinks: async ({ entityType, entityId }) => {
+    if (!entityType || !entityId) return [];
+    const links = await window.revival?.links.getEntityLinks({ entityType, entityId });
+    set((state) => ({
+      entityLinksByKey: {
+        ...state.entityLinksByKey,
+        [`${entityType}:${entityId}`]: links || []
+      }
+    }));
+    return links || [];
+  },
+  addEntityLink: async (payload) => {
+    const response = await window.revival?.links.addEntityLink(payload);
+    if (!response?.ok) return response;
+    await get().loadEntityLinks({ entityType: payload.sourceType, entityId: payload.sourceId });
+    await get().loadEntityLinks({ entityType: payload.targetType, entityId: payload.targetId });
+    return response;
+  },
+  removeEntityLink: async ({ linkId, entityType, entityId }) => {
+    const response = await window.revival?.links.removeEntityLink(linkId);
+    if (!response?.ok) return response;
+    if (entityType && entityId) {
+      await get().loadEntityLinks({ entityType, entityId });
+    }
+    return response;
+  },
   selectTimelineEvent: async (timelineEventId) => {
     if (!timelineEventId) return;
     set({
@@ -289,20 +387,32 @@ export const useRevivalStore = create((set, get) => ({
     const api = window.revival;
     if (!api || !characterId) return;
 
-    const [selectedCharacter, selectedCharacterRelationships] = await Promise.all([
+    const [selectedCharacter, selectedCharacterRelationships, selectedCharacterLinks] = await Promise.all([
       api.characters.get(characterId),
-      api.characters.getRelationships(characterId)
+      api.characters.getRelationships(characterId),
+      api.links.getEntityLinks({ entityType: 'character', entityId: characterId })
     ]);
 
     set({
       activeView: 'characters',
       activeCharacterId: selectedCharacter?.id || characterId,
       selectedCharacter: selectedCharacter || null,
-      selectedCharacterRelationships: selectedCharacterRelationships || []
+      selectedCharacterRelationships: selectedCharacterRelationships || [],
+      entityLinksByKey: {
+        ...get().entityLinksByKey,
+        [`character:${selectedCharacter?.id || characterId}`]: selectedCharacterLinks || []
+      }
     });
+  },
+  navigateToEntity: async (entityType, entityId) => {
+    await get().navigateToSearchResult({ entity_type: entityType, entity_id: entityId });
   },
   navigateToSearchResult: async (result) => {
     if (!result?.entity_type || !result?.entity_id) return;
+
+    set((state) => ({
+      navigationHistory: [createNavigationSnapshot(state), ...state.navigationHistory].slice(0, 20)
+    }));
 
     switch (result.entity_type) {
       case 'episode':
@@ -332,7 +442,8 @@ export const useRevivalStore = create((set, get) => ({
     }
 
     set((state) => ({
-      expandedNodes: state.expandedNodes.filter((nodeId) => nodeId !== 'story-bible')
+      expandedNodes: state.expandedNodes.filter((nodeId) => nodeId !== 'story-bible'),
+      navigationFocusTick: state.navigationFocusTick + 1
     }));
     get().closeSearch();
   },
@@ -340,13 +451,14 @@ export const useRevivalStore = create((set, get) => ({
     const api = window.revival;
     if (!api) return;
 
-    const [databaseInfo, nodeTree, episodes, characters, decisions, questions, livingRows, timelineEvents, canonTags, entityTagLinks, characterRelationshipCount] = await Promise.all([
+    const [databaseInfo, nodeTree, episodes, characters, decisions, questions, contextPacks, livingRows, timelineEvents, canonTags, entityTagLinks, characterRelationshipCount] = await Promise.all([
       api.app.getDatabaseInfo(),
       api.nodes.getTree(),
       api.episodes.getAll(),
       api.characters.getAll(),
       api.decisions.getAll(),
       api.questions.getAll(),
+      api.contextPacks.getAll(),
       api.living.getAll(),
       api.timeline.getEvents(),
       api.canon.getTags(),
@@ -357,7 +469,7 @@ export const useRevivalStore = create((set, get) => ({
     const livingDocs = groupLivingDocs(livingRows || []);
     const entityTagsByKey = groupEntityTags(entityTagLinks || []);
 
-    set({ databaseInfo, nodeTree, episodes, characters, decisions, questions, livingDocs, timelineEvents: timelineEvents || [], canonTags: canonTags || [], entityTagsByKey, characterRelationshipCount });
+    set({ databaseInfo, nodeTree, episodes, characters, decisions, questions, contextPacks: contextPacks || [], livingDocs, timelineEvents: timelineEvents || [], canonTags: canonTags || [], entityTagsByKey, characterRelationshipCount });
   }
 }));
 
@@ -418,6 +530,27 @@ function applyEntityRecordUpdate(state, entityType, record) {
 
 function replaceById(rows, nextRow) {
   return rows.map((row) => (String(row.id) === String(nextRow.id) ? nextRow : row));
+}
+
+function createNavigationSnapshot(state) {
+  return {
+    activeView: state.activeView,
+    activeNodeId: state.activeNodeId,
+    activeEpisodeId: state.activeEpisodeId,
+    activeEpisodeSeason: state.activeEpisodeSeason,
+    selectedEpisode: state.selectedEpisode,
+    activeCharacterId: state.activeCharacterId,
+    selectedCharacter: state.selectedCharacter,
+    selectedCharacterRelationships: state.selectedCharacterRelationships,
+    activeDecisionId: state.activeDecisionId,
+    activeQuestionId: state.activeQuestionId,
+    activeContextPackId: state.activeContextPackId,
+    activeTimelineEventId: state.activeTimelineEventId,
+    activeLivingDocType: state.activeLivingDocType,
+    activeLivingDocEntryId: state.activeLivingDocEntryId,
+    selectedNode: state.selectedNode,
+    selectedNodeContent: state.selectedNodeContent
+  };
 }
 
 function getNodeParentIds(nodeTree, nodeId) {

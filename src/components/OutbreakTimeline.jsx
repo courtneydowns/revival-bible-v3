@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useRevivalStore } from '../store.js';
 import CanonTagBadges from './CanonTagBadges.jsx';
 import StatusBadge from './StatusBadge.jsx';
@@ -9,6 +9,7 @@ export default function OutbreakTimeline() {
   const entityTagsByKey = useRevivalStore((state) => state.entityTagsByKey);
   const loadTimelineEvents = useRevivalStore((state) => state.loadTimelineEvents);
   const selectTimelineEvent = useRevivalStore((state) => state.selectTimelineEvent);
+  const eventCardRefs = useRef(new Map());
   const groupedEvents = useMemo(() => groupByBucket(timelineEvents), [timelineEvents]);
 
   useEffect(() => {
@@ -22,6 +23,13 @@ export default function OutbreakTimeline() {
       selectTimelineEvent(timelineEvents[0].id);
     }
   }, [activeTimelineEventId, selectTimelineEvent, timelineEvents]);
+
+  useEffect(() => {
+    if (!activeTimelineEventId) return;
+
+    const card = eventCardRefs.current.get(String(activeTimelineEventId));
+    card?.scrollIntoView({ block: 'center', behavior: 'auto' });
+  }, [activeTimelineEventId, timelineEvents.length]);
 
   return (
     <section className="view timeline-view">
@@ -40,6 +48,13 @@ export default function OutbreakTimeline() {
                     className={`timeline-event-card ${String(activeTimelineEventId) === String(event.id) ? 'selected' : ''}`}
                     key={event.id}
                     onClick={() => selectTimelineEvent(event.id)}
+                    ref={(node) => {
+                      if (node) {
+                        eventCardRefs.current.set(String(event.id), node);
+                      } else {
+                        eventCardRefs.current.delete(String(event.id));
+                      }
+                    }}
                     type="button"
                   >
                     <div className="timeline-card-topline">

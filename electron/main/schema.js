@@ -153,6 +153,37 @@ export function initializeSchema(db) {
       FOREIGN KEY (tag_id) REFERENCES canon_tags(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS entity_links (
+      id INTEGER PRIMARY KEY,
+      source_type TEXT NOT NULL,
+      source_id TEXT NOT NULL,
+      target_type TEXT NOT NULL,
+      target_id TEXT NOT NULL,
+      relationship_type TEXT DEFAULT 'related',
+      note TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(source_type, source_id, target_type, target_id, relationship_type)
+    );
+
+    CREATE TABLE IF NOT EXISTS context_packs (
+      id INTEGER PRIMARY KEY,
+      title TEXT NOT NULL,
+      purpose TEXT DEFAULT '',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS context_pack_links (
+      id INTEGER PRIMARY KEY,
+      pack_id INTEGER NOT NULL,
+      entity_type TEXT NOT NULL,
+      entity_id TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(pack_id, entity_type, entity_id),
+      FOREIGN KEY (pack_id) REFERENCES context_packs(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS sessions (
       id INTEGER PRIMARY KEY,
       focus_type TEXT,
@@ -205,6 +236,8 @@ export function initializeSchema(db) {
   createUpdatedAtTrigger(db, 'living_documents');
   createUpdatedAtTrigger(db, 'timeline_events');
   createUpdatedAtTrigger(db, 'canon_tags');
+  createUpdatedAtTrigger(db, 'entity_links');
+  createUpdatedAtTrigger(db, 'context_packs');
 
   ensureColumn(db, 'characters', 'canon_state', "TEXT DEFAULT 'developing'");
 }

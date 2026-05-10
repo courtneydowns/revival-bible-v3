@@ -273,6 +273,16 @@ button {
   background: #2b2925;
 }
 
+.icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.icon-button:disabled:hover {
+  border-color: var(--line);
+  background: var(--bg-soft);
+}
+
 .content {
   min-width: 0;
   min-height: 0;
@@ -611,7 +621,8 @@ h1 {
 }
 
 .arc-grid,
-.relationship-list {
+.relationship-list,
+.related-record-list {
   display: grid;
   gap: 10px;
 }
@@ -677,6 +688,102 @@ h1 {
   font-size: 12px;
 }
 
+.related-records {
+  display: grid;
+  gap: 9px;
+  margin: 18px 0 22px;
+}
+
+.related-records-header h3 {
+  margin: 0;
+}
+
+.related-record-chip {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 30px;
+  align-items: stretch;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  overflow: hidden;
+}
+
+.related-record-chip > button:first-child {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.related-record-chip > button:first-child:hover {
+  background: var(--bg-soft);
+}
+
+.related-record-chip span,
+.related-record-chip small {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.related-record-chip strong {
+  overflow-wrap: anywhere;
+}
+
+.related-record-chip small {
+  color: var(--accent);
+  text-transform: none;
+}
+
+.related-record-chip p {
+  margin: 2px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.related-record-chip.stale {
+  opacity: 0.64;
+}
+
+.related-record-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-left: 1px solid var(--line);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.related-record-remove:hover {
+  background: rgb(255 255 255 / 7%);
+  color: var(--danger);
+}
+
+.related-record-add {
+  display: grid;
+  grid-template-columns: minmax(96px, 0.8fr) minmax(140px, 1.8fr) minmax(110px, 1fr) 34px;
+  gap: 6px;
+  align-items: center;
+}
+
+.related-record-add select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #10100f;
+  color: var(--text);
+  padding: 7px 9px;
+}
+
 .season-switcher {
   display: inline-flex;
   gap: 6px;
@@ -735,6 +842,102 @@ h1 {
   align-items: stretch;
   min-height: 0;
   max-height: calc(100vh - 210px);
+}
+
+.context-pack-workspace {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: stretch;
+  min-height: 0;
+  max-height: calc(100vh - 210px);
+}
+
+.context-pack-list-panel,
+.context-pack-detail-panel {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.context-pack-create,
+.context-pack-add {
+  display: grid;
+  gap: 7px;
+  align-items: center;
+}
+
+.context-pack-create {
+  grid-template-columns: minmax(0, 1fr) 34px;
+  margin-bottom: 8px;
+}
+
+.context-pack-add {
+  grid-template-columns: minmax(120px, 0.8fr) minmax(180px, 1.5fr) 34px;
+  margin: 16px 0 18px;
+}
+
+.context-pack-create input,
+.context-pack-editor input,
+.context-pack-purpose textarea,
+.context-pack-add select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #10100f;
+  color: var(--text);
+  padding: 8px 10px;
+}
+
+.context-pack-editor input {
+  margin-top: 5px;
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.context-pack-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 7px;
+}
+
+.context-pack-purpose {
+  display: grid;
+  gap: 7px;
+}
+
+.context-pack-purpose span,
+.context-pack-group h2 {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.context-pack-purpose textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.context-pack-groups {
+  display: grid;
+  gap: 16px;
+}
+
+.context-pack-group {
+  display: grid;
+  gap: 9px;
+}
+
+.context-pack-group h2 {
+  margin: 0;
+}
+
+.danger-button:hover {
+  border-color: var(--danger);
+  color: var(--danger);
 }
 
 .decision-workspace {
@@ -1543,6 +1746,7 @@ h1 {
   }
 
   .phase3b-workspace,
+  .context-pack-workspace,
   .timeline-metadata,
   .living-field-grid {
     grid-template-columns: 1fr;
@@ -1556,6 +1760,7 @@ h1 {
 @media (max-width: 860px) {
   .episode-workspace,
   .phase3b-workspace,
+  .context-pack-workspace,
   .character-split-view,
   .master-detail-shell,
   .decision-master-detail {

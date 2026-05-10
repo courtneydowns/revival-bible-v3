@@ -1,6 +1,7 @@
+import { forwardRef } from 'react';
 import CanonTagBadges from './CanonTagBadges.jsx';
 
-export default function EntityPreviewCard({
+const EntityPreviewCard = forwardRef(function EntityPreviewCard({
   active = false,
   children,
   className = '',
@@ -12,11 +13,11 @@ export default function EntityPreviewCard({
   tags = [],
   title,
   type = 'Entity'
-}) {
+}, ref) {
   const metadata = meta.filter(Boolean);
 
   return (
-    <button className={`entity-preview-card ${active ? 'selected' : ''} ${className}`} onClick={onSelect} type="button">
+    <button className={`entity-preview-card ${active ? 'selected' : ''} ${className}`} onClick={(event) => onSelect?.(event)} ref={ref} type="button">
       <div className="entity-preview-topline">
         <span>{kicker || type}</span>
         {status}
@@ -34,4 +35,6 @@ export default function EntityPreviewCard({
       {children}
     </button>
   );
-}
+});
+
+export default EntityPreviewCard;

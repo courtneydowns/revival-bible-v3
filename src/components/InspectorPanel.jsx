@@ -1,10 +1,10 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-export default function InspectorPanel({ kicker, title, meta, badges, status, children, emptyText = 'Select an item.', className = '', collapsed = false, onToggleCollapsed }) {
+export default function InspectorPanel({ kicker, title, meta, badges, status, children, emptyText = 'Select an item.', className = '', collapsed = false, onToggleCollapsed, panelRef }) {
   const hasSelection = Boolean(title);
 
   return (
-    <article className={`inspector-panel ${hasSelection ? 'selected-detail-panel' : ''} ${collapsed ? 'collapsed' : ''} ${className}`}>
+    <article className={`inspector-panel ${hasSelection ? 'selected-detail-panel' : ''} ${collapsed ? 'collapsed' : ''} ${className}`} ref={panelRef}>
       <div className="inspector-panel-header">
         {collapsed ? (
           <button className="icon-button inspector-toggle" onClick={onToggleCollapsed} title="Expand inspector" type="button">

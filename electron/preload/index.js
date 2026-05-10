@@ -55,6 +55,19 @@ contextBridge.exposeInMainWorld('revival', {
     removeEntityTag: (payload) => invoke('canon:remove-entity-tag', payload),
     updateEntityStatus: (payload) => invoke('canon:update-entity-status', payload)
   },
+  links: {
+    getEntityLinks: (payload) => invoke('links:get-entity-links', payload),
+    addEntityLink: (payload) => invoke('links:add-entity-link', payload),
+    removeEntityLink: (linkId) => invoke('links:remove-entity-link', linkId)
+  },
+  contextPacks: {
+    getAll: () => invoke('context-packs:get-all'),
+    create: (payload) => invoke('context-packs:create', payload),
+    update: (payload) => invoke('context-packs:update', payload),
+    delete: (id) => invoke('context-packs:delete', id),
+    addLink: (payload) => invoke('context-packs:add-link', payload),
+    removeLink: (linkId) => invoke('context-packs:remove-link', linkId)
+  },
   search: {
     query: (query) => invoke('search:query', query),
     rebuildIndex: () => invoke('search:rebuild-index')

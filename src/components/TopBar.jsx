@@ -1,4 +1,4 @@
-import { Search, Settings } from 'lucide-react';
+import { ArrowLeft, Search, Settings } from 'lucide-react';
 import { useRevivalStore } from '../store.js';
 
 const titles = {
@@ -18,6 +18,8 @@ const titles = {
 export default function TopBar() {
   const activeView = useRevivalStore((state) => state.activeView);
   const hasUnsaved = useRevivalStore((state) => state.hasUnsaved);
+  const navigationHistory = useRevivalStore((state) => state.navigationHistory);
+  const goBack = useRevivalStore((state) => state.goBack);
   const openSearch = useRevivalStore((state) => state.openSearch);
   const openSettings = useRevivalStore((state) => state.openSettings);
 
@@ -28,6 +30,16 @@ export default function TopBar() {
         <div className="muted">{hasUnsaved ? 'Unsaved local changes' : 'Phase 1 foundation'}</div>
       </div>
       <div className="top-actions">
+        <button
+          aria-label="Back"
+          className="icon-button"
+          disabled={!navigationHistory.length}
+          onClick={goBack}
+          title="Back"
+          type="button"
+        >
+          <ArrowLeft size={17} />
+        </button>
         <button aria-label="Search" className="icon-button" onClick={openSearch} title="Search" type="button">
           <Search size={17} />
         </button>

@@ -21,9 +21,25 @@ Local-first Electron desktop app for the Revival story bible / continuity engine
 
 ## Standard workflow
 Before coding:
-1. Inspect relevant files.
-2. State smallest safe scope.
-3. Identify assumptions/risks.
+1. Read AGENTS.md, docs/CURRENT_STATE.md, and docs/ACTIVE_SCOPE.md first.
+2. Inspect relevant files before patching.
+3. State smallest safe scope.
+4. Identify assumptions/risks.
+5. Keep changes to 1-4 files unless the task clearly requires more.
+6. Do not touch high-risk areas unless docs/ACTIVE_SCOPE.md explicitly allows it.
+
+High-risk areas:
+- Search indexing.
+- Persistence.
+- Schema migrations.
+- Large store rewrites.
+
+Failed retests:
+- Use a surgical debug loop.
+- Reproduce the exact failure.
+- Inspect the smallest relevant surface.
+- Patch the smallest plausible cause.
+- Rerun the exact failed retest before claiming progress.
 
 After coding always run:
 - git status --short
@@ -31,9 +47,10 @@ After coding always run:
 - npm run build
 
 Final report must include:
-1. Changed files
-2. What changed
-3. Build result
-4. Smoke test steps
-5. Risks/assumptions
-6. Whether commit/push was skipped
+1. Files changed
+2. One sentence per fix
+3. Exact smoke result
+4. Exact build result
+5. Unresolved blockers
+
+No PASS claim is allowed without the exact retest that passed.
