@@ -1,4 +1,4 @@
-import { Check, Info, Plus, X } from 'lucide-react';
+import { Check, Info, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRevivalStore } from '../store.js';
 
@@ -11,12 +11,15 @@ export default function CandidateInbox() {
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const titleInputRef = useRef(null);
+  const contentInputRef = useRef(null);
+  const typeInputRef = useRef(null);
   const candidates = useRevivalStore((state) => state.candidates);
   const activeCandidateId = useRevivalStore((state) => state.activeCandidateId);
   const loadCandidates = useRevivalStore((state) => state.loadCandidates);
   const selectCandidate = useRevivalStore((state) => state.selectCandidate);
   const createCandidate = useRevivalStore((state) => state.createCandidate);
   const updateCandidateStatus = useRevivalStore((state) => state.updateCandidateStatus);
+  const deleteCandidate = useRevivalStore((state) => state.deleteCandidate);
   const selectedCandidate = useMemo(
     () => candidates.find((candidate) => String(candidate.id) === String(activeCandidateId)) || candidates[0] || null,
     [activeCandidateId, candidates]
@@ -34,13 +37,16 @@ export default function CandidateInbox() {
 
   const addCandidate = async (event) => {
     event.preventDefault();
-    if (!draftTitle.trim() || saving) return;
+    const title = titleInputRef.current?.value || draftTitle;
+    const content = contentInputRef.current?.value || draftContent;
+    const type = typeInputRef.current?.value || draftType;
+    if (!title.trim() || saving) return;
 
     setSaving(true);
     const response = await createCandidate({
-      title: draftTitle,
-      content: draftContent,
-      type: draftType,
+      title,
+      content,
+      type,
       provenanceMetadata: {
         source: 'Manual editorial note',
         workflow: 'Candidate Inbox'
@@ -52,6 +58,9 @@ export default function CandidateInbox() {
       setDraftTitle('');
       setDraftContent('');
       setDraftType('Narrative Note');
+      if (titleInputRef.current) titleInputRef.current.value = '';
+      if (contentInputRef.current) contentInputRef.current.value = '';
+      if (typeInputRef.current) typeInputRef.current.value = 'Narrative Note';
       setMessage('Candidate preserved for review.');
     } else {
       setMessage(response?.message || 'Candidate could not be saved.');
@@ -65,6 +74,18 @@ export default function CandidateInbox() {
     const response = await updateCandidateStatus({ id: selectedCandidate.id, status });
     setSaving(false);
     setMessage(response?.ok ? `Marked ${status}.` : response?.message || 'Status update failed.');
+  };
+
+  const removeCandidate = async () => {
+    if (!selectedCandidate || saving) return;
+
+    const confirmed = window.confirm(`Permanently delete "${selectedCandidate.title}"? Rejected candidates are preserved; deletion removes only this candidate.`);
+    if (!confirmed) return;
+
+    setSaving(true);
+    const response = await deleteCandidate(selectedCandidate.id);
+    setSaving(false);
+    setMessage(response?.ok ? 'Candidate permanently deleted.' : response?.message || 'Candidate delete failed.');
   };
 
   return (
@@ -91,7 +112,7 @@ export default function CandidateInbox() {
               ref={titleInputRef}
               value={draftTitle}
             />
-            <select aria-label="Candidate type" onChange={(event) => setDraftType(event.target.value)} value={draftType}>
+            <select aria-label="Candidate type" onChange={(event) => setDraftType(event.target.value)} ref={typeInputRef} value={draftType}>
               <option>Narrative Note</option>
               <option>Continuity Question</option>
               <option>Character Detail</option>
@@ -101,9 +122,10 @@ export default function CandidateInbox() {
               aria-label="Candidate content"
               onChange={(event) => setDraftContent(event.target.value)}
               placeholder="Candidate content or note"
+              ref={contentInputRef}
               value={draftContent}
             />
-            <button className="primary-button" disabled={saving || !draftTitle.trim()} type="submit">
+            <button className="primary-button" disabled={saving || !draftTitle.trim()} onClick={addCandidate} type="submit">
               <Plus size={15} />
               <span>Add Candidate</span>
             </button>
@@ -163,6 +185,10 @@ export default function CandidateInbox() {
                 <button className="secondary-button" disabled={saving || selectedCandidate.status === 'Rejected'} onClick={() => setStatus('Rejected')} type="button">
                   <X size={14} />
                   <span>Reject</span>
+                </button>
+                <button className="secondary-button danger-button candidate-delete-button" disabled={saving} onClick={removeCandidate} type="button">
+                  <Trash2 size={14} />
+                  <span>Delete</span>
                 </button>
               </div>
 

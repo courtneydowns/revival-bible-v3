@@ -348,7 +348,7 @@ export const useRevivalStore = create((set, get) => ({
     return aiSessions || [];
   },
   loadCandidates: async () => {
-    const candidates = window.revival?.candidates
+    const candidates = window.revival?.candidates?.getAll
       ? await window.revival.candidates.getAll()
       : getLocalCandidates();
     const activeCandidateId = get().activeCandidateId || candidates?.[0]?.id || null;
@@ -368,7 +368,7 @@ export const useRevivalStore = create((set, get) => ({
     return candidate || null;
   },
   createCandidate: async (payload) => {
-    const response = window.revival?.candidates
+    const response = window.revival?.candidates?.create
       ? await window.revival.candidates.create(payload)
       : createLocalCandidate(payload);
     if (!response?.ok || !response.candidate) return response;
@@ -377,7 +377,7 @@ export const useRevivalStore = create((set, get) => ({
     return response;
   },
   updateCandidateStatus: async ({ id, status }) => {
-    const response = window.revival?.candidates
+    const response = window.revival?.candidates?.updateStatus
       ? await window.revival.candidates.updateStatus({ id, status })
       : updateLocalCandidateStatus({ id, status });
     if (!response?.ok || !response.candidate) return response;
@@ -385,6 +385,21 @@ export const useRevivalStore = create((set, get) => ({
       candidates: replaceById(state.candidates, response.candidate),
       activeCandidateId: response.candidate.id
     }));
+    return response;
+  },
+  deleteCandidate: async (candidateId) => {
+    if (!candidateId) return { ok: false, message: 'Candidate is required.' };
+
+    const response = window.revival?.candidates?.delete
+      ? await window.revival.candidates.delete(candidateId)
+      : deleteLocalCandidate(candidateId);
+    if (!response?.ok) return response;
+
+    const candidates = await get().loadCandidates();
+    const nextCandidate = candidates.find((candidate) => String(candidate.id) !== String(candidateId)) || null;
+    set({
+      activeCandidateId: nextCandidate?.id || null
+    });
     return response;
   },
   selectAiSession: async (sessionId) => {
@@ -799,6 +814,17 @@ function updateLocalCandidateStatus({ id, status }) {
   if (!updatedCandidate) return { ok: false, message: 'Candidate not found.' };
   persistLocalCandidates(candidates);
   return { ok: true, candidate: updatedCandidate };
+}
+
+function deleteLocalCandidate(candidateId) {
+  const candidates = getLocalCandidates();
+  const nextCandidates = candidates.filter((candidate) => String(candidate.id) !== String(candidateId));
+  if (nextCandidates.length === candidates.length) {
+    return { ok: false, message: 'Candidate not found.' };
+  }
+
+  persistLocalCandidates(nextCandidates);
+  return { ok: true, deletedId: candidateId };
 }
 
 function getHydratedAiSession(aiSessions = [], preferredSessionId = null) {

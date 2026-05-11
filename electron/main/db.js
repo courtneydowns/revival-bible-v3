@@ -593,6 +593,20 @@ export function updateCandidateStatus(id, status) {
   };
 }
 
+export function deleteCandidate(id) {
+  const existing = getCandidate(id);
+  if (!existing) {
+    return { ok: false, message: 'Candidate not found.' };
+  }
+
+  const result = connection.prepare('DELETE FROM candidates WHERE id = ?').run(existing.id);
+  return {
+    ok: result.changes > 0,
+    deletedId: existing.id,
+    message: result.changes ? undefined : 'Candidate delete did not change the database.'
+  };
+}
+
 export function addEntityLink({ sourceType, sourceId, targetType, targetId, relationshipType = 'related', note = '' } = {}) {
   const normalized = normalizeEntityLinkInput({ sourceType, sourceId, targetType, targetId, relationshipType, note });
   validateEntityReference(normalized.source_type, normalized.source_id);

@@ -84,6 +84,14 @@ button {
   grid-template-columns: 72px minmax(0, 1fr);
 }
 
+.app-shell.view-candidates {
+  grid-template-columns: 244px minmax(0, 1fr);
+}
+
+.app-shell.nav-compact.view-candidates {
+  grid-template-columns: 72px minmax(0, 1fr);
+}
+
 .nav-rail {
   border-right: 1px solid var(--line);
   background: #131313;
@@ -439,6 +447,10 @@ button {
 }
 
 .view-session .right-panel {
+  display: none;
+}
+
+.view-candidates .right-panel {
   display: none;
 }
 
@@ -2059,14 +2071,16 @@ h1 {
 
 .candidate-layout {
   display: grid;
-  grid-template-columns: minmax(300px, 390px) minmax(0, 1fr);
+  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
   gap: 16px;
   min-height: 0;
   max-height: calc(100vh - 226px);
+  overflow: hidden;
 }
 
 .candidate-list-panel,
 .candidate-detail-panel {
+  min-width: 0;
   min-height: 0;
   overflow-y: auto;
   border: 1px solid var(--line);
@@ -2092,6 +2106,8 @@ h1 {
 
 .candidate-create-heading {
   display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
   gap: 10px;
@@ -2124,7 +2140,8 @@ h1 {
 }
 
 .candidate-create .primary-button,
-.candidate-actions .secondary-button {
+.candidate-actions .secondary-button,
+.candidate-delete-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2159,6 +2176,7 @@ h1 {
 
 .candidate-card {
   display: grid;
+  min-width: 0;
   gap: 7px;
   width: 100%;
   border: 1px solid var(--line);
@@ -2178,6 +2196,8 @@ h1 {
 }
 
 .candidate-card strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: var(--text);
   font-size: 14px;
 }
@@ -2193,6 +2213,8 @@ h1 {
 
 .candidate-card-topline {
   display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
@@ -2210,6 +2232,8 @@ h1 {
 
 .candidate-detail-heading {
   display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: 18px;
@@ -2218,6 +2242,7 @@ h1 {
 }
 
 .candidate-detail-heading h2 {
+  overflow-wrap: anywhere;
   margin-bottom: 0;
   font-size: 24px;
   line-height: 1.2;
@@ -2245,6 +2270,8 @@ h1 {
 
 .candidate-provenance {
   display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
   align-items: center;
   gap: 7px;
   color: var(--text-muted);
@@ -2263,7 +2290,7 @@ h1 {
 
 .candidate-meta-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
   gap: 12px;
 }
 
@@ -2283,6 +2310,7 @@ h1 {
 .candidate-meta-grid p,
 .candidate-empty-detail,
 .candidate-message {
+  overflow-wrap: anywhere;
   margin: 0;
   color: var(--text-muted);
   line-height: 1.55;
@@ -2303,6 +2331,19 @@ h1 {
 .candidate-status.in-review { color: var(--developing); }
 .candidate-status.promoted { color: var(--locked); }
 .candidate-status.rejected { color: var(--provisional); }
+
+@media (max-width: 860px) {
+  .candidate-layout {
+    grid-template-columns: 1fr;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .candidate-list-panel,
+  .candidate-detail-panel {
+    overflow: visible;
+  }
+}
 
 .ai-panel-summary {
   display: flex;
