@@ -1,49 +1,53 @@
+# PHASE_LEDGER.md
+
 # Revival Bible v3 — Phase Ledger
 
-This file records only phase status known from repo docs and recent committed work.
+## Phase 25 — Promotion Coverage + Real-State Validation
+Status: Passed
 
-Use docs/ROADMAP.md for future planned phases.
+Summary:
+Promotion coverage validated. Provenance/backlinking remained stable. Candidate permanence and candidate ↔ canon ↔ source navigation remained stable where promoted records existed.
 
-## Completed / Known Passed
-- Phase 1: Foundation scaffold.
-- Phase 2: Bible structure, navigation, ledgers/maps/views.
-- Phase 3A: Episode guide seed foundation with 24 locked season/episode records.
-- Phase 3B: Decision Tracker, Questions Log, Living Documents, renderers, DB seed logic.
-- Phase 4: Search and cross-reference foundation.
-- Phase 5A: Timeline / chronology foundation.
-- Phase 5B: Character relationship foundation.
-- Phase 5C: Canon tagging and search clarity.
-- Phase 6: Universal inspector foundation.
-- Phase 7: Tag and status management.
-- Phase 8: Navigation regressions passed for detail scroll reset, back navigation restoration, and scroll visibility.
-- Phase 9: Context Packs foundation with local persistence and linked-record navigation.
-- Phase 10: Context Packs generate grouped, copyable session-context text from linked records without AI integrations.
-- Phase 11: Session Context workflow foundation.
-- Phase 12: Template editing and local custom prompt presets.
-- Phase 13: Local AI provider configuration foundation.
-- Phase 14: Local AI provider persistence and validation polish.
-- Phase 15: Single-response AI Session workflow with OpenAI/Anthropic calls, local save, reload persistence, and reopen.
-- Phase 16A: AI Sessions workflow polish, collapsible nav, compact nav tooltips, and provider generation checks.
-- Phase 16B: Session Context / Context Packs workflow polish and editable generated prompts.
-- Phase 16C: AI Sessions readability and response workflow polish.
-- Phase 17: AI Session persistence and deletion workflow fixes.
-- Phase 18: Candidate Inbox/editorial extraction workflow planning foundation.
-- Phase 19: Candidate Inbox foundation.
-- Phase 20: Manual extraction workflow from AI Sessions into Candidates.
-- Phase 21: Candidate review notes and editing.
-- Phase 22: Candidate source linking and review context.
-- Phase 23: Structured promotion foundation.
-- Phase 24: Promotion traceability, canon backlinking, source AI Session navigation, and nav scroll restoration.
+Deferred polish:
+Location discoverability/navigation exposure remained unclear and was carried forward.
 
-## Pending / Active
-- Phase 25: Promotion Coverage + Real-State Validation.
+## Phase 26A — Editorial Workspace Layout Stabilization
+Status: Passed
 
-## Roadmap
-- See docs/ROADMAP.md for planned Phases 25–40.
+Files changed:
+- src/components/CandidateInbox.jsx
+- src/index.css
 
-## Notes
-- Do not infer implementation details from numbering alone.
-- Nothing becomes canon automatically.
-- User remains authoritative.
-- Candidate history and canon entities must remain editorially distinct.
-- Update this ledger when a phase is accepted or completed.
+Root cause:
+Candidate Inbox used a wide left column plus nested fixed-height scrolling, compressing the editorial panel.
+
+One sentence fix:
+Narrowed the candidate navigator, added indexes, made the candidate list independently scrollable, and moved the detail panel back to document-style page scrolling.
+
+Build result:
+npm run build passed.
+
+Smoke result:
+Preview smoke passed for Candidates Inbox small-window layout, list scrolling, right-panel readability, provenance/meta readability, Location promotion target reachability, compact nav scrolling/tooltips.
+
+Unresolved blockers:
+Promoted-candidate navigation was not directly re-smoked because preview state had no promoted candidate record.
+
+Classification:
+PASS with one deferred verification.
+
+## Phase 26B — Candidate Acceptance Queue
+Status: Planned
+
+Summary:
+Add a non-canon Accepted / Needs Placement state so candidates can be approved for future placement without being promoted into canon immediately.
+
+Core distinction:
+Acceptance is not promotion.
+
+Acceptance criteria:
+- Accepted candidates remain candidates.
+- Accepted candidates do not create or mutate canon records.
+- Accepted candidates remain easy to find later.
+- Provenance/source/history are preserved.
+- Existing candidate review, promotion, rejection, and deletion flows remain stable.

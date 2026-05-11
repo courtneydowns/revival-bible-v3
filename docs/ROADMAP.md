@@ -1,83 +1,65 @@
+# ROADMAP.md
+
 # Revival Bible v3 — Roadmap
 
-This file is for future phase planning only.
-
-Keep ACTIVE_SCOPE.md limited to the current phase.
-Keep CURRENT_STATE.md limited to stable completed architecture.
-Keep PHASE_LEDGER.md limited to concise completed/pending phase status.
-
-## Planning Principles
-- Nothing becomes canon automatically.
-- User remains authoritative.
-- Candidate history remains permanent.
-- Canon entities and candidate records stay editorially distinct.
-- Prefer calm, manual, review-oriented workflows.
-- Keep implementation phase-based and token-conscious.
-- Do not let future roadmap items bleed into the current active scope.
-
-## Planned Phases
+## Recently Completed
 
 ### Phase 25 — Promotion Coverage + Real-State Validation
-- Make sure Character, Episode, Decision, Question, Location, and Story Bible promotion all work in real app state.
-- Add/fix missing UI paths if any destination is awkward to find or verify.
+Status: Passed
 
-### Phase 26 — Promotion Edit Safety
-- Make promoted canon records clearly editable after creation.
-- Ensure edits do not mutate the original Candidate.
-- Confirm Candidate history remains permanent.
+Validated and stabilized promotion destinations in real app/editorial workflows.
 
-### Phase 27 — Candidate Promotion Review Polish
-- Improve the promotion panel UX.
-- Make destination-specific field prefills clearer.
-- Reduce confusion before confirming promotion.
+### Phase 26A — Editorial Workspace Layout Stabilization
+Status: Passed
 
-### Phase 28 — Candidate Filtering + Status Views
-- Add better filtering for pending, promoted, rejected, reviewed.
-- Make Candidates Inbox easier to manage as it grows.
+Improved Candidates Inbox long-form editorial usability by reducing cramped nested scrolling and making the detail workspace calmer and more document-like.
 
-### Phase 29 — Candidate Search
-- Search candidate content, notes, source sessions, statuses, and promoted links.
+Completed:
+- candidate navigator narrowed
+- candidate list independently scrollable
+- right detail panel returned to document-style page scrolling
+- provenance/meta readability preserved
+- Location promotion target reachability verified
+- compact nav scrolling/tooltips verified
 
-### Phase 30 — Story Bible Promotion Refinement
-- Make promotion into Story Bible sections/entries cleaner.
-- Decide how promoted candidate text appears inside Story Bible.
+Deferred:
+- promoted-candidate navigation direct retest because preview state had no promoted candidate record
 
-### Phase 31 — Canon Entity Provenance Expansion
-- Add provenance display consistently to Question, Location, and Story Bible areas if not already complete.
-- Keep it subtle.
+## Next Phase
 
-### Phase 32 — Manual Merge/Conflict Review Foundation
-- Let user manually compare candidate vs existing canon.
-- No auto-merge.
-- No AI mutation.
+### Phase 26B — Candidate Acceptance Queue
+Status: Planned
 
-### Phase 33 — Duplicate/Existing Entity Warning
-- Lightweight “this may already exist” warning.
-- Suggestions only, no automatic linking or merging.
+Goal:
+Add an Accepted / Needs Placement state so the user can mark a candidate as worth keeping without promoting it to Character, Location, Episode, Decision, Story Bible, or another canon destination yet.
 
-### Phase 34 — Continuity Warning Foundation
-- Surface possible contradiction/canon-risk notes during review.
-- User remains authoritative.
+Why:
+Sometimes the user knows a candidate matters but does not yet know where it belongs. Sometimes the user wants to keep it for later but does not have time to place it during the current review session.
 
-### Phase 35 — Relationship Suggestion Holding Area
-- Manual suggestions for possible character/location/episode links.
-- Nothing becomes canon automatically.
+Core rule:
+Accepted candidates are not canon.
 
-### Phase 36 — Candidate Batch Organization
-- Batch status changes, archive/hide, grouped review.
-- Not batch promotion yet unless explicitly approved.
+Scope:
+- add Accepted / Needs Placement status
+- allow marking candidates accepted without selecting a destination
+- make accepted candidates easy to find/filter later
+- preserve all provenance/source/history links
+- keep master-detail workflow stable
 
-### Phase 37 — AI Session → Candidate Workflow Polish
-- Make selecting/extracting response passages smoother.
-- Better “send to candidate” flow.
+Do not add:
+- automatic canon mutation
+- auto-promotion
+- auto-merge
+- AI classification
+- embeddings/vector systems
+- relationship inference
+- graph systems
+- enterprise dashboards
 
-### Phase 38 — Source Session History + Audit Trail
-- Stronger history trail from AI response → Candidate → Canon entity.
-
-### Phase 39 — Export / Backup Safety
-- Export candidates, canon entities, provenance, and source history.
-- Useful before bigger refactors.
-
-### Phase 40 — Full Regression + UX Cleanup Pass
-- Nav, Candidates, AI Sessions, Story Bible, Inspector, Search, Tags, Promotion.
-- Stabilization phase before adding heavier features.
+## Future Candidate Workflow Ideas
+- batch acceptance
+- saved review queues
+- better destination suggestions while keeping placement manual
+- candidate aging/staleness indicators
+- candidate grouping by source session
+- richer placement checklist

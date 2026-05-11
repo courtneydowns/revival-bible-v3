@@ -1,77 +1,89 @@
+# ACTIVE_SCOPE.md
+
 # Revival Bible v3 — Active Scope
 
-Rolling current-task file. Keep this short and update it at the start of each phase.
+## Current Phase
+PHASE 26B — Candidate Acceptance Queue
 
-Use docs/ROADMAP.md for future phase planning.
-Use docs/PHASE_LEDGER.md for completed/pending phase status.
-Use docs/CURRENT_STATE.md for stable completed architecture.
+## Current Goal
+Add a non-canon candidate state for editorial items the user wants to keep and probably use later, but cannot or does not want to place into a canon destination yet.
 
-## Current Phase / Task
-Phase 25 — Promotion Coverage + Real-State Validation.
+## Product Rule
+Nothing becomes canon automatically.
 
-## Latest Commit
-Add promotion traceability and restore nav scrolling
+Candidate acceptance is not promotion.
 
-## Known Passes
-- Phase 19 passed.
-- Phase 20 passed.
-- Phase 21 passed.
-- Phase 22 passed.
-- Phase 23 passed.
-- Phase 24 passed.
-- Candidate promotion foundation stable.
-- Provenance backlinking stable.
-- Compact/expanded nav scrolling restored.
-- OpenAI generation works.
-- Claude / Anthropic generation works.
+An accepted candidate means:
+- the candidate has editorial value
+- the user wants to preserve it for future use
+- the candidate is not yet assigned to Character, Location, Episode, Decision, Story Bible, or another canon destination
+- no canon entity should be created or changed until the user explicitly promotes it
 
-## Known Failures
-- None currently confirmed.
+## Phase 26A Result
+Phase 26A passed.
 
-## Latest Fix
-- Phase 24 added canon provenance rows, candidate ↔ canon linking, source AI Session navigation, and restored compact-nav scrolling/tooltips.
+Completed:
+- Candidate Inbox layout stabilized
+- candidate navigator narrowed
+- candidate list made independently scrollable
+- right-side detail panel made calmer and more document-like
+- nested/cramped scrolling reduced
+- provenance/meta readability preserved
+- Location promotion target reachability smoke-passed
+- compact nav scrolling/tooltips smoke-passed
 
-## Allowed Files
-- docs/ACTIVE_SCOPE.md
-- Focused promotion/provenance UI files
-- Focused navigation/UI files required for validation fixes
-- Focused smoke-test notes under docs/SMOKE_TESTS/ if needed
+Deferred:
+- promoted-candidate navigation was not directly re-smoked because no promoted candidate record existed in preview state
 
-## Forbidden Files
-- Autonomous workflows
-- Embeddings/vector systems
-- Automatic canon mutation
-- Relationship inference systems
-- Broad schema rewrites
-- Enterprise dashboards
-- Broad navigation redesigns
-- Large architectural refactors
+## Phase 26B Scope
+Strictly implement candidate review-state workflow and light UI support.
 
-## Patch Class
-Focused editorial workflow validation and provenance polish.
+Allowed:
+- add an Accepted / Needs Placement candidate state
+- expose the state in Candidates Inbox filters/list/detail UI
+- let user mark a candidate as Accepted / Needs Placement without choosing a canon destination
+- preserve source/provenance/history
+- make accepted candidates easy to find later
+- update smoke tests/checklists accordingly
+
+Not allowed:
+- automatic canon mutation
+- automatic promotion
+- auto-merging
+- AI classification
+- embeddings/vector systems
+- relationship inference
+- graph systems
+- enterprise dashboards
+- large navigation rewrites
+- modal-heavy redesigns
 
 ## Acceptance Criteria
-- All promotion destinations open correctly:
-  - Character
-  - Episode
-  - Decision
-  - Question
-  - Location
-  - Story Bible
-- Promotion creates canon entities only after explicit confirmation.
-- Candidate remains permanently preserved.
-- Canon entity shows provenance metadata.
-- Candidate ↔ canon navigation works.
-- Source AI Session navigation works.
-- Nav scrolling/tooltips continue working.
-- npm run build passes.
+- User can mark a candidate as Accepted / Needs Placement.
+- Accepted candidates remain candidates, not canon.
+- Accepted candidates do not require destination selection.
+- Candidate list/filtering makes accepted candidates easy to find.
+- Provenance and source-session links remain intact.
+- Existing New / Needs Review, Promoted, Rejected, and delete flows remain stable.
+- Build passes.
+- Manual smoke passes.
 
-## Verification
-- Pending Phase 25 verification.
+## Files Likely In Scope
+- src/components/CandidateInbox.jsx
+- src/store.js if candidate status persistence/state handling requires it
+- src/index.css if UI styling is needed
+- docs/ACTIVE_SCOPE.md
+- docs/CURRENT_STATE.md
+- docs/ROADMAP.md
+- docs/PHASE_LEDGER.md
+- docs/PATCH_CLASSES.md
 
-## Report Format
-- Files changed.
-- Root cause.
-- One sentence fix.
-- Build result.
-- Smoke result.
+## Output Control
+No interim updates unless blocked.
+Final report only:
+- Files changed
+- Root cause
+- One sentence fix
+- Build result
+- Smoke result
+- Unresolved blockers
