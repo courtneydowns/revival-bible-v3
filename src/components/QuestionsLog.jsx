@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useRevivalStore } from '../store.js';
 import CanonTagBadges from './CanonTagBadges.jsx';
+import PromotionProvenance from './PromotionProvenance.jsx';
 import StatusBadge from './StatusBadge.jsx';
 import StatusSelector from './StatusSelector.jsx';
 import TagEditor from './TagEditor.jsx';
@@ -115,6 +116,7 @@ export default function QuestionsLog() {
                 <Field title="Blocked By" value={formatList(selectedQuestion.blocked_by)} />
                 <Field title="Blocks" value={formatList(selectedQuestion.blocks)} />
               </div>
+              <PromotionProvenance text={selectedQuestion.context} />
             </>
           ) : (
             <div className="placeholder-block">Questions are loading. Phase 3B expects 49 seeded records.</div>

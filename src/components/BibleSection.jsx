@@ -1,4 +1,5 @@
 import { useRevivalStore } from '../store.js';
+import PromotionProvenance from './PromotionProvenance.jsx';
 import StatusBadge from './StatusBadge.jsx';
 
 export default function BibleSection() {
@@ -53,6 +54,7 @@ export default function BibleSection() {
             <p key={`${selectedNode.id}-${index}`}>{line || '\u00a0'}</p>
           ))}
       </article>
+      <PromotionProvenance text={selectedNodeContent?.content} />
     </section>
   );
 }

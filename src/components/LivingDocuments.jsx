@@ -7,6 +7,7 @@ import ReWatchLedger from './ReWatchLedger.jsx';
 
 const documentTypes = [
   ['rewatch_ledger', 'Rewatch Ledger', ReWatchLedger],
+  ['locations', 'Locations', ReWatchLedger],
   ['dread_map', 'Dread Map', DreadMap],
   ['obligation_ledger', 'Obligation Ledger', ObligationLedger],
   ['caroline_map', 'Caroline Logic Map', CarolineLogicMap]
