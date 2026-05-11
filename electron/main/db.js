@@ -636,6 +636,9 @@ export function deleteCandidate(id) {
   if (!existing) {
     return { ok: false, message: 'Candidate not found.' };
   }
+  if (existing.status === 'Promoted') {
+    return { ok: false, message: 'Promoted candidates are preserved permanently.' };
+  }
 
   const result = connection.prepare('DELETE FROM candidates WHERE id = ?').run(existing.id);
   return {
@@ -643,6 +646,59 @@ export function deleteCandidate(id) {
     deletedId: existing.id,
     message: result.changes ? undefined : 'Candidate delete did not change the database.'
   };
+}
+
+export function promoteCandidate(id, payload = {}) {
+  const candidate = getCandidate(id);
+  if (!candidate) {
+    return { ok: false, message: 'Candidate not found.' };
+  }
+
+  const targetType = normalizePromotionTarget(payload.targetType);
+  if (!targetType) {
+    return { ok: false, message: 'Promotion target is required.' };
+  }
+
+  const fields = payload.fields && typeof payload.fields === 'object' ? payload.fields : {};
+  const title = String(fields.title || candidate.title || '').trim();
+  if (!title) {
+    return { ok: false, message: 'Promotion title is required.' };
+  }
+
+  const promotedAt = new Date().toISOString();
+  const provenanceNote = formatPromotionProvenance(candidate, targetType, promotedAt);
+  const transaction = connection.transaction(() => {
+    const target = createPromotedEntity(targetType, fields, candidate, provenanceNote);
+    const promotion = {
+      target_type: target.entityType,
+      target_id: String(target.id),
+      target_label: target.label,
+      requested_target: targetType,
+      promoted_at: promotedAt,
+      title
+    };
+    const provenance = candidate.provenance_metadata || {};
+    const promotions = Array.isArray(provenance.promotions) ? provenance.promotions : [];
+
+    connection
+      .prepare('UPDATE candidates SET status = ?, provenance_metadata = ?, notes = ? WHERE id = ?')
+      .run(
+        'Promoted',
+        JSON.stringify({ ...provenance, promotions: [...promotions, promotion] }),
+        appendText(candidate.notes, `Promoted to ${target.label} on ${promotedAt}.`),
+        candidate.id
+      );
+
+    return {
+      ok: true,
+      candidate: getCandidate(candidate.id),
+      target
+    };
+  });
+
+  const response = transaction();
+  rebuildSearchIndex();
+  return response;
 }
 
 export function addEntityLink({ sourceType, sourceId, targetType, targetId, relationshipType = 'related', note = '' } = {}) {
@@ -1527,6 +1583,12 @@ function normalizeCandidateStatus(value) {
   return allowed[label] || null;
 }
 
+function normalizePromotionTarget(value) {
+  const normalized = String(value || '').trim();
+  const allowed = new Set(['character', 'episode', 'decision', 'question', 'location', 'bible_section']);
+  return allowed.has(normalized) ? normalized : null;
+}
+
 function normalizeProvenanceMetadata(value) {
   const provenance = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   return {
@@ -1540,6 +1602,152 @@ function normalizeProvenanceMetadata(value) {
     workflow: String(provenance.workflow || 'Candidate Inbox').trim(),
     created_at: String(provenance.created_at || new Date().toISOString()).trim()
   };
+}
+
+function createPromotedEntity(targetType, fields, candidate, provenanceNote) {
+  switch (targetType) {
+    case 'character':
+      return createPromotedCharacter(fields, candidate, provenanceNote);
+    case 'episode':
+      return createPromotedEpisode(fields, candidate, provenanceNote);
+    case 'decision':
+      return createPromotedDecision(fields, candidate, provenanceNote);
+    case 'question':
+      return createPromotedQuestion(fields, candidate, provenanceNote);
+    case 'location':
+      return createPromotedLocation(fields, candidate, provenanceNote);
+    case 'bible_section':
+      return createPromotedBibleSection(fields, candidate, provenanceNote);
+    default:
+      throw new Error(`Unsupported promotion target: ${targetType}`);
+  }
+}
+
+function createPromotedCharacter(fields, candidate, provenanceNote) {
+  const name = String(fields.title || candidate.title || '').trim();
+  const result = connection
+    .prepare(`
+      INSERT INTO characters (name, role, canon_state, notes, position)
+      VALUES (@name, @role, 'developing', @notes, @position)
+    `)
+    .run({
+      name,
+      role: String(fields.role || 'Candidate Promotion').trim(),
+      notes: appendText(String(fields.content || candidate.content || '').trim(), provenanceNote),
+      position: nextInteger('characters', 'position')
+    });
+
+  return { entityType: 'character', id: result.lastInsertRowid, label: 'Character' };
+}
+
+function createPromotedEpisode(fields, candidate, provenanceNote) {
+  const season = clampInteger(fields.season, 1, 3, 1);
+  const episodeNumber = clampInteger(fields.episode_number, 1, 99, nextEpisodeNumber(season));
+  const result = connection
+    .prepare(`
+      INSERT INTO episodes (season, episode_number, title, arc_summary, rewatch_notes, status)
+      VALUES (@season, @episode_number, @title, @arc_summary, @rewatch_notes, 'developing')
+    `)
+    .run({
+      season,
+      episode_number: episodeNumber,
+      title: String(fields.title || candidate.title || '').trim(),
+      arc_summary: String(fields.content || candidate.content || '').trim(),
+      rewatch_notes: provenanceNote
+    });
+
+  return { entityType: 'episode', id: result.lastInsertRowid, label: 'Episode' };
+}
+
+function createPromotedDecision(fields, candidate, provenanceNote) {
+  const result = connection
+    .prepare(`
+      INSERT INTO decisions (
+        tier, sequence_number, title, question, what_we_know, what_needs_deciding, status, blocks, blocked_by
+      )
+      VALUES (
+        @tier, @sequence_number, @title, @question, @what_we_know, @what_needs_deciding, 'needed', '[]', '[]'
+      )
+    `)
+    .run({
+      tier: clampInteger(fields.tier, 1, 5, 5),
+      sequence_number: nextInteger('decisions', 'sequence_number'),
+      title: String(fields.title || candidate.title || '').trim(),
+      question: String(fields.question || '').trim(),
+      what_we_know: provenanceNote,
+      what_needs_deciding: String(fields.content || candidate.content || '').trim()
+    });
+
+  return { entityType: 'decision', id: result.lastInsertRowid, label: 'Decision' };
+}
+
+function createPromotedQuestion(fields, candidate, provenanceNote) {
+  const result = connection
+    .prepare(`
+      INSERT INTO questions (question, urgency, status, context, blocks, blocked_by)
+      VALUES (@question, @urgency, 'open', @context, '[]', '[]')
+    `)
+    .run({
+      question: String(fields.title || candidate.title || '').trim(),
+      urgency: normalizeQuestionUrgency(fields.urgency),
+      context: appendText(String(fields.content || candidate.content || '').trim(), provenanceNote)
+    });
+
+  return { entityType: 'question', id: result.lastInsertRowid, label: 'Question' };
+}
+
+function createPromotedLocation(fields, candidate, provenanceNote) {
+  const result = connection
+    .prepare(`
+      INSERT INTO living_documents (doc_type, entry_number, fields, status)
+      VALUES ('locations', @entry_number, @fields, 'DEVELOPING')
+    `)
+    .run({
+      entry_number: nextLivingDocumentEntryNumber('locations'),
+      fields: JSON.stringify({
+        title: String(fields.title || candidate.title || '').trim(),
+        summary: String(fields.content || candidate.content || '').trim(),
+        provenance: provenanceNote
+      })
+    });
+
+  return { entityType: 'living_document', id: result.lastInsertRowid, label: 'Location' };
+}
+
+function createPromotedBibleSection(fields, candidate, provenanceNote) {
+  const parentId = String(fields.parent_id || 'section-13').trim();
+  const parent = getNode(parentId) || getNode('section-13') || getNodeTree().find((node) => !node.parent_id);
+  const nodeId = createNodeId(String(fields.title || candidate.title || '').trim());
+  const position = nextNodePosition(parent?.id || null);
+
+  connection
+    .prepare(`
+      INSERT INTO nodes (id, parent_id, title, node_type, position, status, metadata)
+      VALUES (@id, @parent_id, @title, 'subsection', @position, 'DEVELOPING', @metadata)
+    `)
+    .run({
+      id: nodeId,
+      parent_id: parent?.id || null,
+      title: String(fields.title || candidate.title || '').trim(),
+      position,
+      metadata: JSON.stringify({
+        promoted_from_candidate: String(candidate.id),
+        source: 'Candidate Promotion'
+      })
+    });
+
+  connection
+    .prepare(`
+      INSERT INTO node_content (id, node_id, content, version, session_origin)
+      VALUES (@id, @node_id, @content, 1, 'candidate_promotion')
+    `)
+    .run({
+      id: `content-${nodeId}-candidate-${candidate.id}`,
+      node_id: nodeId,
+      content: appendText(String(fields.content || candidate.content || '').trim(), provenanceNote)
+    });
+
+  return { entityType: 'bible_section', id: nodeId, label: 'Story Bible entry' };
 }
 
 function validateEntityReference(entityType, entityId) {
@@ -1817,6 +2025,79 @@ function compactText(parts) {
     .filter((part) => part !== undefined && part !== null && String(part).trim())
     .map((part) => String(part).replace(/\s+/g, ' ').trim())
     .join('\n');
+}
+
+function appendText(base, addition) {
+  return [String(base || '').trim(), String(addition || '').trim()].filter(Boolean).join('\n\n');
+}
+
+function formatPromotionProvenance(candidate, targetType, promotedAt) {
+  const provenance = candidate.provenance_metadata || {};
+  const source = provenance.source_id ? `${provenance.source || 'Source'} #${provenance.source_id}` : provenance.source || 'Manual editorial note';
+  return `Promoted from Candidate #${candidate.id} (${candidate.title}) to ${formatPromotionTarget(targetType)} on ${promotedAt}. Original source: ${source}.`;
+}
+
+function formatPromotionTarget(targetType) {
+  const labels = {
+    character: 'Character',
+    episode: 'Episode',
+    decision: 'Decision',
+    question: 'Question',
+    location: 'Location',
+    bible_section: 'Story Bible entry'
+  };
+  return labels[targetType] || formatLabel(targetType);
+}
+
+function nextInteger(tableName, columnName) {
+  const allowed = {
+    characters: 'position',
+    decisions: 'sequence_number'
+  };
+  if (allowed[tableName] !== columnName) return 1;
+  return (connection.prepare(`SELECT COALESCE(MAX(${columnName}), 0) + 1 AS value FROM ${tableName}`).get()?.value || 1);
+}
+
+function nextEpisodeNumber(season) {
+  return (connection.prepare('SELECT COALESCE(MAX(episode_number), 0) + 1 AS value FROM episodes WHERE season = ?').get(season)?.value || 1);
+}
+
+function nextLivingDocumentEntryNumber(docType) {
+  return (connection.prepare('SELECT COALESCE(MAX(entry_number), 0) + 1 AS value FROM living_documents WHERE doc_type = ?').get(docType)?.value || 1);
+}
+
+function nextNodePosition(parentId) {
+  return (connection.prepare('SELECT COALESCE(MAX(position), 0) + 1 AS value FROM nodes WHERE parent_id IS ?').get(parentId || null)?.value || 1);
+}
+
+function clampInteger(value, min, max, fallback) {
+  const number = Number.parseInt(value, 10);
+  if (Number.isNaN(number)) return fallback;
+  return Math.min(max, Math.max(min, number));
+}
+
+function normalizeQuestionUrgency(value) {
+  const normalized = String(value || '').trim();
+  return ['pinned', 'tier1', 'tier2', 'tier3'].includes(normalized) ? normalized : 'tier3';
+}
+
+function createNodeId(title) {
+  const base = String(title || 'candidate-entry')
+    .trim()
+    .toLowerCase()
+    .replace(/['"]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48) || 'candidate-entry';
+  let id = `candidate-${base}`;
+  let suffix = 2;
+
+  while (getNode(id)) {
+    id = `candidate-${base}-${suffix}`;
+    suffix += 1;
+  }
+
+  return id;
 }
 
 function flattenJsonText(value) {

@@ -1,8 +1,16 @@
-import { Check, ExternalLink, Info, Plus, Trash2, X } from 'lucide-react';
+import { Check, ExternalLink, Info, Plus, Send, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRevivalStore } from '../store.js';
 
 const statuses = ['New', 'In Review', 'Promoted', 'Rejected'];
+const promotionTargets = [
+  ['character', 'Character'],
+  ['episode', 'Episode'],
+  ['decision', 'Decision'],
+  ['question', 'Question'],
+  ['location', 'Location'],
+  ['bible_section', 'Story Bible entry/section']
+];
 
 export default function CandidateInbox() {
   const [draftTitle, setDraftTitle] = useState('');
@@ -12,12 +20,22 @@ export default function CandidateInbox() {
   const [editing, setEditing] = useState(false);
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
+  const [promotionOpen, setPromotionOpen] = useState(false);
+  const [promotionTarget, setPromotionTarget] = useState('character');
+  const [promotionDraft, setPromotionDraft] = useState(createPromotionDraft(null, 'character'));
   const titleInputRef = useRef(null);
   const contentInputRef = useRef(null);
   const typeInputRef = useRef(null);
   const candidates = useRevivalStore((state) => state.candidates);
+  const nodeTree = useRevivalStore((state) => state.nodeTree);
   const activeCandidateId = useRevivalStore((state) => state.activeCandidateId);
   const loadCandidates = useRevivalStore((state) => state.loadCandidates);
+  const loadCharacters = useRevivalStore((state) => state.loadCharacters);
+  const loadEpisodes = useRevivalStore((state) => state.loadEpisodes);
+  const loadDecisions = useRevivalStore((state) => state.loadDecisions);
+  const loadQuestions = useRevivalStore((state) => state.loadQuestions);
+  const loadLivingDocs = useRevivalStore((state) => state.loadLivingDocs);
+  const loadNodeTree = useRevivalStore((state) => state.loadNodeTree);
   const selectCandidate = useRevivalStore((state) => state.selectCandidate);
   const createCandidate = useRevivalStore((state) => state.createCandidate);
   const updateCandidate = useRevivalStore((state) => state.updateCandidate);
@@ -53,6 +71,9 @@ export default function CandidateInbox() {
       type: selectedCandidate.type || 'Narrative Note',
       notes: selectedCandidate.notes || ''
     });
+    setPromotionOpen(false);
+    setPromotionTarget('character');
+    setPromotionDraft(createPromotionDraft(selectedCandidate, 'character'));
   }, [selectedCandidate?.id]);
 
   const addCandidate = async (event) => {
@@ -130,6 +151,52 @@ export default function CandidateInbox() {
     const response = await updateCandidateStatus({ id: selectedCandidate.id, status });
     setSaving(false);
     setMessage(response?.ok ? `Marked ${status}.` : response?.message || 'Status update failed.');
+  };
+
+  const openPromotionReview = () => {
+    if (!selectedCandidate) return;
+    setPromotionTarget('character');
+    setPromotionDraft(createPromotionDraft(selectedCandidate, 'character'));
+    setPromotionOpen(true);
+  };
+
+  const setPromotionField = (field, value) => {
+    setPromotionDraft((draft) => ({ ...draft, [field]: value }));
+  };
+
+  const changePromotionTarget = (target) => {
+    setPromotionTarget(target);
+    setPromotionDraft(createPromotionDraft(selectedCandidate, target));
+  };
+
+  const promoteCandidate = async () => {
+    if (!selectedCandidate || saving || !promotionDraft.title.trim()) return;
+
+    setSaving(true);
+    const response = await window.revival?.candidates?.promote?.({
+      id: selectedCandidate.id,
+      targetType: promotionTarget,
+      fields: promotionDraft
+    });
+    setSaving(false);
+
+    if (response?.ok) {
+      await refreshAfterPromotion(response.target?.entityType);
+      setPromotionOpen(false);
+      setMessage(`Promoted to ${response.target?.label || 'canon record'}. Candidate preserved.`);
+    } else {
+      setMessage(response?.message || 'Promotion failed.');
+    }
+  };
+
+  const refreshAfterPromotion = async (entityType) => {
+    await loadCandidates();
+    if (entityType === 'character') await loadCharacters();
+    if (entityType === 'episode') await loadEpisodes();
+    if (entityType === 'decision') await loadDecisions();
+    if (entityType === 'question') await loadQuestions();
+    if (entityType === 'living_document') await loadLivingDocs();
+    if (entityType === 'bible_section') await loadNodeTree();
   };
 
   const removeCandidate = async () => {
@@ -289,15 +356,15 @@ export default function CandidateInbox() {
                 <button className="secondary-button" disabled={saving || selectedCandidate.status === 'In Review'} onClick={() => setStatus('In Review')} type="button">
                   In Review
                 </button>
-                <button className="secondary-button" disabled={saving || selectedCandidate.status === 'Promoted'} onClick={() => setStatus('Promoted')} type="button">
-                  <Check size={14} />
-                  <span>Promote</span>
+                <button className="secondary-button" disabled={saving || editing} onClick={openPromotionReview} type="button">
+                  <Send size={14} />
+                  <span>Promote to...</span>
                 </button>
                 <button className="secondary-button" disabled={saving || selectedCandidate.status === 'Rejected'} onClick={() => setStatus('Rejected')} type="button">
                   <X size={14} />
                   <span>Reject</span>
                 </button>
-                <button className="secondary-button danger-button candidate-delete-button" disabled={saving} onClick={removeCandidate} type="button">
+                <button className="secondary-button danger-button candidate-delete-button" disabled={saving || selectedCandidate.status === 'Promoted'} onClick={removeCandidate} type="button">
                   <Trash2 size={14} />
                   <span>Delete</span>
                 </button>
@@ -314,6 +381,106 @@ export default function CandidateInbox() {
                   </button>
                 ) : null}
               </div>
+
+              {promotionOpen ? (
+                <div className="candidate-promotion-panel" aria-label="Promotion review">
+                  <div className="candidate-promotion-heading">
+                    <div>
+                      <span>Promotion Review</span>
+                      <strong>{promotionTargets.find(([value]) => value === promotionTarget)?.[1]}</strong>
+                    </div>
+                    <button className="icon-button" disabled={saving} onClick={() => setPromotionOpen(false)} title="Close promotion review" type="button">
+                      <X size={15} />
+                    </button>
+                  </div>
+
+                  <div className="candidate-promotion-fields">
+                    <label>
+                      <span>Promote to</span>
+                      <select onChange={(event) => changePromotionTarget(event.target.value)} value={promotionTarget}>
+                        {promotionTargets.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                      </select>
+                    </label>
+                    {promotionTarget === 'bible_section' ? (
+                      <label>
+                        <span>Destination section</span>
+                        <select onChange={(event) => setPromotionField('parent_id', event.target.value)} value={promotionDraft.parent_id}>
+                          {nodeTree.filter((node) => !node.parent_id).map((node) => (
+                            <option key={node.id} value={node.id}>{node.title}</option>
+                          ))}
+                        </select>
+                      </label>
+                    ) : null}
+                    {promotionTarget === 'episode' ? (
+                      <div className="candidate-promotion-row">
+                        <label>
+                          <span>Season</span>
+                          <input min="1" max="3" onChange={(event) => setPromotionField('season', event.target.value)} type="number" value={promotionDraft.season} />
+                        </label>
+                        <label>
+                          <span>Episode</span>
+                          <input min="1" onChange={(event) => setPromotionField('episode_number', event.target.value)} type="number" value={promotionDraft.episode_number} />
+                        </label>
+                      </div>
+                    ) : null}
+                    {promotionTarget === 'decision' ? (
+                      <label>
+                        <span>Tier</span>
+                        <select onChange={(event) => setPromotionField('tier', event.target.value)} value={promotionDraft.tier}>
+                          <option value="1">Tier 1</option>
+                          <option value="2">Tier 2</option>
+                          <option value="3">Tier 3</option>
+                          <option value="4">Tier 4</option>
+                          <option value="5">Tier 5</option>
+                        </select>
+                      </label>
+                    ) : null}
+                    {promotionTarget === 'question' ? (
+                      <label>
+                        <span>Urgency</span>
+                        <select onChange={(event) => setPromotionField('urgency', event.target.value)} value={promotionDraft.urgency}>
+                          <option value="tier3">Tier 3</option>
+                          <option value="tier2">Tier 2</option>
+                          <option value="tier1">Tier 1</option>
+                          <option value="pinned">Pinned</option>
+                        </select>
+                      </label>
+                    ) : null}
+                    {promotionTarget === 'character' ? (
+                      <label>
+                        <span>Role</span>
+                        <input onChange={(event) => setPromotionField('role', event.target.value)} value={promotionDraft.role} />
+                      </label>
+                    ) : null}
+                    <label>
+                      <span>{promotionTarget === 'question' ? 'Question' : 'Title'}</span>
+                      <input onChange={(event) => setPromotionField('title', event.target.value)} value={promotionDraft.title} />
+                    </label>
+                    {promotionTarget === 'decision' ? (
+                      <label>
+                        <span>Decision question</span>
+                        <input onChange={(event) => setPromotionField('question', event.target.value)} value={promotionDraft.question} />
+                      </label>
+                    ) : null}
+                    <label>
+                      <span>{promotionTarget === 'episode' ? 'Arc summary' : promotionTarget === 'location' ? 'Location summary' : 'Content'}</span>
+                      <textarea onChange={(event) => setPromotionField('content', event.target.value)} value={promotionDraft.content} />
+                    </label>
+                  </div>
+
+                  <div className="candidate-promotion-provenance">
+                    <Info size={14} />
+                    <span>{formatProvenance(selectedCandidate)}</span>
+                  </div>
+                  <div className="candidate-promotion-actions">
+                    <button className="secondary-button" disabled={saving} onClick={() => setPromotionOpen(false)} type="button">Cancel</button>
+                    <button className="primary-button" disabled={saving || !promotionDraft.title.trim()} onClick={promoteCandidate} type="button">
+                      <Check size={14} />
+                      <span>Create {promotionTargets.find(([value]) => value === promotionTarget)?.[1]}</span>
+                    </button>
+                  </div>
+                </div>
+              ) : null}
 
               <div className="candidate-meta-grid">
                 <div>
@@ -370,6 +537,31 @@ function hasSourceSession(candidate) {
 
 function formatSuggestedLinks(links = []) {
   return links.length ? links.map((link) => link.title || link.entity_id || 'Suggested record').join(', ') : 'None yet.';
+}
+
+function createPromotionDraft(candidate, target) {
+  const title = candidate?.title || '';
+  const content = candidate?.content || '';
+  const base = {
+    title,
+    content,
+    role: 'Candidate Promotion',
+    parent_id: 'section-13',
+    season: 1,
+    episode_number: 1,
+    tier: 5,
+    urgency: 'tier3',
+    question: ''
+  };
+
+  if (target === 'decision') {
+    return {
+      ...base,
+      question: title.endsWith('?') ? title : ''
+    };
+  }
+
+  return base;
 }
 
 function formatDate(value) {

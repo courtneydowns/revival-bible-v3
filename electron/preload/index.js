@@ -78,6 +78,7 @@ contextBridge.exposeInMainWorld('revival', {
     create: (payload) => invoke('candidates:create', payload),
     update: (payload) => invoke('candidates:update', payload),
     updateStatus: (payload) => invoke('candidates:update-status', payload),
+    promote: (payload) => invoke('candidates:promote', payload),
     delete: (id) => invoke('candidates:delete', id)
   },
   search: {

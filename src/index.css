@@ -2357,6 +2357,70 @@ h1 {
   opacity: 0.6;
 }
 
+.candidate-promotion-panel {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: #181714;
+  padding: 14px;
+}
+
+.candidate-promotion-heading,
+.candidate-promotion-actions,
+.candidate-promotion-provenance {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.candidate-promotion-heading > div {
+  display: grid;
+  gap: 4px;
+}
+
+.candidate-promotion-heading span,
+.candidate-promotion-fields label > span {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.candidate-promotion-heading strong {
+  color: var(--text);
+}
+
+.candidate-promotion-fields {
+  display: grid;
+  gap: 10px;
+}
+
+.candidate-promotion-fields label {
+  display: grid;
+  gap: 6px;
+}
+
+.candidate-promotion-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.candidate-promotion-provenance {
+  justify-content: flex-start;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.candidate-promotion-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
 .candidate-meta-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
