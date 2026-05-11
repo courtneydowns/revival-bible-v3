@@ -93,12 +93,14 @@ button {
 }
 
 .nav-rail {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   border-right: 1px solid var(--line);
   background: #131313;
   padding: 18px 12px;
-  overflow-y: auto;
+  overflow: hidden;
   min-height: 0;
-  max-height: 100vh;
+  height: 100vh;
   overscroll-behavior: contain;
 }
 
@@ -154,7 +156,6 @@ button {
 }
 
 .nav-rail.compact {
-  overflow: visible;
   padding: 18px 10px;
   position: relative;
   z-index: 4;
@@ -238,7 +239,13 @@ button {
 
 .nav-list {
   display: grid;
+  align-content: start;
   gap: 4px;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-bottom: 44px;
+  overscroll-behavior: contain;
 }
 
 .nav-tree-group {
