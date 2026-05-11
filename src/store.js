@@ -387,6 +387,17 @@ export const useRevivalStore = create((set, get) => ({
     }));
     return response;
   },
+  updateCandidate: async (payload) => {
+    const response = window.revival?.candidates?.update
+      ? await window.revival.candidates.update(payload)
+      : updateLocalCandidate(payload);
+    if (!response?.ok || !response.candidate) return response;
+    set((state) => ({
+      candidates: replaceById(state.candidates, response.candidate),
+      activeCandidateId: response.candidate.id
+    }));
+    return response;
+  },
   deleteCandidate: async (candidateId) => {
     if (!candidateId) return { ok: false, message: 'Candidate is required.' };
 
@@ -811,6 +822,29 @@ function updateLocalCandidateStatus({ id, status }) {
     updatedCandidate = {
       ...candidate,
       status,
+      updated_at: new Date().toISOString()
+    };
+    return updatedCandidate;
+  });
+
+  if (!updatedCandidate) return { ok: false, message: 'Candidate not found.' };
+  persistLocalCandidates(candidates);
+  return { ok: true, candidate: updatedCandidate };
+}
+
+function updateLocalCandidate({ id, title = '', content = '', type = 'Narrative Note', notes = '' } = {}) {
+  const normalizedTitle = String(title || '').trim();
+  if (!normalizedTitle) return { ok: false, message: 'Candidate title is required.' };
+
+  let updatedCandidate = null;
+  const candidates = getLocalCandidates().map((candidate) => {
+    if (String(candidate.id) !== String(id)) return candidate;
+    updatedCandidate = {
+      ...candidate,
+      title: normalizedTitle,
+      content: String(content || '').trim(),
+      type: String(type || 'Narrative Note').trim() || 'Narrative Note',
+      notes: String(notes || '').trim(),
       updated_at: new Date().toISOString()
     };
     return updatedCandidate;

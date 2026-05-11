@@ -593,6 +593,44 @@ export function updateCandidateStatus(id, status) {
   };
 }
 
+export function updateCandidate(id, {
+  title = '',
+  content = '',
+  type = 'Narrative Note',
+  notes = ''
+} = {}) {
+  const normalizedTitle = String(title || '').trim();
+  if (!normalizedTitle) {
+    return { ok: false, message: 'Candidate title is required.' };
+  }
+
+  const result = connection
+    .prepare(`
+      UPDATE candidates
+      SET title = @title,
+          content = @content,
+          type = @type,
+          notes = @notes
+      WHERE id = @id
+    `)
+    .run({
+      id,
+      title: normalizedTitle,
+      content: String(content || '').trim(),
+      type: String(type || 'Narrative Note').trim() || 'Narrative Note',
+      notes: String(notes || '').trim()
+    });
+
+  if (!result.changes) {
+    return { ok: false, message: 'Candidate not found.' };
+  }
+
+  return {
+    ok: true,
+    candidate: getCandidate(id)
+  };
+}
+
 export function deleteCandidate(id) {
   const existing = getCandidate(id);
   if (!existing) {

@@ -2134,7 +2134,10 @@ h1 {
 
 .candidate-create input,
 .candidate-create select,
-.candidate-create textarea {
+.candidate-create textarea,
+.candidate-detail-panel input,
+.candidate-detail-panel select,
+.candidate-detail-panel textarea {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -2146,6 +2149,24 @@ h1 {
 .candidate-create textarea {
   min-height: 82px;
   resize: vertical;
+}
+
+.candidate-detail-panel textarea {
+  min-height: 150px;
+  resize: vertical;
+  line-height: 1.55;
+}
+
+.candidate-title-input {
+  margin-top: 6px;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.candidate-inline-select {
+  max-width: 240px;
+  font-family: var(--font-mono);
+  font-size: 12px;
 }
 
 .candidate-create .primary-button,
@@ -2321,12 +2342,17 @@ h1 {
 }
 
 .candidate-meta-grid p,
+.candidate-meta-grid textarea,
 .candidate-empty-detail,
 .candidate-message {
   overflow-wrap: anywhere;
   margin: 0;
   color: var(--text-muted);
   line-height: 1.55;
+}
+
+.candidate-notes-input {
+  min-height: 96px;
 }
 
 .candidate-status {

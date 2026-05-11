@@ -8,6 +8,8 @@ export default function CandidateInbox() {
   const [draftTitle, setDraftTitle] = useState('');
   const [draftContent, setDraftContent] = useState('');
   const [draftType, setDraftType] = useState('Narrative Note');
+  const [editDraft, setEditDraft] = useState({ title: '', content: '', type: 'Narrative Note', notes: '' });
+  const [editing, setEditing] = useState(false);
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const titleInputRef = useRef(null);
@@ -18,6 +20,7 @@ export default function CandidateInbox() {
   const loadCandidates = useRevivalStore((state) => state.loadCandidates);
   const selectCandidate = useRevivalStore((state) => state.selectCandidate);
   const createCandidate = useRevivalStore((state) => state.createCandidate);
+  const updateCandidate = useRevivalStore((state) => state.updateCandidate);
   const updateCandidateStatus = useRevivalStore((state) => state.updateCandidateStatus);
   const deleteCandidate = useRevivalStore((state) => state.deleteCandidate);
   const selectedCandidate = useMemo(
@@ -34,6 +37,22 @@ export default function CandidateInbox() {
       selectCandidate(candidates[0].id);
     }
   }, [activeCandidateId, candidates, selectCandidate]);
+
+  useEffect(() => {
+    if (!selectedCandidate) {
+      setEditing(false);
+      setEditDraft({ title: '', content: '', type: 'Narrative Note', notes: '' });
+      return;
+    }
+
+    setEditing(false);
+    setEditDraft({
+      title: selectedCandidate.title || '',
+      content: selectedCandidate.content || '',
+      type: selectedCandidate.type || 'Narrative Note',
+      notes: selectedCandidate.notes || ''
+    });
+  }, [selectedCandidate?.id]);
 
   const addCandidate = async (event) => {
     event.preventDefault();
@@ -64,6 +83,42 @@ export default function CandidateInbox() {
       setMessage('Candidate preserved for review.');
     } else {
       setMessage(response?.message || 'Candidate could not be saved.');
+    }
+  };
+
+  const updateEditDraft = (field, value) => {
+    setEditDraft((draft) => ({ ...draft, [field]: value }));
+  };
+
+  const cancelEdit = () => {
+    if (!selectedCandidate) return;
+    setEditDraft({
+      title: selectedCandidate.title || '',
+      content: selectedCandidate.content || '',
+      type: selectedCandidate.type || 'Narrative Note',
+      notes: selectedCandidate.notes || ''
+    });
+    setEditing(false);
+  };
+
+  const saveCandidate = async () => {
+    if (!selectedCandidate || saving || !editDraft.title.trim()) return;
+
+    setSaving(true);
+    const response = await updateCandidate({
+      id: selectedCandidate.id,
+      title: editDraft.title,
+      content: editDraft.content,
+      type: editDraft.type,
+      notes: editDraft.notes
+    });
+    setSaving(false);
+
+    if (response?.ok) {
+      setEditing(false);
+      setMessage('Candidate edits saved.');
+    } else {
+      setMessage(response?.message || 'Candidate edits could not be saved.');
     }
   };
 
@@ -164,17 +219,63 @@ export default function CandidateInbox() {
             <>
               <div className="candidate-detail-heading">
                 <div>
-                  <span className="selection-kicker">{selectedCandidate.type || 'Narrative Note'}</span>
-                  <h2>{selectedCandidate.title}</h2>
+                  {editing ? (
+                    <select
+                      aria-label="Edit candidate type"
+                      className="candidate-inline-select"
+                      onChange={(event) => updateEditDraft('type', event.target.value)}
+                      value={editDraft.type}
+                    >
+                      <option>Narrative Note</option>
+                      <option>Continuity Question</option>
+                      <option>Character Detail</option>
+                      <option>Timeline Detail</option>
+                    </select>
+                  ) : (
+                    <span className="selection-kicker">{selectedCandidate.type || 'Narrative Note'}</span>
+                  )}
+                  {editing ? (
+                    <input
+                      aria-label="Edit candidate title"
+                      className="candidate-title-input"
+                      onChange={(event) => updateEditDraft('title', event.target.value)}
+                      value={editDraft.title}
+                    />
+                  ) : (
+                    <h2>{selectedCandidate.title}</h2>
+                  )}
                 </div>
                 <CandidateStatusBadge status={selectedCandidate.status} />
               </div>
 
               <div className="candidate-content">
-                <p>{selectedCandidate.content || 'No candidate content has been added yet.'}</p>
+                {editing ? (
+                  <textarea
+                    aria-label="Edit candidate content"
+                    onChange={(event) => updateEditDraft('content', event.target.value)}
+                    value={editDraft.content}
+                  />
+                ) : (
+                  <p>{selectedCandidate.content || 'No candidate content has been added yet.'}</p>
+                )}
               </div>
 
               <div className="candidate-actions" aria-label="Candidate status actions">
+                {editing ? (
+                  <>
+                    <button className="secondary-button" disabled={saving || !editDraft.title.trim()} onClick={saveCandidate} type="button">
+                      <Check size={14} />
+                      <span>Save</span>
+                    </button>
+                    <button className="secondary-button" disabled={saving} onClick={cancelEdit} type="button">
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button className="secondary-button" disabled={saving} onClick={() => setEditing(true)} type="button">
+                    Edit
+                  </button>
+                )}
                 <button className="secondary-button" disabled={saving || selectedCandidate.status === 'In Review'} onClick={() => setStatus('In Review')} type="button">
                   In Review
                 </button>
@@ -205,7 +306,17 @@ export default function CandidateInbox() {
                 </div>
                 <div>
                   <strong>Notes</strong>
-                  <p>{selectedCandidate.notes || 'No review notes yet.'}</p>
+                  {editing ? (
+                    <textarea
+                      aria-label="Edit review notes"
+                      className="candidate-notes-input"
+                      onChange={(event) => updateEditDraft('notes', event.target.value)}
+                      placeholder="Review notes"
+                      value={editDraft.notes}
+                    />
+                  ) : (
+                    <p>{selectedCandidate.notes || 'No review notes yet.'}</p>
+                  )}
                 </div>
               </div>
             </>
