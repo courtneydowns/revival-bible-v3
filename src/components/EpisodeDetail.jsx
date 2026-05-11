@@ -10,7 +10,7 @@ export default function EpisodeDetail({ episode }) {
     return (
       <article className="detail-panel">
         <h2>Select an episode</h2>
-        <p className="muted">Choose an episode card to inspect seeded Phase 3A fields.</p>
+        <p className="muted">Choose an episode card to inspect seeded editorial fields.</p>
       </article>
     );
   }

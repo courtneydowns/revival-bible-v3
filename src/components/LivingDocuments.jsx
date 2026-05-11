@@ -34,7 +34,7 @@ export default function LivingDocuments() {
     <section className="view phase3b-view">
       <div className="eyebrow">Living Documents / Read Only</div>
       <h1>Living Documents</h1>
-      <p className="dashboard-lede">Phase 3B framework entries for rewatch logic, dread accumulation, obligation, and Caroline's hidden map.</p>
+      <p className="dashboard-lede">Framework entries for rewatch logic, dread accumulation, obligation, and Caroline's hidden map.</p>
 
       <div className="living-tabs" aria-label="Living document type selector">
         {documentTypes.map(([docType, label]) => (

@@ -1,5 +1,6 @@
 import { ExternalLink } from 'lucide-react';
 import { useRevivalStore } from '../store.js';
+import { formatCentralTime } from '../time.js';
 
 export default function PromotionProvenance({ text }) {
   const provenance = parsePromotionProvenance(text);
@@ -48,8 +49,5 @@ export function parsePromotionProvenance(text = '') {
 }
 
 function formatDate(value) {
-  if (!value) return 'Unknown date';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Unknown date';
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(date);
+  return formatCentralTime(value, { fallback: 'Unknown date', dateStyle: 'medium', timeStyle: 'short' });
 }

@@ -84,6 +84,11 @@ export const useRevivalStore = create((set, get) => ({
     connected: false,
     path: ''
   },
+  saveState: {
+    label: 'Autosave ready',
+    savedAt: null,
+    status: 'idle'
+  },
 
   setActiveView: (activeView) => set((state) => {
     if (state.activeView === activeView) return {};
@@ -208,6 +213,12 @@ export const useRevivalStore = create((set, get) => ({
   clearToast: () => set({ toastMessage: '' }),
   setNeedsApiKey: (needsApiKey) => set({ needsApiKey }),
   setDatabaseInfo: (databaseInfo) => set({ databaseInfo }),
+  setSaveState: (saveState) => set((state) => ({
+    saveState: { ...state.saveState, ...saveState }
+  })),
+  markSaving: (label = 'Saving changes') => set({ saveState: { label, savedAt: null, status: 'saving' } }),
+  markSaveFailed: (label = 'Autosave failed') => set({ saveState: { label, savedAt: new Date().toISOString(), status: 'failed' } }),
+  markSaved: (label = 'Saved') => set({ saveState: { label, savedAt: new Date().toISOString(), status: 'saved' } }),
   loadNodeTree: async () => {
     const nodeTree = await window.revival?.nodes.getTree();
     set({ nodeTree: nodeTree || [] });
@@ -254,6 +265,38 @@ export const useRevivalStore = create((set, get) => ({
     set({ decisions: decisions || [], activeDecisionId });
     return decisions || [];
   },
+  createDecision: async (payload) => {
+    get().markSaving();
+    const response = await window.revival?.decisions.create(payload);
+    if (!response?.ok || !response.record) {
+      get().markSaveFailed(response?.message || 'Decision autosave failed');
+      return response;
+    }
+    set((state) => ({
+      activeView: 'decisions',
+      activeDecisionId: response.record.id,
+      decisions: [...state.decisions, response.record].sort((a, b) => a.tier - b.tier || a.sequence_number - b.sequence_number)
+    }));
+    get().markSaved('Decision saved');
+    return response;
+  },
+  deleteDecision: async (decisionId) => {
+    get().markSaving();
+    const response = await window.revival?.decisions.delete(decisionId);
+    if (!response?.ok) {
+      get().markSaveFailed(response?.message || 'Decision delete failed');
+      return response;
+    }
+    set((state) => {
+      const decisions = state.decisions.filter((decision) => String(decision.id) !== String(decisionId));
+      return {
+        decisions,
+        activeDecisionId: String(state.activeDecisionId) === String(decisionId) ? decisions[0]?.id || null : state.activeDecisionId
+      };
+    });
+    get().markSaved('Decision deleted');
+    return response;
+  },
   selectDecision: async (decisionId) => {
     const api = window.revival;
     if (!api || !decisionId) return;
@@ -285,6 +328,38 @@ export const useRevivalStore = create((set, get) => ({
     const activeQuestionId = get().activeQuestionId || questions?.[0]?.id || null;
     set({ questions: questions || [], activeQuestionId });
     return questions || [];
+  },
+  createQuestion: async (payload) => {
+    get().markSaving();
+    const response = await window.revival?.questions.create(payload);
+    if (!response?.ok || !response.record) {
+      get().markSaveFailed(response?.message || 'Question autosave failed');
+      return response;
+    }
+    set((state) => ({
+      activeView: 'questions',
+      activeQuestionId: response.record.id,
+      questions: [...state.questions, response.record]
+    }));
+    get().markSaved('Question saved');
+    return response;
+  },
+  deleteQuestion: async (questionId) => {
+    get().markSaving();
+    const response = await window.revival?.questions.delete(questionId);
+    if (!response?.ok) {
+      get().markSaveFailed(response?.message || 'Question delete failed');
+      return response;
+    }
+    set((state) => {
+      const questions = state.questions.filter((question) => String(question.id) !== String(questionId));
+      return {
+        questions,
+        activeQuestionId: String(state.activeQuestionId) === String(questionId) ? questions[0]?.id || null : state.activeQuestionId
+      };
+    });
+    get().markSaved('Question deleted');
+    return response;
   },
   loadContextPacks: async () => {
     const contextPacks = await window.revival?.contextPacks.getAll();
@@ -396,6 +471,7 @@ export const useRevivalStore = create((set, get) => ({
     if (!response?.ok || !response.candidate) return response;
     await get().loadCandidates();
     set({ activeView: 'candidates', activeCandidateId: response.candidate.id });
+    get().markSaved('Candidate saved');
     return response;
   },
   updateCandidateStatus: async ({ id, status }) => {
@@ -407,6 +483,7 @@ export const useRevivalStore = create((set, get) => ({
       candidates: replaceById(state.candidates, response.candidate),
       activeCandidateId: response.candidate.id
     }));
+    get().markSaved('Candidate saved');
     return response;
   },
   updateCandidate: async (payload) => {
@@ -418,6 +495,7 @@ export const useRevivalStore = create((set, get) => ({
       candidates: replaceById(state.candidates, response.candidate),
       activeCandidateId: response.candidate.id
     }));
+    get().markSaved('Candidate saved');
     return response;
   },
   deleteCandidate: async (candidateId) => {
@@ -433,6 +511,7 @@ export const useRevivalStore = create((set, get) => ({
     set({
       activeCandidateId: nextCandidate?.id || null
     });
+    get().markSaved('Candidate deleted');
     return response;
   },
   selectAiSession: async (sessionId) => {
@@ -553,6 +632,28 @@ export const useRevivalStore = create((set, get) => ({
     const response = await window.revival?.canon.updateEntityStatus({ entityType, entityId, status });
     if (!response?.ok || !response.record) return response;
     set((state) => applyEntityRecordUpdate(state, entityType, response.record));
+    return response;
+  },
+  updateDecisionResolution: async (payload) => {
+    get().markSaving();
+    const response = await window.revival?.decisions.updateResolution(payload);
+    if (!response?.ok || !response.record) {
+      get().markSaveFailed(response?.message || 'Decision autosave failed');
+      return response;
+    }
+    set((state) => applyEntityRecordUpdate(state, 'decision', response.record));
+    get().markSaved('Decision saved');
+    return response;
+  },
+  updateQuestionResolution: async (payload) => {
+    get().markSaving();
+    const response = await window.revival?.questions.updateResolution(payload);
+    if (!response?.ok || !response.record) {
+      get().markSaveFailed(response?.message || 'Question autosave failed');
+      return response;
+    }
+    set((state) => applyEntityRecordUpdate(state, 'question', response.record));
+    get().markSaved('Question saved');
     return response;
   },
   loadEntityLinks: async ({ entityType, entityId }) => {

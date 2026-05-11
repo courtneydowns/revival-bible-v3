@@ -1,7 +1,7 @@
 import { app, BrowserWindow, clipboard, ipcMain, screen, shell } from 'electron';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { addContextPackLink, addEntityLink, addEntityTag, closeDatabase, createCandidate, createContextPack, deleteCandidate, deleteContextPack, ensureSearchIndex, getCandidate, getCandidates, getCanonTags, getCharacter, getCharacterRelationshipCount, getCharacterRelationships, getCharacters, getContextPacks, getDatabaseInfo, getDecision, getDecisionBlockers, getDecisions, getEntityLinks, getEntityTagLinks, getEpisode, getEpisodes, getEpisodesBySeason, getLatestNodeContent, getLivingDocumentEntry, getLivingDocuments, getLivingDocumentsByType, getNode, getNodeTree, getQuestion, getQuestions, getTimelineEvent, getTimelineEvents, initDatabase, promoteCandidate, removeContextPackLink, removeEntityLink, removeEntityTag, updateCandidate, updateCandidateStatus, updateContextPack, updateEntityStatus } from './db.js';
+import { addContextPackLink, addEntityLink, addEntityTag, closeDatabase, createCandidate, createContextPack, createDecision, createQuestion, deleteCandidate, deleteContextPack, deleteDecision, deleteQuestion, ensureSearchIndex, getCandidate, getCandidates, getCanonTags, getCharacter, getCharacterRelationshipCount, getCharacterRelationships, getCharacters, getContextPacks, getDatabaseInfo, getDecision, getDecisionBlockers, getDecisions, getEntityLinks, getEntityTagLinks, getEpisode, getEpisodes, getEpisodesBySeason, getLatestNodeContent, getLivingDocumentEntry, getLivingDocuments, getLivingDocumentsByType, getNode, getNodeTree, getQuestion, getQuestions, getTimelineEvent, getTimelineEvents, initDatabase, promoteCandidate, removeContextPackLink, removeEntityLink, removeEntityTag, updateCandidate, updateCandidateStatus, updateContextPack, updateDecisionResolution, updateEntityStatus, updateQuestionResolution } from './db.js';
 import { getPreferences, hasApiKey, initConfig, setApiKey, setPreferences, testProviderConnection } from './config.js';
 import { seedBible } from './seed-bible.js';
 import { seedCanonTags } from './seed-canon-tags.js';
@@ -79,8 +79,14 @@ function registerCoreHandlers() {
   ipcMain.handle('decisions:get-all', async () => getDecisions());
   ipcMain.handle('decisions:get', async (_event, id) => getDecision(id));
   ipcMain.handle('decisions:get-blockers', async (_event, id) => getDecisionBlockers(id));
+  ipcMain.handle('decisions:create', async (_event, payload) => createDecision(payload));
+  ipcMain.handle('decisions:delete', async (_event, id) => deleteDecision(id));
+  ipcMain.handle('decisions:update-resolution', async (_event, payload) => updateDecisionResolution(payload));
   ipcMain.handle('questions:get-all', async () => getQuestions());
   ipcMain.handle('questions:get', async (_event, id) => getQuestion(id));
+  ipcMain.handle('questions:create', async (_event, payload) => createQuestion(payload));
+  ipcMain.handle('questions:delete', async (_event, id) => deleteQuestion(id));
+  ipcMain.handle('questions:update-resolution', async (_event, payload) => updateQuestionResolution(payload));
   ipcMain.handle('living:get-all', async () => getLivingDocuments());
   ipcMain.handle('living:get-by-type', async (_event, docType) => getLivingDocumentsByType(docType));
   ipcMain.handle('living:get-entry', async (_event, id) => getLivingDocumentEntry(id));

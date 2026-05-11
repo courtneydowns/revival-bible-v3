@@ -1,6 +1,7 @@
 import { Check, ExternalLink, Info, Plus, Send, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRevivalStore } from '../store.js';
+import { formatCentralTime } from '../time.js';
 
 const acceptedStatus = 'Accepted / Needs Placement';
 const statuses = ['New', 'In Review', acceptedStatus, 'Promoted', 'Rejected'];
@@ -106,14 +107,17 @@ export default function CandidateInbox() {
   const deleteCandidate = useRevivalStore((state) => state.deleteCandidate);
   const navigateToEntity = useRevivalStore((state) => state.navigateToEntity);
   const openCandidateSourceSession = useRevivalStore((state) => state.openCandidateSourceSession);
-  const selectedCandidate = useMemo(
-    () => candidates.find((candidate) => String(candidate.id) === String(activeCandidateId)) || candidates[0] || null,
-    [activeCandidateId, candidates]
-  );
   const filteredCandidates = useMemo(
     () => candidates.filter((candidate) => matchesCandidateFilter(candidate, statusFilter, tagFilter)),
     [candidates, statusFilter, tagFilter]
   );
+  const hasActiveFilters = statusFilter !== 'All' || Boolean(tagFilter);
+  const selectedCandidate = useMemo(() => {
+    const activeInFiltered = filteredCandidates.find((candidate) => String(candidate.id) === String(activeCandidateId));
+    if (activeInFiltered) return activeInFiltered;
+    if (hasActiveFilters) return filteredCandidates[0] || null;
+    return candidates.find((candidate) => String(candidate.id) === String(activeCandidateId)) || candidates[0] || null;
+  }, [activeCandidateId, candidates, filteredCandidates, hasActiveFilters]);
   const queueCounts = useMemo(() => {
     const counts = Object.fromEntries(statusFilters.map(([status]) => [status, 0]));
     candidates.forEach((candidate) => {
@@ -133,7 +137,6 @@ export default function CandidateInbox() {
     [candidates]
   );
   const selectedFilterSummary = getFilterSummary(statusFilter, tagFilter, filteredCandidates.length);
-  const hasActiveFilters = statusFilter !== 'All' || Boolean(tagFilter);
 
   useEffect(() => {
     loadCandidates();
@@ -580,7 +583,7 @@ export default function CandidateInbox() {
           </div>
         </aside>
 
-        <section className="candidate-detail-panel" aria-label="Candidate detail">
+        <section className="candidate-detail-panel" aria-label="Candidate detail" key={selectedCandidate?.id || 'empty-candidate'}>
           {selectedCandidate ? (
             <>
               <div className="candidate-detail-heading">
@@ -1099,10 +1102,7 @@ function createPromotionDraft(candidate, target) {
 }
 
 function formatDate(value) {
-  if (!value) return 'Unknown date';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Unknown date';
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(date);
+  return formatCentralTime(value, { fallback: 'Unknown date', dateStyle: 'medium', timeStyle: 'short' });
 }
 
 function getCandidateRecoveryDrafts() {

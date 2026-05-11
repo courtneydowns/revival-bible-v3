@@ -50,7 +50,7 @@ export default function AppShell() {
   }, [hydratePhaseOneData]);
 
   return (
-    <div className={`app-shell nav-${navMode} view-${activeView} ${['session', 'bible', 'living-docs', 'candidates'].includes(activeView) ? 'workspace-wide' : ''}`}>
+    <div className={`app-shell nav-${navMode} view-${activeView} ${['session', 'bible', 'living-docs', 'candidates', 'decisions', 'questions'].includes(activeView) ? 'workspace-wide' : ''}`}>
       <NavRail />
       <main className="main-column">
         <TopBar />

@@ -7,6 +7,7 @@ import {
   sessionPromptTemplates
 } from '../contextPackSessionContext.js';
 import { useRevivalStore } from '../store.js';
+import { formatCentralTime } from '../time.js';
 
 const providers = [
   ['openai', 'OpenAI'],
@@ -955,8 +956,7 @@ function normalizeProvider(provider = 'openai') {
 }
 
 function formatDate(value) {
-  if (!value) return 'No timestamp';
-  return new Date(value).toLocaleString();
+  return formatCentralTime(value, { fallback: 'No timestamp', dateStyle: 'medium', timeStyle: 'short' });
 }
 
 function getTemplateInstructions(templateId, templates) {

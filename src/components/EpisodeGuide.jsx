@@ -110,7 +110,7 @@ export default function EpisodeGuide() {
           </div>
         </div>
       ) : (
-        <div className="placeholder-block">Episodes are loading. Phase 3A expects 24 seeded records.</div>
+        <div className="placeholder-block">Episodes are loading.</div>
       )}
     </section>
   );

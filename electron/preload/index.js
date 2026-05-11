@@ -37,11 +37,17 @@ contextBridge.exposeInMainWorld('revival', {
   decisions: {
     getAll: () => invoke('decisions:get-all'),
     get: (id) => invoke('decisions:get', id),
-    getBlockers: (id) => invoke('decisions:get-blockers', id)
+    getBlockers: (id) => invoke('decisions:get-blockers', id),
+    create: (payload) => invoke('decisions:create', payload),
+    delete: (id) => invoke('decisions:delete', id),
+    updateResolution: (payload) => invoke('decisions:update-resolution', payload)
   },
   questions: {
     getAll: () => invoke('questions:get-all'),
-    get: (id) => invoke('questions:get', id)
+    get: (id) => invoke('questions:get', id),
+    create: (payload) => invoke('questions:create', payload),
+    delete: (id) => invoke('questions:delete', id),
+    updateResolution: (payload) => invoke('questions:update-resolution', payload)
   },
   living: {
     getAll: () => invoke('living:get-all'),

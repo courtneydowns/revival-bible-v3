@@ -167,6 +167,59 @@ export function getDecision(id) {
   return connection.prepare('SELECT * FROM decisions WHERE id = ?').get(id);
 }
 
+export function createDecision(payload = {}) {
+  const title = normalizeNullableText(payload.title) || 'Untitled Decision';
+  const result = connection.prepare(`
+    INSERT INTO decisions (
+      tier, sequence_number, title, question, why_first, what_we_know,
+      what_needs_deciding, final_decision, rationale, resolution_notes,
+      resolution_history, status, blocks, blocked_by
+    )
+    VALUES (
+      @tier, @sequence_number, @title, @question, @why_first, @what_we_know,
+      @what_needs_deciding, @final_decision, @rationale, @resolution_notes,
+      '[]', 'proposed', '[]', '[]'
+    )
+  `).run({
+    tier: normalizeInteger(payload.tier, 5),
+    sequence_number: nextInteger('decisions', 'sequence_number'),
+    title,
+    question: normalizeNullableText(payload.question) || title,
+    why_first: normalizeNullableText(payload.why_first),
+    what_we_know: normalizeNullableText(payload.what_we_know),
+    what_needs_deciding: normalizeNullableText(payload.what_needs_deciding),
+    final_decision: normalizeNullableText(payload.final_decision),
+    rationale: normalizeNullableText(payload.rationale),
+    resolution_notes: normalizeNullableText(payload.resolution_notes)
+  });
+
+  return {
+    ok: true,
+    record: getDecision(result.lastInsertRowid),
+    search: rebuildSearchIndex()
+  };
+}
+
+export function deleteDecision(id) {
+  const existing = getDecision(id);
+  if (!existing) {
+    return { ok: false, message: 'Decision not found.' };
+  }
+
+  const transaction = connection.transaction(() => {
+    connection.prepare("DELETE FROM entity_tag_links WHERE entity_type = 'decision' AND entity_id = ?").run(String(id));
+    connection.prepare("DELETE FROM entity_links WHERE (source_type = 'decision' AND source_id = ?) OR (target_type = 'decision' AND target_id = ?)").run(String(id), String(id));
+    connection.prepare('DELETE FROM decisions WHERE id = ?').run(id);
+  });
+  transaction();
+
+  return {
+    ok: true,
+    deletedId: id,
+    search: rebuildSearchIndex()
+  };
+}
+
 export function getDecisionBlockers(identifier) {
   const decision = connection
     .prepare('SELECT * FROM decisions WHERE id = ? OR sequence_number = ? LIMIT 1')
@@ -213,6 +266,131 @@ export function getQuestions() {
 
 export function getQuestion(id) {
   return connection.prepare('SELECT * FROM questions WHERE id = ?').get(id);
+}
+
+export function createQuestion(payload = {}) {
+  const question = normalizeNullableText(payload.question) || 'Untitled Question';
+  const result = connection.prepare(`
+    INSERT INTO questions (
+      question, urgency, status, answer, final_answer, rationale,
+      resolution_notes, resolution_history, context, blocks, blocked_by
+    )
+    VALUES (
+      @question, @urgency, 'open', NULL, @final_answer, @rationale,
+      @resolution_notes, '[]', @context, '[]', '[]'
+    )
+  `).run({
+    question,
+    urgency: normalizeQuestionUrgency(payload.urgency),
+    final_answer: normalizeNullableText(payload.final_answer),
+    rationale: normalizeNullableText(payload.rationale),
+    resolution_notes: normalizeNullableText(payload.resolution_notes),
+    context: normalizeNullableText(payload.context)
+  });
+
+  return {
+    ok: true,
+    record: getQuestion(result.lastInsertRowid),
+    search: rebuildSearchIndex()
+  };
+}
+
+export function deleteQuestion(id) {
+  const existing = getQuestion(id);
+  if (!existing) {
+    return { ok: false, message: 'Question not found.' };
+  }
+
+  const transaction = connection.transaction(() => {
+    connection.prepare("DELETE FROM entity_tag_links WHERE entity_type = 'question' AND entity_id = ?").run(String(id));
+    connection.prepare("DELETE FROM entity_links WHERE (source_type = 'question' AND source_id = ?) OR (target_type = 'question' AND target_id = ?)").run(String(id), String(id));
+    connection.prepare('DELETE FROM questions WHERE id = ?').run(id);
+  });
+  transaction();
+
+  return {
+    ok: true,
+    deletedId: id,
+    search: rebuildSearchIndex()
+  };
+}
+
+export function updateDecisionResolution(payload = {}) {
+  const decision = getDecision(payload.id);
+  if (!decision) {
+    return { ok: false, message: 'Decision not found.' };
+  }
+
+  const updates = {
+    status: normalizeResolutionStatus(payload.status, [decision.status, 'proposed', 'accepted', 'implemented', 'reversed', 'deprecated'], 'proposed'),
+    title: normalizeNullableText(payload.title) || decision.title,
+    question: normalizeNullableText(payload.question),
+    why_first: normalizeNullableText(payload.why_first),
+    what_we_know: normalizeNullableText(payload.what_we_know),
+    what_needs_deciding: normalizeNullableText(payload.what_needs_deciding),
+    final_decision: normalizeNullableText(payload.final_decision),
+    rationale: normalizeNullableText(payload.rationale),
+    resolution_notes: normalizeNullableText(payload.resolution_notes)
+  };
+  const resolution_history = appendResolutionHistory(decision, updates, ['status', 'final_decision', 'rationale', 'resolution_notes']);
+
+  connection.prepare(`
+    UPDATE decisions
+    SET status = @status,
+        title = @title,
+        question = @question,
+        why_first = @why_first,
+        what_we_know = @what_we_know,
+        what_needs_deciding = @what_needs_deciding,
+        final_decision = @final_decision,
+        rationale = @rationale,
+        resolution_notes = @resolution_notes,
+        resolution_history = @resolution_history
+    WHERE id = @id
+  `).run({ id: payload.id, ...updates, resolution_history });
+
+  return {
+    ok: true,
+    record: getDecision(payload.id),
+    search: rebuildSearchIndex()
+  };
+}
+
+export function updateQuestionResolution(payload = {}) {
+  const question = getQuestion(payload.id);
+  if (!question) {
+    return { ok: false, message: 'Question not found.' };
+  }
+
+  const updates = {
+    status: normalizeResolutionStatus(payload.status, [question.status, 'open', 'tentatively-answered', 'resolved', 'deprecated'], 'open'),
+    question: normalizeNullableText(payload.question) || question.question,
+    urgency: normalizeQuestionUrgency(payload.urgency || question.urgency),
+    context: normalizeNullableText(payload.context),
+    final_answer: normalizeNullableText(payload.final_answer),
+    rationale: normalizeNullableText(payload.rationale),
+    resolution_notes: normalizeNullableText(payload.resolution_notes)
+  };
+  const resolution_history = appendResolutionHistory(question, updates, ['status', 'final_answer', 'rationale', 'resolution_notes']);
+
+  connection.prepare(`
+    UPDATE questions
+    SET status = @status,
+        question = @question,
+        urgency = @urgency,
+        context = @context,
+        final_answer = @final_answer,
+        rationale = @rationale,
+        resolution_notes = @resolution_notes,
+        resolution_history = @resolution_history
+    WHERE id = @id
+  `).run({ id: payload.id, ...updates, resolution_history });
+
+  return {
+    ok: true,
+    record: getQuestion(payload.id),
+    search: rebuildSearchIndex()
+  };
 }
 
 export function getLivingDocuments() {
@@ -928,6 +1106,9 @@ export function rebuildSearchIndex() {
         decision.what_we_know,
         decision.what_needs_deciding,
         decision.answer,
+        decision.final_decision,
+        decision.rationale,
+        decision.resolution_notes,
         decision.status,
         decision.blocks,
         decision.blocked_by,
@@ -948,6 +1129,9 @@ export function rebuildSearchIndex() {
         question.urgency,
         question.status,
         question.answer,
+        question.final_answer,
+        question.rationale,
+        question.resolution_notes,
         question.context,
         question.blocks,
         question.blocked_by,
@@ -1568,6 +1752,39 @@ function normalizeStatusValue(value) {
     .replace(/[^a-z0-9_-]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 64);
+}
+
+function normalizeResolutionStatus(value, allowed, fallback) {
+  const status = normalizeStatusValue(value);
+  const normalizedAllowed = allowed.map((item) => normalizeStatusValue(item)).filter(Boolean);
+  return normalizedAllowed.includes(status) ? status : fallback;
+}
+
+function normalizeNullableText(value) {
+  const text = String(value || '').trim();
+  return text || null;
+}
+
+function normalizeInteger(value, fallback) {
+  const number = Number.parseInt(value, 10);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function appendResolutionHistory(record, updates, fields) {
+  const changed = fields.filter((field) => String(record[field] || '') !== String(updates[field] || ''));
+  if (!changed.length) {
+    return record.resolution_history || '[]';
+  }
+
+  const history = parseJsonArray(record.resolution_history).slice(-19);
+  history.push({
+    at: new Date().toISOString(),
+    previous: changed.reduce((previous, field) => {
+      previous[field] = record[field] || null;
+      return previous;
+    }, {})
+  });
+  return JSON.stringify(history);
 }
 
 function normalizeCandidateStatus(value) {

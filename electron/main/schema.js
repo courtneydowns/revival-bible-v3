@@ -84,6 +84,10 @@ export function initializeSchema(db) {
       what_we_know TEXT,
       what_needs_deciding TEXT,
       answer TEXT,
+      final_decision TEXT,
+      rationale TEXT,
+      resolution_notes TEXT,
+      resolution_history TEXT DEFAULT '[]',
       status TEXT DEFAULT 'needed',
       blocks TEXT DEFAULT '[]',
       blocked_by TEXT DEFAULT '[]',
@@ -98,6 +102,10 @@ export function initializeSchema(db) {
       urgency TEXT NOT NULL,
       status TEXT DEFAULT 'open',
       answer TEXT,
+      final_answer TEXT,
+      rationale TEXT,
+      resolution_notes TEXT,
+      resolution_history TEXT DEFAULT '[]',
       context TEXT,
       blocks TEXT DEFAULT '[]',
       blocked_by TEXT DEFAULT '[]',
@@ -273,6 +281,14 @@ export function initializeSchema(db) {
   ensureColumn(db, 'candidates', 'suggested_links', "TEXT DEFAULT '[]'");
   ensureColumn(db, 'candidates', 'notes', "TEXT DEFAULT ''");
   ensureColumn(db, 'candidates', 'updated_at', 'DATETIME DEFAULT CURRENT_TIMESTAMP');
+  ensureColumn(db, 'decisions', 'final_decision', 'TEXT');
+  ensureColumn(db, 'decisions', 'rationale', 'TEXT');
+  ensureColumn(db, 'decisions', 'resolution_notes', 'TEXT');
+  ensureColumn(db, 'decisions', 'resolution_history', "TEXT DEFAULT '[]'");
+  ensureColumn(db, 'questions', 'final_answer', 'TEXT');
+  ensureColumn(db, 'questions', 'rationale', 'TEXT');
+  ensureColumn(db, 'questions', 'resolution_notes', 'TEXT');
+  ensureColumn(db, 'questions', 'resolution_history', "TEXT DEFAULT '[]'");
 }
 
 function createUpdatedAtTrigger(db, tableName) {

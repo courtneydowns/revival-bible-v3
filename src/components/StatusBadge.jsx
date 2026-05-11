@@ -1,7 +1,7 @@
 export default function StatusBadge({ status = 'DEVELOPING' }) {
-  const allowed = ['LOCKED', 'ESTABLISHED', 'DEVELOPING', 'NEEDED', 'PROVISIONAL'];
-  const label = String(status || 'PROVISIONAL').toUpperCase();
-  const safeLabel = allowed.includes(label) ? label : label;
+  const label = String(status || 'PROVISIONAL');
+  const className = label.toLowerCase().replace(/[^a-z0-9_-]+/g, '-');
+  const displayLabel = label.replace(/[-_]/g, ' ').toUpperCase();
 
-  return <span className={`status-badge ${safeLabel.toLowerCase()}`}>{safeLabel}</span>;
+  return <span className={`status-badge ${className}`}>{displayLabel}</span>;
 }

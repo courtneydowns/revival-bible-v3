@@ -27,7 +27,7 @@ export default function TopBar() {
     <header className="top-bar">
       <div>
         <div className="top-title">{titles[activeView] || 'Revival Bible v3'}</div>
-        <div className="muted">{hasUnsaved ? 'Unsaved local changes' : 'Phase 1 foundation'}</div>
+        <div className="muted">{hasUnsaved ? 'Unsaved local changes' : 'Canon workspace'}</div>
       </div>
       <div className="top-actions">
         <button

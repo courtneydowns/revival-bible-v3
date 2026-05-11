@@ -14,7 +14,7 @@ export default function Dashboard() {
 
   return (
     <section className="view">
-      <div className="eyebrow">Phase 2 bible seed and navigation</div>
+      <div className="eyebrow">Story bible state</div>
       <h1>Revival Bible v3</h1>
       <p className="dashboard-lede">
         Format: 3 seasons / 8 episodes each / 24 episodes total. This app is the local-first
@@ -30,7 +30,7 @@ export default function Dashboard() {
         <article className="status-card">
           <strong>Story Source</strong>
           <StatusBadge status={nodeTree.length ? 'ESTABLISHED' : 'NEEDED'} />
-          <p className="muted">{nodeTree.length} bible nodes seeded from the Phase 2 structure.</p>
+          <p className="muted">{nodeTree.length} bible nodes available.</p>
         </article>
         <article className="status-card">
           <strong>Characters</strong>
@@ -59,7 +59,7 @@ export default function Dashboard() {
         </article>
       </div>
       <div className="placeholder-block">
-        Phase 3B adds read-only decisions, questions, and living document frameworks. Editing, autosave, AI calls, exports, and Phase 4 remain deferred.
+        Editorial workspaces track canon state, review state, provenance, blockers, and unresolved questions.
       </div>
     </section>
   );

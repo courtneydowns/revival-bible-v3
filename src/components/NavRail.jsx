@@ -59,8 +59,31 @@ export default function NavRail() {
     }
   }, [loadNodeTree, nodeTree.length]);
 
+  useEffect(() => {
+    hideTooltip();
+  }, [activeView, navMode]);
+
+  useEffect(() => {
+    const clearTooltip = (event) => {
+      if (event.type === 'keydown' && event.key !== 'Escape') return;
+      hideTooltip();
+    };
+
+    window.addEventListener('blur', clearTooltip);
+    window.addEventListener('scroll', clearTooltip, true);
+    document.addEventListener('keydown', clearTooltip);
+    document.addEventListener('pointerdown', clearTooltip);
+
+    return () => {
+      window.removeEventListener('blur', clearTooltip);
+      window.removeEventListener('scroll', clearTooltip, true);
+      document.removeEventListener('keydown', clearTooltip);
+      document.removeEventListener('pointerdown', clearTooltip);
+    };
+  }, []);
+
   return (
-    <nav className={`nav-rail ${navMode === 'compact' ? 'compact' : ''}`}>
+    <nav className={`nav-rail ${navMode === 'compact' ? 'compact' : ''}`} onMouseLeave={hideTooltip}>
       <div className="brand">
         {navMode === 'compact' ? (
           <div className="brand-mark">RB</div>
@@ -88,7 +111,10 @@ export default function NavRail() {
                 className={`nav-button ${activeView === id ? 'active' : ''}`}
                 data-tooltip={label}
                 key={id}
-                onClick={() => setActiveView(id)}
+                onClick={() => {
+                  hideTooltip();
+                  setActiveView(id);
+                }}
                 onBlur={hideTooltip}
                 onFocus={(event) => showTooltip(label, event)}
                 onMouseEnter={(event) => showTooltip(label, event)}
@@ -109,6 +135,7 @@ export default function NavRail() {
                   className="nav-branch-label"
                   data-tooltip={label}
                   onClick={async () => {
+                    hideTooltip();
                     setActiveView(id);
                     if (!nodeTree.length) {
                       await loadNodeTree();

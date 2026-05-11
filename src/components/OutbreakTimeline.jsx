@@ -35,7 +35,7 @@ export default function OutbreakTimeline() {
     <section className="view timeline-view">
       <div className="eyebrow">Outbreak Timeline / Read Only</div>
       <h1>Outbreak Timeline</h1>
-      <p className="dashboard-lede">Phase 5A starter chronology for high-level outbreak anchors. Exact dates and full phase ranges remain deferred.</p>
+      <p className="dashboard-lede">Starter chronology for high-level outbreak anchors. Exact dates and full outbreak ranges remain deferred.</p>
 
       {timelineEvents.length ? (
         <div className="timeline-event-list">
@@ -85,7 +85,7 @@ export default function OutbreakTimeline() {
           ))}
         </div>
       ) : (
-        <div className="placeholder-block">Timeline events are loading. Phase 5A expects a small starter set.</div>
+        <div className="placeholder-block">Timeline events are loading.</div>
       )}
     </section>
   );

@@ -147,11 +147,29 @@ Planned:
 
 ### Editorial Workflow
 
+Stable:
+- Decision / Question resolution tracking foundation exists.
+- Initial Phase 30 manual UI smoke exposed missing create controls, incomplete content editing, status persistence friction, and scrolling/accessibility gaps; the debug patch addresses those surfaces.
+- Questions support Open, Tentatively Answered, Resolved, and Deprecated states.
+- Decisions support Proposed, Accepted, Implemented, Reversed, and Deprecated states.
+- Decisions and Questions have visible manual create controls.
+- Decisions and Questions have calm delete actions with lightweight confirmation.
+- Decision/Question content and resolution fields are editable from the detail panel.
+- Final Answer / Final Decision, Rationale, and Resolution Notes are manually editable.
+- Resolution statuses persist through explicit user action and remain manual editorial state.
+- Resolution edits preserve prior state notes in a lightweight append-only history field.
+- Phase 30 UI polish reduced stacked admin-card weight and moved the workflow closer to a calm editorial notebook.
+- Questions have tier filtering and unobtrusive tier definitions for scanning.
+- Decision tiers have brief meaning hints.
+- Candidate Inbox filter behavior and detail-column scrolling were repaired after the Phase 30 polish regression.
+- Nav tooltips dismiss reliably.
+- Autosave/status footer now shows meaningful save state with Central Time timestamps.
+- Resolution state does not promote anything to canon automatically.
+
 Planned:
 - manual merge/review tooling
 - continuity/audit history
-- decision tracking improvements
-- future Decision/Question resolution tracking with resolved states, final decision fields, rationale, linked entities, and revision history
+- deeper decision tracking improvements
 - canon confidence levels: Confirmed Canon, Working Canon, Tentative, Exploratory, Rejected, Alternate, Unknown
 - timeline/continuity assistance
 - lightweight contradiction assistance, not autonomous canon resolution

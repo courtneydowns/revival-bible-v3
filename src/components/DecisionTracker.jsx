@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Search, Trash2 } from 'lucide-react';
 import { useRevivalStore } from '../store.js';
 import CanonTagBadges from './CanonTagBadges.jsx';
 import EntityPreviewCard from './EntityPreviewCard.jsx';
@@ -6,20 +7,35 @@ import InspectorPanel from './InspectorPanel.jsx';
 import MasterDetailShell from './MasterDetailShell.jsx';
 import PromotionProvenance from './PromotionProvenance.jsx';
 import RelatedRecords from './RelatedRecords.jsx';
+import ResolutionEditor from './ResolutionEditor.jsx';
 import StatusBadge from './StatusBadge.jsx';
-import StatusSelector from './StatusSelector.jsx';
 import TagEditor from './TagEditor.jsx';
 
 const tierLabels = {
-  1: 'Tier 1 - Foundation',
-  2: 'Tier 2 - Emotional Architecture',
-  3: 'Tier 3 - Emotional Core',
-  4: 'Tier 4 - Structural',
-  5: 'Tier 5 - Pilot-Specific'
+  1: 'Tier 1',
+  2: 'Tier 2',
+  3: 'Tier 3',
+  4: 'Tier 4',
+  5: 'Tier 5'
+};
+const tierDescriptions = {
+  1: 'Series canon.',
+  2: 'Emotional architecture.',
+  3: 'Character core.',
+  4: 'Structure.',
+  5: 'Pilot refinement.'
 };
 
 export default function DecisionTracker() {
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
+  const [newDecisionTitle, setNewDecisionTitle] = useState('');
+  const [createMessage, setCreateMessage] = useState('');
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [deleteMessage, setDeleteMessage] = useState('');
+  const [decisionSearch, setDecisionSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const appliedNavigationFocusTick = useRef(0);
   const decisionCardRefs = useRef(new Map());
   const detailPanelRef = useRef(null);
@@ -30,13 +46,35 @@ export default function DecisionTracker() {
   const entityLinksByKey = useRevivalStore((state) => state.entityLinksByKey);
   const navigationFocusTick = useRevivalStore((state) => state.navigationFocusTick);
   const loadDecisions = useRevivalStore((state) => state.loadDecisions);
+  const createDecision = useRevivalStore((state) => state.createDecision);
+  const deleteDecision = useRevivalStore((state) => state.deleteDecision);
   const selectDecision = useRevivalStore((state) => state.selectDecision);
   const orderedDecisions = useMemo(() => [...decisions].sort(compareDecisions), [decisions]);
+  const visibleDecisions = useMemo(
+    () => orderedDecisions.filter((decision) => {
+      const query = decisionSearch.trim().toLowerCase();
+      const matchesSearch = !query || [
+        decision.title,
+        decision.question,
+        decision.final_decision,
+        decision.answer,
+        decision.blocked_by,
+        decision.blocks
+      ].filter(Boolean).join(' ').toLowerCase().includes(query);
+      const matchesStatus = statusFilter === 'all' || String(decision.status).toLowerCase() === statusFilter;
+      return matchesSearch && matchesStatus;
+    }),
+    [decisionSearch, orderedDecisions, statusFilter]
+  );
+  const decisionStatuses = useMemo(
+    () => ['all', ...new Set(orderedDecisions.map((decision) => String(decision.status || '').toLowerCase()).filter(Boolean))],
+    [orderedDecisions]
+  );
   const selectedDecision = useMemo(
     () => orderedDecisions.find((decision) => String(decision.id) === String(activeDecisionId)) || orderedDecisions[0],
     [activeDecisionId, orderedDecisions]
   );
-  const groupedDecisions = useMemo(() => groupByTier(orderedDecisions), [orderedDecisions]);
+  const groupedDecisions = useMemo(() => groupByTier(visibleDecisions), [visibleDecisions]);
 
   useEffect(() => {
     if (!decisions.length) {
@@ -70,76 +108,164 @@ export default function DecisionTracker() {
     scheduleDetailScrollTop(detailPanelRef.current);
   };
 
+  const handleCreateDecision = async (event) => {
+    event.preventDefault();
+    const title = newDecisionTitle.trim();
+    if (!title || creating) return;
+
+    setCreating(true);
+    setCreateMessage('');
+    try {
+      const response = await createDecision({ title, question: title });
+      if (response?.ok) {
+        setNewDecisionTitle('');
+        setCreateMessage('Decision created.');
+      } else {
+        setCreateMessage(response?.message || 'Decision was not created.');
+      }
+    } catch (error) {
+      setCreateMessage(error?.message || 'Decision was not created.');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleDeleteDecision = async () => {
+    if (!selectedDecision || deleting) return;
+
+    if (String(deleteConfirmId) !== String(selectedDecision.id)) {
+      setDeleteConfirmId(selectedDecision.id);
+      setDeleteMessage('Select delete again to confirm.');
+      return;
+    }
+
+    setDeleting(true);
+    setDeleteMessage('');
+    try {
+      const response = await deleteDecision(selectedDecision.id);
+      if (!response?.ok) {
+        setDeleteMessage(response?.message || 'Decision was not deleted.');
+      } else {
+        setDeleteConfirmId(null);
+      }
+    } catch (error) {
+      setDeleteMessage(error?.message || 'Decision was not deleted.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <section className="view phase3b-view">
       <div className="eyebrow">Decisions</div>
       <h1>Decision Tracker</h1>
-      <p className="dashboard-lede">Phase 3B pre-writing decisions, blockers, and downstream dependencies.</p>
+      <p className="dashboard-lede">Canon decisions, blockers, and downstream dependencies for editorial review.</p>
 
       <MasterDetailShell
         className={`decision-master-detail ${inspectorCollapsed ? 'inspector-collapsed' : ''}`}
         listLabel="Decisions"
         listRef={listPanelRef}
-        list={Object.entries(tierLabels).map(([tier, label]) => (
-          <section className="phase3b-group" key={tier}>
-            <h2>{label}</h2>
-            {(groupedDecisions[tier] || []).map((decision) => (
-              <EntityPreviewCard
-                active={String(selectedDecision?.id) === String(decision.id)}
-                kicker={`Decision #${decision.sequence_number}`}
-                key={decision.id}
-                meta={[formatDependencyLine('Blocked by', decision.blocked_by), formatDependencyLine('Blocks', decision.blocks)]}
-                onSelect={(event) => handleDecisionSelect(decision.id, event)}
-                status={<StatusBadge status={decision.status} />}
-                summary={decision.answer || 'Answer pending.'}
-                tags={entityTagsByKey[`decision:${decision.id}`] || []}
-                title={decision.title}
-                type="Decision"
-                ref={(node) => {
-                  if (node) {
-                    decisionCardRefs.current.set(String(decision.id), node);
-                  } else {
-                    decisionCardRefs.current.delete(String(decision.id));
-                  }
-                }}
+        list={(
+          <>
+            <div className="editorial-list-tools">
+              <label className="editorial-search-field">
+                <Search size={15} />
+                <input
+                  onChange={(event) => setDecisionSearch(event.target.value)}
+                  placeholder="Search decisions"
+                  value={decisionSearch}
+                />
+              </label>
+              <select
+                aria-label="Filter decisions by status"
+                onChange={(event) => setStatusFilter(event.target.value)}
+                value={statusFilter}
+              >
+                {decisionStatuses.map((status) => (
+                  <option key={status} value={status}>{status === 'all' ? 'All statuses' : formatLabel(status)}</option>
+                ))}
+              </select>
+            </div>
+            <form className="record-create-row compact-create-row" onSubmit={handleCreateDecision}>
+              <input
+                aria-label="New decision title"
+                disabled={creating}
+                onChange={(event) => setNewDecisionTitle(event.target.value)}
+                placeholder="New decision title"
+                value={newDecisionTitle}
               />
+              <button className="secondary-button" disabled={creating || !newDecisionTitle.trim()} type="submit">
+                Add
+              </button>
+              {createMessage ? <p className="editor-message">{createMessage}</p> : null}
+            </form>
+            {Object.entries(tierLabels).map(([tier, label]) => (
+              <section className="phase3b-group" key={tier}>
+                <h2>{label}<small>{tierDescriptions[tier]}</small></h2>
+                {(groupedDecisions[tier] || []).map((decision) => (
+                  <EntityPreviewCard
+                    active={String(selectedDecision?.id) === String(decision.id)}
+                    kicker={`Tier ${decision.tier} - Updated ${formatDate(decision.updated_at)}`}
+                    key={decision.id}
+                    meta={[formatDependencyLine('Blocked by', decision.blocked_by), formatDependencyLine('Blocks', decision.blocks)]}
+                    onSelect={(event) => handleDecisionSelect(decision.id, event)}
+                    status={<StatusBadge status={decision.status} />}
+                    summary={decision.final_decision || decision.answer || 'Final decision pending.'}
+                    tags={entityTagsByKey[`decision:${decision.id}`] || []}
+                    title={decision.title}
+                    type="Decision"
+                    ref={(node) => {
+                      if (node) {
+                        decisionCardRefs.current.set(String(decision.id), node);
+                      } else {
+                        decisionCardRefs.current.delete(String(decision.id));
+                      }
+                    }}
+                  />
+                ))}
+              </section>
             ))}
-          </section>
-        ))}
+          </>
+        )}
         inspector={(
           <InspectorPanel
             badges={selectedDecision ? <CanonTagBadges tags={entityTagsByKey[`decision:${selectedDecision.id}`] || []} /> : null}
             className="phase3b-detail-panel"
             collapsed={inspectorCollapsed}
-            emptyText="Decisions are loading. Phase 3B expects 15 seeded records."
+            emptyText="Decisions are loading."
             kicker="Selected Decision"
             key={selectedDecision ? `decision-detail-${selectedDecision.id}` : 'decision-detail-empty'}
-            meta={selectedDecision ? `Decision #${selectedDecision.sequence_number}` : null}
+            meta={selectedDecision ? `Tier ${selectedDecision.tier} - Updated ${formatDate(selectedDecision.updated_at)}` : null}
             onToggleCollapsed={() => setInspectorCollapsed((value) => !value)}
             panelRef={detailPanelRef}
-            status={selectedDecision ? <StatusBadge status={selectedDecision.status} /> : null}
+            status={selectedDecision ? (
+              <>
+                <StatusBadge status={selectedDecision.status} />
+                <button
+                  className={`quiet-danger-button ${String(deleteConfirmId) === String(selectedDecision.id) ? 'confirming' : ''}`}
+                  disabled={deleting}
+                  onClick={handleDeleteDecision}
+                  title={String(deleteConfirmId) === String(selectedDecision.id) ? 'Confirm delete decision' : 'Delete decision'}
+                  type="button"
+                >
+                  <Trash2 size={15} />
+                </button>
+              </>
+            ) : null}
             title={selectedDecision?.title}
           >
             {selectedDecision ? (
               <>
-                <StatusSelector
-                  currentStatus={selectedDecision.status}
-                  entityId={selectedDecision.id}
-                  entityType="decision"
-                />
+                {deleteMessage ? <p className="editor-message detail-message">{deleteMessage}</p> : null}
+                <ResolutionEditor record={selectedDecision} type="decision" />
                 <TagEditor
                   entityId={selectedDecision.id}
                   entityType="decision"
                   tags={entityTagsByKey[`decision:${selectedDecision.id}`] || []}
                 />
-                <div className="field-grid">
-                  <Field title="Question" value={selectedDecision.question} />
-                  <Field title="Why First" value={selectedDecision.why_first} />
-                  <Field title="What We Know" value={selectedDecision.what_we_know} />
-                  <Field title="What Needs Deciding" value={selectedDecision.what_needs_deciding} />
-                  <Field title="Answer" value={selectedDecision.answer || 'Answer pending.'} />
-                  <Field title="Blocked By" value={formatList(selectedDecision.blocked_by)} />
-                  <Field title="Blocks" value={formatList(selectedDecision.blocks)} />
+                <div className="quiet-meta-row">
+                  <span>{formatDependencyLine('Blocked by', selectedDecision.blocked_by)}</span>
+                  <span>{formatDependencyLine('Blocks', selectedDecision.blocks)}</span>
                 </div>
                 <PromotionProvenance text={selectedDecision.what_we_know} />
                 <RelatedRecords
@@ -191,13 +317,22 @@ function formatDependencyLine(label, value) {
   return `${label}: ${formatList(value)}`;
 }
 
-function Field({ title, value }) {
-  return (
-    <div className="field-card">
-      <strong>{title}</strong>
-      <p>{value || 'Pending.'}</p>
-    </div>
-  );
+function formatDate(value) {
+  if (!value) return 'pending';
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Chicago',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  }).format(new Date(value));
+}
+
+function formatLabel(value) {
+  return String(value || '')
+    .split(/[-_]/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 }
 
 function scheduleRecordScroll(card, listPanel) {

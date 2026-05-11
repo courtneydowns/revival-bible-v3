@@ -39,10 +39,15 @@ Completed / passed:
 - Compact nav/tooltips/scrolling stable.
 - OpenAI and Claude generation work.
 - npm run build passes.
+- Phase 29 passed.
+- Phase 30 foundation added for Decision / Question resolution tracking.
+- Phase 30 debug patch addressed initial manual UI smoke failures for create controls, editable content/resolution fields, persisted statuses, and scrolling/accessibility.
+- Phase 30 UI polish added guarded delete actions and reduced the admin/dashboard feel of Decision and Question resolution editing.
+- Phase 30 editorial UX hardening added tier filtering/definitions, tooltip cleanup, Candidate Inbox regression repair, and Central Time autosave/timestamp polish.
 
 Current / next:
-- Phase 28 — Roadmap Audit + Project-Control Docs Update
-- Phase 29 — next surgical implementation phase chosen from remaining roadmap priorities
+- Phase 30 — Decision / Question Resolution Tracking Foundation
+- Next — continue surgical implementation from remaining roadmap priorities
 
 ## Remaining Roadmap Arc
 
@@ -179,17 +184,34 @@ Include:
 - clear distinction between serious canon discussion, exploratory brainstorming, non-canon exploration, abandoned ideas, and joke/throwaway discussion
 - preservation of historical creative evolution, including abandoned and alternate ideas, as long-term narrative memory
 
-### Future Phase — Decision / Question Resolution Tracking
+### Phase 30 — Decision / Question Resolution Tracking
+
+Status:
+Foundation added.
 
 Goal:
 Track creative decisions and open questions through resolution without turning them into automatic canon.
 
-Include:
-- resolved states
-- final decision fields
-- rationale
-- linked entities
-- revision history
+Completed foundation:
+- Question states: Open, Tentatively Answered, Resolved, Deprecated
+- Decision states: Proposed, Accepted, Implemented, Reversed, Deprecated
+- visible New Decision and New Question controls
+- guarded Decision and Question delete actions
+- editable Decision and Question content fields
+- editable Final Answer / Final Decision fields
+- editable Rationale and Resolution Notes
+- lightweight prior-state resolution history
+- scroll/accessibility fixes for reaching lower detail actions
+- calmer editorial resolution layout with reduced stacked-card weight
+- Question tier filtering and unobtrusive tier definitions
+- Candidate Inbox filter/detail-scroll regression repair
+- tooltip dismissal cleanup
+- autosave/save-state footer and displayed timestamps standardized toward Central Time
+- manual editorial authority preserved
+- no automatic canon promotion or canon mutation
+
+Future additions:
+- richer linked-entity surfaces where existing patterns support them
 - lightweight backlinks to decisions, questions, candidates, AI sessions, imported conversations, and story bible entries
 
 ### Future Phase — Canon Confidence / Editorial Attention
