@@ -1576,6 +1576,12 @@ function normalizeCandidateStatus(value) {
     new: 'New',
     'in review': 'In Review',
     'in-review': 'In Review',
+    accepted: 'Accepted / Needs Placement',
+    'needs placement': 'Accepted / Needs Placement',
+    'needs-placement': 'Accepted / Needs Placement',
+    'accepted needs placement': 'Accepted / Needs Placement',
+    'accepted-needs-placement': 'Accepted / Needs Placement',
+    'accepted / needs placement': 'Accepted / Needs Placement',
     promoted: 'Promoted',
     rejected: 'Rejected'
   };

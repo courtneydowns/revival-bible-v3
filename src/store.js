@@ -835,7 +835,7 @@ function createLocalCandidate(payload = {}) {
 }
 
 function updateLocalCandidateStatus({ id, status }) {
-  const allowedStatuses = new Set(['New', 'In Review', 'Promoted', 'Rejected']);
+  const allowedStatuses = new Set(['New', 'In Review', 'Accepted / Needs Placement', 'Promoted', 'Rejected']);
   if (!allowedStatuses.has(status)) return { ok: false, message: 'Candidate status is required.' };
 
   let updatedCandidate = null;

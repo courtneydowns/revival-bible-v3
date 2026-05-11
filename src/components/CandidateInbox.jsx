@@ -2,7 +2,9 @@ import { Check, ExternalLink, Info, Plus, Send, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRevivalStore } from '../store.js';
 
-const statuses = ['New', 'In Review', 'Promoted', 'Rejected'];
+const acceptedStatus = 'Accepted / Needs Placement';
+const statuses = ['New', 'In Review', acceptedStatus, 'Promoted', 'Rejected'];
+const statusFilters = ['All', 'New', 'In Review', acceptedStatus, 'Promoted', 'Rejected'];
 const promotionTargets = [
   ['character', 'Character'],
   ['episode', 'Episode'],
@@ -20,6 +22,7 @@ export default function CandidateInbox() {
   const [editing, setEditing] = useState(false);
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('All');
   const [promotionOpen, setPromotionOpen] = useState(false);
   const [promotionTarget, setPromotionTarget] = useState('character');
   const [promotionDraft, setPromotionDraft] = useState(createPromotionDraft(null, 'character'));
@@ -46,6 +49,12 @@ export default function CandidateInbox() {
   const selectedCandidate = useMemo(
     () => candidates.find((candidate) => String(candidate.id) === String(activeCandidateId)) || candidates[0] || null,
     [activeCandidateId, candidates]
+  );
+  const filteredCandidates = useMemo(
+    () => statusFilter === 'All'
+      ? candidates
+      : candidates.filter((candidate) => normalizeCandidateStatusLabel(candidate.status) === statusFilter),
+    [candidates, statusFilter]
   );
 
   useEffect(() => {
@@ -264,10 +273,21 @@ export default function CandidateInbox() {
             </button>
           </form>
 
+          <div className="candidate-filter">
+            <label>
+              <span>Queue</span>
+              <select aria-label="Filter candidates by status" onChange={(event) => setStatusFilter(event.target.value)} value={statusFilter}>
+                {statusFilters.map((status) => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+
           <div className="candidate-list">
-            {candidates.length ? candidates.map((candidate, index) => (
+            {filteredCandidates.length ? filteredCandidates.map((candidate, index) => (
               <button
-                className={`candidate-card ${String(selectedCandidate?.id) === String(candidate.id) ? 'selected' : ''}`}
+                className={`candidate-card ${statusClassName(candidate.status)} ${String(selectedCandidate?.id) === String(candidate.id) ? 'selected' : ''}`}
                 key={candidate.id}
                 onClick={() => selectCandidate(candidate.id)}
                 type="button"
@@ -280,7 +300,12 @@ export default function CandidateInbox() {
                 <strong>{candidate.title}</strong>
                 <span>{candidate.content || 'No content yet.'}</span>
               </button>
-            )) : (
+            )) : candidates.length ? (
+              <div className="candidate-empty-state">
+                <strong>No {statusFilter} candidates.</strong>
+                <span>Change the queue filter to see other candidates.</span>
+              </div>
+            ) : (
               <div className="candidate-empty-state">
                 <strong>No candidates yet.</strong>
                 <span>Add a manual test candidate to start the review queue.</span>
@@ -357,6 +382,10 @@ export default function CandidateInbox() {
                 )}
                 <button className="secondary-button" disabled={saving || selectedCandidate.status === 'In Review'} onClick={() => setStatus('In Review')} type="button">
                   In Review
+                </button>
+                <button className="secondary-button" disabled={saving || selectedCandidate.status === acceptedStatus} onClick={() => setStatus(acceptedStatus)} type="button">
+                  <Check size={14} />
+                  <span>Accepted / Needs Placement</span>
                 </button>
                 <button className="secondary-button" disabled={saving || editing} onClick={openPromotionReview} type="button">
                   <Send size={14} />
@@ -531,8 +560,16 @@ export default function CandidateInbox() {
 }
 
 function CandidateStatusBadge({ status }) {
-  const label = statuses.includes(status) ? status : 'New';
-  return <span className={`candidate-status ${label.toLowerCase().replace(/\s+/g, '-')}`}>{label}</span>;
+  const label = normalizeCandidateStatusLabel(status);
+  return <span className={`candidate-status ${statusClassName(label)}`}>{label}</span>;
+}
+
+function normalizeCandidateStatusLabel(status) {
+  return statuses.includes(status) ? status : 'New';
+}
+
+function statusClassName(status) {
+  return normalizeCandidateStatusLabel(status).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
 function formatProvenance(candidate) {

@@ -2122,6 +2122,32 @@ h1 {
   background: #151514;
 }
 
+.candidate-filter {
+  display: grid;
+  gap: 6px;
+}
+
+.candidate-filter label {
+  display: grid;
+  gap: 5px;
+}
+
+.candidate-filter span {
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.candidate-filter select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #11110f;
+  color: var(--text);
+  padding: 8px 9px;
+}
+
 .candidate-create-heading {
   display: flex;
   min-width: 0;
@@ -2239,6 +2265,11 @@ h1 {
   border-color: var(--accent);
   background: #28251f;
   color: var(--text);
+}
+
+.candidate-card.accepted-needs-placement {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+  background: #1e211a;
 }
 
 .candidate-card strong {
@@ -2520,6 +2551,7 @@ h1 {
 
 .candidate-status.new { color: var(--established); }
 .candidate-status.in-review { color: var(--developing); }
+.candidate-status.accepted-needs-placement { color: var(--accent); }
 .candidate-status.promoted { color: var(--locked); }
 .candidate-status.rejected { color: var(--provisional); }
 
