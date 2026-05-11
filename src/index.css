@@ -2357,6 +2357,15 @@ h1 {
   gap: 8px;
 }
 
+.candidate-acceptance-note {
+  width: fit-content;
+  border-left: 3px solid var(--accent);
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+  padding-left: 10px;
+}
+
 .candidate-provenance {
   display: flex;
   min-width: 0;

@@ -401,6 +401,12 @@ export default function CandidateInbox() {
                 </button>
               </div>
 
+              {selectedCandidate.status === acceptedStatus ? (
+                <div className="candidate-acceptance-note">
+                  Accepted for future placement. Not canon until promoted.
+                </div>
+              ) : null}
+
               <div className="candidate-provenance">
                 <span>Provenance</span>
                 <Info size={14} title={formatProvenance(selectedCandidate)} />
