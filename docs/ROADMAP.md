@@ -44,9 +44,9 @@ Completed / passed:
 - Phase 30 debug patch addressed initial manual UI smoke failures for create controls, editable content/resolution fields, persisted statuses, and scrolling/accessibility.
 - Phase 30 UI polish added guarded delete actions and reduced the admin/dashboard feel of Decision and Question resolution editing.
 - Phase 30 editorial UX hardening added tier filtering/definitions, tooltip cleanup, Candidate Inbox regression repair, and Central Time autosave/timestamp polish.
+- Phase 30 passed manual Electron smoke.
 
 Current / next:
-- Phase 30 — Decision / Question Resolution Tracking Foundation
 - Next — continue surgical implementation from remaining roadmap priorities
 
 ## Remaining Roadmap Arc
@@ -187,7 +187,7 @@ Include:
 ### Phase 30 — Decision / Question Resolution Tracking
 
 Status:
-Foundation added.
+Passed manual Electron smoke.
 
 Goal:
 Track creative decisions and open questions through resolution without turning them into automatic canon.
@@ -207,12 +207,21 @@ Completed foundation:
 - Candidate Inbox filter/detail-scroll regression repair
 - tooltip dismissal cleanup
 - autosave/save-state footer and displayed timestamps standardized toward Central Time
+- Decisions layout passed manual Electron smoke
+- Questions layout passed manual Electron smoke
+- Questions and Candidate filters passed manual Electron smoke
+- Candidate second column scrolling passed manual Electron smoke
+- tooltip dismissal passed manual Electron smoke
+- explicit Central Time autosave/status timestamp passed manual Electron smoke
+- visible Phase labels/listings were removed or reduced enough for now
 - manual editorial authority preserved
 - no automatic canon promotion or canon mutation
 
 Future additions:
 - richer linked-entity surfaces where existing patterns support them
 - lightweight backlinks to decisions, questions, candidates, AI sessions, imported conversations, and story bible entries
+- reconsider visible Phase labels/listings in the app UI only when they have clear editorial value
+- prefer editorial labels such as status, canon state, review state, source/provenance, decision history, blockers/dependencies, and updated timestamp
 
 ### Future Phase — Canon Confidence / Editorial Attention
 

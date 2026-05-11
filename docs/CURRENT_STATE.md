@@ -149,7 +149,7 @@ Planned:
 
 Stable:
 - Decision / Question resolution tracking foundation exists.
-- Initial Phase 30 manual UI smoke exposed missing create controls, incomplete content editing, status persistence friction, and scrolling/accessibility gaps; the debug patch addresses those surfaces.
+- Phase 30 passed manual Electron smoke after debug, polish, and editorial UX hardening passes.
 - Questions support Open, Tentatively Answered, Resolved, and Deprecated states.
 - Decisions support Proposed, Accepted, Implemented, Reversed, and Deprecated states.
 - Decisions and Questions have visible manual create controls.
@@ -164,6 +164,7 @@ Stable:
 - Candidate Inbox filter behavior and detail-column scrolling were repaired after the Phase 30 polish regression.
 - Nav tooltips dismiss reliably.
 - Autosave/status footer now shows meaningful save state with Central Time timestamps.
+- Visible Phase labels/listings are removed or reduced enough for now.
 - Resolution state does not promote anything to canon automatically.
 
 Planned:
@@ -177,6 +178,8 @@ Planned:
 - subtle, expandable provenance surfaces instead of graph-heavy or cluttered interfaces
 - calmer review interfaces
 - compact, low-noise editorial UI
+- avoid visible "Phase" labels/listings in the app UI unless there is clear editorial value
+- prefer editorial labels such as status, canon state, review state, source/provenance, decision history, blockers/dependencies, and updated timestamp
 
 ### Creative Memory / Imported Conversations
 

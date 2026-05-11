@@ -67,7 +67,7 @@ Summary:
 - npm run build passed.
 
 ## Phase 30 — Decision / Question Resolution Tracking Foundation
-Status: Editorial UX hardening implemented; manual UI smoke pending rerun.
+Status: Passed manual Electron smoke.
 
 Summary:
 - Initial manual UI smoke failed because create controls were missing, content editing was incomplete, status changes were not obvious/persistent enough, and Decision/Question detail scrolling could hide lower controls.
@@ -83,6 +83,18 @@ Summary:
 - Candidate Inbox filter/detail scrolling regression was repaired.
 - Nav tooltip dismissal was hardened.
 - Autosave/status footer and displayed timestamps were improved with Central Time formatting.
+- Decisions layout passed.
+- Questions layout passed.
+- Questions and Candidate filters passed.
+- Candidate second column scrolling passed.
+- Tooltip dismissal passed.
+- Explicit Central Time autosave/status timestamp passed.
+- Visible phase labels are removed/reduced enough for now.
 - Final Answer / Final Decision, Rationale, and Resolution Notes are editable.
 - Prior resolution values are preserved in lightweight append-only history fields.
 - Manual editorial authority is preserved; nothing becomes canon automatically.
+
+Future UI direction:
+- Visible "Phase" labels/listings should be removed or reconsidered in the app UI.
+- Phases are internal build/project-control metadata unless there is clear editorial value.
+- Prefer editorial labels: status, canon state, review state, source/provenance, decision history, blockers/dependencies, updated timestamp.

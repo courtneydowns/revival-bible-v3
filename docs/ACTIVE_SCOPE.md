@@ -4,7 +4,7 @@
 
 ## Current Phase
 
-Phase 30 — Decision / Question Resolution Tracking Foundation
+Phase 30 — Decision / Question Resolution Tracking Foundation — Passed
 
 ## Goal
 
@@ -13,10 +13,14 @@ Add a lightweight editorial resolution system for Decisions and Questions so the
 ## Current Stable Status
 
 - Phase 29 passed.
-- Phase 30 build and temp DB/API smoke passed, but initial manual UI smoke failed on create controls, content editing, persisted status changes, and scrolling.
-- Phase 30 debug patch addresses create controls, editable Decision/Question fields, persisted statuses, and scroll/accessibility fixes.
-- Phase 30 UI polish pass reduces the admin/dashboard feel, calms the resolution editor layout, and adds guarded Decision/Question delete actions.
-- Phase 30 editorial UX hardening adds question tier filtering/definitions, repairs Candidate Inbox filter/detail scrolling regressions, dismisses nav tooltips reliably, and improves autosave/timestamp copy in Central Time.
+- Phase 30 passed manual Electron smoke.
+- Decisions layout passes.
+- Questions layout passes.
+- Questions and Candidate filters pass.
+- Candidate second column scrolling passes.
+- Tooltip dismissal passes.
+- Explicit Central Time autosave/status timestamp passes.
+- Visible phase labels are removed/reduced enough for now.
 - Autosave/recovery foundation exists.
 - Candidate Inbox status/tag filters work.
 - Active/Traceable are passive derived summary text.
@@ -25,6 +29,21 @@ Add a lightweight editorial resolution system for Decisions and Questions so the
 - Accepted remains non-canon until explicit promotion.
 - Existing promotion/source traceability and AI Sessions remain stable.
 - npm run build passes.
+
+## Future UI Direction
+
+Visible "Phase" labels/listings should be removed or reconsidered in the app UI.
+
+Phases are internal build/project-control metadata unless there is clear editorial value.
+
+Prefer editorial labels:
+- status
+- canon state
+- review state
+- source/provenance
+- decision history
+- blockers/dependencies
+- updated timestamp
 
 ## Phase 30 Scope
 
