@@ -27,7 +27,27 @@ Summary:
 - Compact nav/tooltips were not re-smoked due to browser block.
 
 ## Phase 26C — Candidate Acceptance UI Retest + Editorial Queue Polish
-Status: Planned.
+Status: Passed.
 
-Goal:
-Manually verify Accepted / Needs Placement in the real UI and make only small polish fixes needed for clarity and trust.
+Summary:
+- Accepted / Needs Placement UI clarity passed.
+- Editorial queue polish passed.
+- Accepted candidates remained non-canon until explicit promotion.
+
+## Phase 27 — Candidate Inbox Queue Organization
+Status: Passed except browser UI smoke was not run.
+
+Summary:
+- Candidate Inbox queue organization improved.
+- Queue labels/status summaries/counts were added.
+- Pending, Accepted, Needs Placement, Promoted, and Rejected became clearer.
+- Accepted candidates remain non-canon until explicitly promoted.
+- Edit/promote/reject/source navigation paths remained stable.
+- npm run build passed.
+
+## Phase 28 — Roadmap Audit + Project-Control Docs Update
+Status: In progress.
+
+Summary:
+- Docs-only roadmap/project-control audit.
+- Future phases must preserve user authority, manual canon promotion, data safety, auditability, compact nav, calm UI, token-efficient Codex workflow, and output-control/silent mode.

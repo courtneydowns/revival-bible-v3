@@ -15,13 +15,17 @@ Audit the current roadmap and project-control docs against the actual product di
 - Phase 26A passed.
 - Phase 26B passed.
 - Phase 26C passed.
-- Phase 27 is Candidate Inbox Queue Organization.
+- Phase 27 passed except browser UI smoke was not run.
 - Candidate Inbox architecture is stable.
+- Candidate Inbox queue organization improved.
+- Queue labels/status summaries/counts were added.
+- Pending, Accepted, Needs Placement, Promoted, and Rejected are clearer, with further organization/filtering still planned.
 - Accepted / Needs Placement workflow exists.
 - Accepted state persists correctly.
 - Accepted candidates remain editable.
 - Accepted candidates can still be promoted normally.
 - Accepted state clearly says: “Accepted for future placement. Not canon until promoted.”
+- Accepted candidates remain non-canon until explicitly promoted.
 - Existing promotion workflows still work.
 - Existing provenance/source navigation still works.
 - Compact nav scrolling/tooltips work.
@@ -92,7 +96,7 @@ Do not add:
 
 - ROADMAP.md clearly reflects remaining roadmap priorities.
 - CURRENT_STATE.md reflects stable completed systems without becoming a backlog dump.
-- ACTIVE_SCOPE.md points future work toward docs audit and then Phase 27/29 continuation.
+- ACTIVE_SCOPE.md points future work toward docs audit and then Phase 29 continuation.
 - Docs mention autosave/autobackup/data safety as a dedicated hardening phase.
 - Docs mention Candidates Inbox status filtering/organization as a planned or current queue clarity feature.
 - Docs preserve the rule: nothing becomes canon automatically.

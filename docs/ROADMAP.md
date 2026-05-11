@@ -12,19 +12,22 @@ The user remains authoritative. All promotion, merging, canonization, and contin
 
 Completed / passed:
 - Phase 19 through Phase 26C passed.
+- Phase 27 passed except browser UI smoke was not run.
 - Candidate Inbox foundation stable.
 - Manual extraction stable.
 - Candidate editing/review notes stable.
 - Candidate source-session linking stable.
 - Promotion traceability/backlinking stable.
 - Accepted / Needs Placement workflow stable.
+- Candidate Inbox queue organization improved.
+- Queue labels/status summaries/counts added.
 - Compact nav/tooltips/scrolling stable.
 - OpenAI and Claude generation work.
 - npm run build passes.
 
 Current / next:
-- Phase 27 — Candidate Inbox Queue Organization
 - Phase 28 — Roadmap Audit + Project-Control Docs Update
+- Phase 29 — next surgical implementation phase chosen from remaining roadmap priorities
 
 ## Remaining Roadmap Arc
 
@@ -42,16 +45,23 @@ The remaining roadmap should focus less on foundational architecture and more on
 
 ### Phase 27 — Candidate Inbox Queue Organization
 
+Status:
+Passed except browser UI smoke was not run.
+
 Goal:
 Improve queue clarity in Candidates Inbox so Pending, Accepted, Needs Placement, Promoted, and Rejected candidates are easier to understand and scan.
 
-Include:
-- status filtering similar to search filtering
-- clearer status labels
-- queue counts if low-noise
-- calmer empty states
-- better Accepted vs Needs Placement distinction
+Completed:
+- clearer status labels and summaries
+- queue counts
+- clearer Pending, Accepted, Needs Placement, Promoted, and Rejected organization
+- stable edit/promote/reject/source navigation paths
+- Accepted candidates remain non-canon until explicit promotion
+
+Remaining:
+- continue status filtering/organization similar to search filtering
 - keep Promoted and Rejected accessible without crowding active review
+- preserve compact nav and calm UI
 
 Do not add:
 - kanban
@@ -91,12 +101,14 @@ Include:
 - restart/navigation persistence smoke tests
 - confirmations before destructive actions
 - clear failure states when saving fails
+- explicit backup of SQLite/database before risky migrations
 
 Acceptance:
 - app data survives navigation
 - app data survives restart
 - risky destructive actions require confirmation
 - database backup/recovery path is documented and smoke-tested
+- canon data has a recovery/export path
 
 ### Future Phase — Tag / Status Management
 

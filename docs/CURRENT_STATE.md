@@ -57,6 +57,8 @@ Stable:
 
 Stable:
 - Candidate Inbox foundation exists.
+- Candidate Inbox queue organization improved.
+- Queue labels/status summaries/counts exist.
 - Candidate persistence works.
 - Candidate delete flow works.
 - Candidate editing works.
@@ -73,6 +75,7 @@ Stable:
 - Accepted candidates can still be promoted normally.
 - Accepted candidates remain non-canon until explicit promotion.
 - Accepted state clearly says: “Accepted for future placement. Not canon until promoted.”
+- Pending, Accepted, Needs Placement, Promoted, and Rejected are clearer than before, with additional filtering/organization still planned.
 
 ### Navigation / Layout
 
@@ -111,7 +114,7 @@ Planned:
 Planned dedicated hardening:
 - autosave important app state
 - autobackup SQLite/database data
-- create backups before risky migrations
+- back up SQLite/database data before risky migrations
 - add recovery/export path for canon data
 - strengthen edit persistence
 - prevent silent data loss
@@ -125,6 +128,7 @@ Planned:
 - clearer tag-vs-text search result distinction
 - support natural searches like “contradiction risk” for contradiction-risk tags
 - add a master tag list
+- keep tag/status management as a future phase
 - clarify status badges vs canon tags
 - add tag/status management as its own build phase
 - update search indexes after tag/status edits
