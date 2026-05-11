@@ -59,6 +59,13 @@ export const useRevivalStore = create((set, get) => ({
   contextPackSessionContexts: {},
   aiSessions: [],
   candidates: [],
+  ingestionReviewSummary: {
+    sessions: [],
+    unresolvedExtractions: [],
+    duplicateReviews: [],
+    continuityReviews: [],
+    narrativeFragments: []
+  },
   activeAiSessionId: getSavedActiveAiSessionId(),
   activeAiSession: null,
   sourceSessionJump: null,
@@ -434,6 +441,12 @@ export const useRevivalStore = create((set, get) => ({
     set({ candidates: candidates || [], activeCandidateId });
     return candidates || [];
   },
+  loadIngestionReviewSummary: async () => {
+    const summary = await window.revival?.ingestion?.getReviewSummary?.();
+    const ingestionReviewSummary = normalizeIngestionReviewSummary(summary);
+    set({ ingestionReviewSummary });
+    return ingestionReviewSummary;
+  },
   selectCandidate: async (candidateId) => {
     const api = window.revival;
     if (!candidateId) return null;
@@ -792,7 +805,7 @@ export const useRevivalStore = create((set, get) => ({
       return;
     }
 
-    const [databaseInfo, nodeTree, episodes, characters, decisions, questions, contextPacks, aiSessions, candidates, livingRows, timelineEvents, canonTags, entityTagLinks, characterRelationshipCount] = await Promise.all([
+    const [databaseInfo, nodeTree, episodes, characters, decisions, questions, contextPacks, aiSessions, candidates, ingestionReviewSummary, livingRows, timelineEvents, canonTags, entityTagLinks, characterRelationshipCount] = await Promise.all([
       api.app.getDatabaseInfo(),
       api.nodes.getTree(),
       api.episodes.getAll(),
@@ -802,6 +815,7 @@ export const useRevivalStore = create((set, get) => ({
       api.contextPacks.getAll(),
       api.ai.listSessions(),
       api.candidates?.getAll() || [],
+      api.ingestion?.getReviewSummary?.() || null,
       api.living.getAll(),
       api.timeline.getEvents(),
       api.canon.getTags(),
@@ -824,6 +838,7 @@ export const useRevivalStore = create((set, get) => ({
       contextPacks: contextPacks || [],
       aiSessions: aiSessions || [],
       candidates: candidates || [],
+      ingestionReviewSummary: normalizeIngestionReviewSummary(ingestionReviewSummary),
       activeCandidateId: get().activeCandidateId || candidates?.[0]?.id || null,
       activeAiSessionId: hydratedAiSession?.id || null,
       activeAiSession: hydratedAiSession,
@@ -861,6 +876,16 @@ function groupEntityTags(rows) {
     groups[key].push(row);
     return groups;
   }, {});
+}
+
+function normalizeIngestionReviewSummary(summary = {}) {
+  return {
+    sessions: Array.isArray(summary?.sessions) ? summary.sessions : [],
+    unresolvedExtractions: Array.isArray(summary?.unresolvedExtractions) ? summary.unresolvedExtractions : [],
+    duplicateReviews: Array.isArray(summary?.duplicateReviews) ? summary.duplicateReviews : [],
+    continuityReviews: Array.isArray(summary?.continuityReviews) ? summary.continuityReviews : [],
+    narrativeFragments: Array.isArray(summary?.narrativeFragments) ? summary.narrativeFragments : []
+  };
 }
 
 function applyEntityRecordUpdate(state, entityType, record) {

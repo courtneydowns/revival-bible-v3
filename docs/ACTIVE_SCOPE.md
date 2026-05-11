@@ -1,207 +1,108 @@
-# ACTIVE_SCOPE.md
-
 # Revival Bible v3 — Active Scope
 
-## Current Phase
+## Current Status
 
-Dashboard Rework / Editorial Home Workspace — Passed
+Phase 33 passed.
 
-## Goal
+Phase 33 established the Editorial Ingestion / Continuity Protection Framework before any large-scale document extraction or seeding. The app now has foundational structures for import sessions, source memory, editorial extractions, duplicate review, continuity review, contradiction routing, narrative fragments, provenance preservation, IPC/preload/store plumbing, and Dashboard surfacing groundwork without automatic canon mutation.
 
-Record the Dashboard rework as passed and keep the MVP direction aligned around a calm editorial home workspace.
+## Recently Completed Phase
 
-## Current Stable Status
+### Phase 33 — Editorial Ingestion / Continuity Protection Framework
 
-- Phase 29 passed.
-- Phase 30 passed manual Electron smoke.
-- Phase 31 added lightweight tag/status metadata control for Candidate Inbox and preserved Decision/Question metadata tools.
-- Phase 31 passed final manual Electron smoke.
-- Candidate metadata/search smoke passed.
-- Candidate metadata controls work.
-- Manual candidate tags can be added/removed and duplicate tags are blocked.
-- Candidate metadata persists after navigation/reload.
-- Candidate metadata filters work.
-- Search indexing updates around candidate metadata edits.
-- Candidate action buttons are readable and usable.
-- Candidate delete works for non-promoted candidates with cancel/confirm.
-- Promoted/protected candidates show a clear protected explanation instead of silently failing.
-- Questions metadata/status/tags/dependency controls are reachable near the top of the detail panel.
-- Decisions layout passes.
-- Questions layout passes.
-- Questions and Candidate filters pass.
-- Candidate second column scrolling passes.
-- Tooltip dismissal passes.
-- Explicit Central Time autosave/status timestamp passes.
-- Visible phase labels are removed/reduced enough for now.
-- Autosave/recovery foundation exists.
-- Candidate Inbox status/tag filters work.
-- Active/Traceable are passive derived summary text.
-- Tags are color-coded/readable in dark mode.
-- Candidate Inbox left column polish improved.
-- Accepted remains non-canon until explicit promotion.
-- Existing promotion/source traceability and AI Sessions remain stable.
-- npm run build passes.
-- Dashboard now opens as an editorial home workspace rather than a seeded-state metrics grid.
-- Continue Working surfaces recent/open editorial records and routes into their workspaces.
-- Dashboard surfaces unresolved questions, candidates awaiting review/placement, recent decisions, continuity attention, and recent editorial activity.
-- Dashboard timestamps render visibly in Central Time.
-- Primary Dashboard UI avoids visible internal phase labels.
-- Dashboard routing into Candidates, Questions, Decisions, Continuity attention, and AI Sessions passed manual Electron smoke.
-
-## Dashboard Rework Final Status
-
-Passed:
-- Calm editorial home layout replaced the prior database/source/count dashboard.
-- Continue Working prioritizes active/recent editorial records without promoting or mutating canon.
-- Unresolved questions, candidate review/placement work, recent decisions, continuity attention, and recent editorial activity are surfaced as lightweight readable lists.
-- Dashboard records route into the appropriate existing workspaces/detail surfaces.
-- Visible Dashboard timestamps use Central Time.
-- Internal phase-labeled smoke records are not surfaced in the primary Dashboard UI.
-- No automatic canon mutation.
-- npm run build passed.
-- Manual Electron smoke passed.
-
-## Phase 31 Final Status
-
-Passed:
-- Candidate metadata/tag/status controls added.
-- Candidate review-state changes remain explicit user actions.
-- Manual candidate tags are stored in candidate provenance metadata and remain non-canon.
-- Duplicate candidate tags are blocked.
-- Candidate metadata persists after navigation/reload.
-- Candidate metadata filters work.
-- Search rebuilds/updates around candidate metadata edits.
-- Candidate delete modal replaced unreliable/silent delete behavior.
-- Candidate delete distinguishes protected/promoted candidates from deletable non-promoted candidates.
-- Questions metadata layout was improved for accessibility by moving key status/tag/dependency controls higher.
-- No automatic canon mutation.
-- No visible internal phase labels.
-- npm run build passed.
-- Manual Electron smoke passed.
-
-## Future MVP Phase — Dashboard Rework / Editorial Home Workspace
-
-Goal:
-Rework Dashboard into a calm editorial home workspace that helps the user continue real editorial work without becoming an enterprise dashboard.
-
-Prioritize:
-- Continue Working.
-- Recent editorial activity.
-- Unresolved questions.
-- Candidates awaiting placement.
-- Recent decisions.
-- Continuity risks.
-- Editorial labels such as status, source/provenance, canon state, decision history, review state, and updated timestamps.
-- Central Time for visible timestamps.
-
-Avoid:
-- enterprise-dashboard styling
-- fake productivity metrics
-- giant counters/charts
-- clutter-heavy widgets
-- internal build Phase labels in primary UI
-
-## Workflow Rules to Preserve
-
-- User remains authoritative.
-- Nothing becomes canon automatically.
-- Candidates remain non-canon until explicit promotion.
-- AI may assist, suggest, extract, and organize, but must not mutate canon autonomously.
-- Preserve provenance, source links, decision history, review state, and editorial traceability.
-- Keep UI calm and editorial.
-- Use Central Time for visible timestamps.
-- Future phase prompts must include strict self-audit, UI/UX acceptance gates, and output-control/silent-mode requirements.
-
-## Phase 31 Scope
-
-Allowed:
-- Add or improve lightweight tag/status controls for Candidate Inbox, Decisions, and Questions.
-- Allow manual candidate tag editing without promoting candidates to canon.
-- Preserve Decision and Question tag/status editing through the existing editorial detail surfaces.
-- Keep allowed tag/status meanings compact and contextual.
-- Rebuild/update search indexing after tag/status/status-like edits.
-- Preserve persistence after navigation/reload.
-- Keep UI calm, editorial, and non-dashboard-like.
-- Keep visible phase labels out of primary app UI.
-
-Do not add:
-- automatic canon mutation
-- autonomous AI classification
-- embeddings/vector search
-- relationship inference
-- enterprise dashboard surfaces
-- giant admin tables
-- broad schema rewrites
-
-Acceptance Criteria:
-- User can understand allowed tags/statuses without reading code.
-- User can add/remove candidate tags and edit Decision/Question tags where supported.
-- User can change review/status/canon-state fields where supported.
-- Tag/status edits persist after navigation/reload.
-- Search/filter behavior reflects edited metadata.
-- Accepted candidates remain non-canon until explicit promotion.
-- Existing Phase 30 layouts and fixes remain stable.
-- npm run build passes.
-
-## Future UI Direction
-
-Visible "Phase" labels/listings should be removed or reconsidered in the app UI.
-
-Phases are internal build/project-control metadata unless there is clear editorial value.
-
-Prefer editorial labels:
-- status
-- canon state
-- review state
-- source/provenance
-- decision history
-- blockers/dependencies
-- updated timestamp
-
-## Phase 30 Scope
-
-Allowed:
-- Add Question states: Open, Tentatively Answered, Resolved, Deprecated.
-- Add Decision states: Proposed, Accepted, Implemented, Reversed, Deprecated.
-- Add editable final answer/final decision fields.
-- Add editable rationale and resolution notes.
-- Add visible New Decision and New Question controls.
-- Add lightweight confirmed delete for Decisions and Questions.
-- Support manual editing of Decision/Question content.
-- Ensure Decision/Question workspace scrolling keeps controls reachable.
-- Keep the resolution workflow calm, editorial, and readable rather than dashboard-like.
-- Add lightweight tier clarity/filtering for Questions and tier meaning hints for Decisions.
-- Keep Candidate Inbox filters and detail scrolling stable.
-- Keep nav tooltips dismissible and autosave status meaningful with Central Time timestamps.
-- Add minimal append-only prior-state history where practical.
-- Preserve existing question/decision text and existing records.
-- Keep linked entity patterns as-is.
-
-Do not add:
-- autonomous canon mutation
-- automatic decision making
-- automatic canon promotion
-- AI classification
-- embeddings/vector systems
-- giant graph UI
-- enterprise task management
-- large refactors
-
-## Acceptance Criteria
-
-- Decisions and Questions show scannable resolution states.
-- Final answer/final decision, rationale, and notes are editable and persistent.
-- Existing records display without data loss.
-- Nothing becomes canon automatically.
-- UI remains calm/readable in dark mode.
-- Decision and Question delete actions require lightweight confirmation.
-- Candidate Inbox, promotion workflows, source traceability, autosave/recovery, and AI Sessions are not intentionally changed.
-
-## Final Response Format
+Status: Passed
 
 Files changed:
-Root cause:
-One sentence fix:
-Build result:
-Smoke result:
-Unresolved blockers:
+- electron/main/db.js
+- electron/main/schema.js
+- electron/main/index.js
+- electron/preload/index.js
+- src/store.js
+- src/components/Dashboard.jsx
+- phase docs
+
+Validated:
+- npm run build passed.
+- Electron dev launch passed.
+- Transactional SQLite smoke verified duplicate review behavior.
+- Contradiction routing verified.
+- Provenance records verified.
+- Continuity review creation verified.
+- Narrative fragment creation verified.
+- Canon counts remained unchanged.
+
+No unresolved blockers.
+
+## Active Architectural Rules
+
+- Imported material must never become canon automatically.
+- Source material must remain preserved and searchable.
+- Provenance is mandatory and permanent.
+- Contradictions must route into manual continuity review.
+- Duplicate uncertainty must use soft-merge review rather than automatic merge.
+- AI may assist extraction and organization but must not autonomously mutate canon.
+- Repeated mentions do not equal canon truth.
+- Narrative ambiguity should be preserved where appropriate.
+- Canon Memory contains explicitly promoted material only.
+
+## Approved Memory Model
+
+### Source Memory
+
+Immutable or preserved material, including:
+- raw imports
+- AI exports
+- notes
+- rewrite batches
+- abandoned concepts
+- source archives
+
+### Editorial Memory
+
+Reviewable and unresolved material, including:
+- candidates
+- unresolved questions
+- continuity risks
+- narrative fragments
+- extracted material
+- duplicate review items
+- contradiction/continuity review items
+
+### Canon Memory
+
+Explicitly promoted material only.
+
+## Next Recommended Phase
+
+### Phase 34 — Dashboard / Editorial Home Structural UX Pass
+
+Goal:
+Rework the Dashboard / Editorial Home so it no longer feels like one long scrolling window.
+
+Rationale:
+Phase 33 created the ingestion/review structures the Dashboard must eventually surface. The next phase should organize those structures into a calmer, more usable editorial home rather than continuing to stack more content vertically.
+
+Primary targets:
+- reduce long-scroll dashboard sprawl
+- create calmer contained workspace regions
+- improve Continue Working and Editorial Focus hierarchy
+- surface ingestion/review work without enterprise-dashboard styling
+- support review queues such as duplicate review, continuity review, unresolved extraction, weak-confidence material, narrative fragment review, pending placement, and unresolved editorial risks
+- avoid visible internal phase labels in primary UI
+- preserve Central Time timestamps
+- preserve autosave/routing/history expectations
+
+Strict scope:
+- Dashboard structure and layout only
+- no new ingestion architecture
+- no canon mutation
+- no bulk import
+- no screenplay authoring features
+- no fake productivity metrics
+
+## Workflow Reminder
+
+After a phase smoke test passes:
+1. Generate git commit/push commands.
+2. Generate/update relevant project-control docs as separate downloadable files.
+3. Generate the next-phase ChatGPT copy/paste prompt.

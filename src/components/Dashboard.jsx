@@ -1,4 +1,4 @@
-import { ArrowRight, BookOpen, History, MapPin, MessageSquareText, Sparkles, TriangleAlert } from 'lucide-react';
+import { ArrowRight, BookOpen, FileSearch, History, MapPin, MessageSquareText, Sparkles, TriangleAlert } from 'lucide-react';
 import { useMemo } from 'react';
 import { useRevivalStore } from '../store.js';
 import { formatCentralTime } from '../time.js';
@@ -15,6 +15,7 @@ export default function Dashboard() {
   const questions = useRevivalStore((state) => state.questions);
   const aiSessions = useRevivalStore((state) => state.aiSessions);
   const timelineEvents = useRevivalStore((state) => state.timelineEvents);
+  const ingestionReviewSummary = useRevivalStore((state) => state.ingestionReviewSummary);
   const activeCandidateId = useRevivalStore((state) => state.activeCandidateId);
   const activeDecisionId = useRevivalStore((state) => state.activeDecisionId);
   const activeQuestionId = useRevivalStore((state) => state.activeQuestionId);
@@ -48,8 +49,12 @@ export default function Dashboard() {
     [editorialDecisions]
   );
   const continuityRisks = useMemo(
-    () => buildContinuityRisks({ candidates: editorialCandidates, questions: editorialQuestions, decisions: editorialDecisions, timelineEvents }).slice(0, 4),
-    [editorialCandidates, editorialDecisions, editorialQuestions, timelineEvents]
+    () => buildContinuityRisks({ candidates: editorialCandidates, questions: editorialQuestions, decisions: editorialDecisions, timelineEvents, ingestionReviewSummary }).slice(0, 4),
+    [editorialCandidates, editorialDecisions, editorialQuestions, ingestionReviewSummary, timelineEvents]
+  );
+  const ingestionReviewItems = useMemo(
+    () => buildIngestionReviewItems(ingestionReviewSummary).slice(0, 5),
+    [ingestionReviewSummary]
   );
   const recentActivity = useMemo(
     () => [
@@ -159,6 +164,18 @@ export default function Dashboard() {
             onOpen: risk.onOpen || (() => setActiveView(risk.fallbackView))
           }))}
           title="Continuity Attention"
+        />
+        <DashboardPanel
+          emptyText="No source-memory review items are currently waiting."
+          icon={<FileSearch size={17} />}
+          items={ingestionReviewItems.map((item) => ({
+            key: item.key,
+            title: item.title,
+            meta: item.meta,
+            status: item.status,
+            onOpen: () => setActiveView('candidates')
+          }))}
+          title="Ingestion Review"
         />
       </div>
 
@@ -289,7 +306,7 @@ function buildContinueItems({
   return dedupeByKey([...items, ...fallbacks]).slice(0, 4);
 }
 
-function buildContinuityRisks({ candidates, questions, decisions, timelineEvents }) {
+function buildContinuityRisks({ candidates, questions, decisions, timelineEvents, ingestionReviewSummary }) {
   const candidateRisks = candidates
     .filter((candidate) => getCandidateTags(candidate).some((tag) => continuityRiskTags.some((risk) => tag.includes(risk))))
     .sort(compareRecent)
@@ -334,7 +351,50 @@ function buildContinuityRisks({ candidates, questions, decisions, timelineEvents
       onOpen: () => useRevivalStore.getState().selectTimelineEvent(event.id)
     }));
 
-  return [...candidateRisks, ...blockedQuestions, ...blockedDecisions, ...timelineGaps];
+  const routedReviews = (ingestionReviewSummary?.continuityReviews || [])
+    .map((item) => ({
+      key: `risk-continuity-review-${item.id}`,
+      title: item.title,
+      meta: `${formatReviewType(item.review_type)} / Updated ${formatDate(item.updated_at || item.created_at)}`,
+      status: item.confidence_state || item.risk_level || 'Review',
+      fallbackView: 'dashboard'
+    }));
+
+  return [...routedReviews, ...candidateRisks, ...blockedQuestions, ...blockedDecisions, ...timelineGaps];
+}
+
+function buildIngestionReviewItems(summary = {}) {
+  const duplicates = (summary.duplicateReviews || []).map((item) => ({
+    key: `duplicate-${item.id}`,
+    title: `Possible duplicate: ${formatReviewEndpoint(item.left_type, item.left_id)} / ${formatReviewEndpoint(item.right_type, item.right_id)}`,
+    meta: `${item.reason || 'Manual duplicate review'} / Updated ${formatDate(item.updated_at || item.created_at)}`,
+    status: item.confidence || item.status,
+    timestamp: item.updated_at || item.created_at
+  }));
+  const extractions = (summary.unresolvedExtractions || []).map((item) => ({
+    key: `extraction-${item.id}`,
+    title: item.title,
+    meta: `${formatReviewType(item.classification)} / ${item.source_label || 'Source preserved'} / Updated ${formatDate(item.updated_at || item.created_at)}`,
+    status: item.confidence_state || item.status,
+    timestamp: item.updated_at || item.created_at
+  }));
+  const fragments = (summary.narrativeFragments || []).map((item) => ({
+    key: `fragment-${item.id}`,
+    title: item.title,
+    meta: `${formatReviewType(item.fragment_type)} / ${item.source_label || 'Source preserved'} / Updated ${formatDate(item.updated_at || item.created_at)}`,
+    status: item.confidence_state || item.status,
+    timestamp: item.updated_at || item.created_at
+  }));
+  const continuity = (summary.continuityReviews || []).map((item) => ({
+    key: `continuity-${item.id}`,
+    title: item.title,
+    meta: `${formatReviewType(item.review_type)} / Updated ${formatDate(item.updated_at || item.created_at)}`,
+    status: item.confidence_state || item.risk_level,
+    timestamp: item.updated_at || item.created_at
+  }));
+
+  return [...continuity, ...duplicates, ...extractions, ...fragments]
+    .sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
 }
 
 function toActivity(type, record, title, meta, onOpen) {
@@ -399,6 +459,16 @@ function getCandidateSource(candidate) {
 
 function getSessionTitle(session) {
   return session.template_id || session.context_type || session.user_instructions?.slice(0, 48) || `Session ${session.id}`;
+}
+
+function formatReviewType(value) {
+  return String(value || 'review')
+    .replace(/[-_]+/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function formatReviewEndpoint(type, id) {
+  return `${formatReviewType(type)} ${id}`;
 }
 
 function isInternalPhaseRecord(record, title) {

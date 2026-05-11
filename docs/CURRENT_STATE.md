@@ -1,282 +1,92 @@
-# CURRENT_STATE.md
-
 # Revival Bible v3 — Current State
 
-## Product Identity
+## Stable Product Direction
 
-Revival Bible v3 is a continuity-aware editorial operating system for developing, reviewing, preserving, and promoting story material.
+Revival Bible v3 is a continuity-aware editorial operating system, creative memory archive, canon-management environment, provenance system, and narrative development memory layer.
 
-It is also a permanent creative memory system, canon-management environment, provenance/archive layer, and decision-history system.
-
-Its core differentiator is creative continuity confidence and creative memory retrieval.
-
-It is not a generic to-do list, kanban board, enterprise dashboard, or productivity app.
-
-It prioritizes creative state continuity: when reopening the project later, the user should immediately understand what matters, what is unresolved, what changed, what needs attention, what is risky, and where ideas originated.
-
-The app supports:
-- permanent development history
-- AI session workflows
-- candidate extraction/review
-- manual canon promotion
-- provenance/source traceability
-- editorial decision-making
-- creative memory retrieval
-- canon confidence review
-- recovery and recoverability
-- story bible/canon organization
-
-## Core Product Rule
-
-Nothing becomes canon automatically.
-
-The user remains authoritative.
-
-The system may assist with:
-- extraction
-- review
-- continuity
-- provenance
-- editorial organization
-- structured promotion
-- search
-- source context
-- workflow clarity
-
-The system must not autonomously:
-- mutate canon
-- merge records
-- infer relationships as fact
-- classify story material into canon without review
-- overwrite user-authored material silently
-
-## Stable Systems
-
-### AI Sessions
-
-Stable:
-- OpenAI generation works.
-- Claude / Anthropic generation works.
-- Sessions persist and reopen.
-- Session history works.
-- Copy Response works.
-- Context Packs / Session Context workflow exists.
-- Response reader supports extraction workflows.
-- Source-session navigation from Candidates works.
-
-### Candidate Inbox
-
-Stable:
-- Candidate Inbox foundation exists.
-- Candidate Inbox queue organization improved.
-- Queue labels/status summaries/counts exist.
-- Candidate persistence works.
-- Candidate delete flow works for non-promoted candidates.
-- Candidate delete supports cancel/confirm through an in-app modal.
-- Promoted/protected candidates show a clear protected explanation instead of silently failing.
-- Candidate editing works.
-- Review notes persist.
-- Manual extraction from AI responses works.
-- Candidate provenance is preserved.
-- Candidate source-session linking works.
-- Candidate → canon promotion foundation exists.
-- Promotion traceability/backlinking exists.
-- Promoted candidates remain preserved as historical development records.
-- Accepted / Needs Placement workflow exists.
-- Accepted state persists correctly.
-- Accepted candidates remain editable.
-- Accepted candidates can still be promoted normally.
-- Accepted candidates remain non-canon until explicit promotion.
-- Accepted state clearly says: “Accepted for future placement. Not canon until promoted.”
-- Pending, Accepted, Needs Placement, Promoted, and Rejected are clearer than before, with additional filtering/organization still planned.
-
-### Navigation / Layout
-
-Stable:
-- Compact/collapsible left nav works.
-- Compact nav state persists.
-- Compact nav tooltips work.
-- Nav rail scrolling works.
-- AI Sessions layout is wider and less cramped.
-- Candidate Inbox right-detail layout is stable.
-- Candidate list/detail scrolling is stable.
-
-### Promotion / Provenance
-
-Stable:
-- Promotion is manual.
-- Promotion preserves provenance/history.
-- Source session linking/jump behavior works.
-- Existing promotion workflows still work.
-- Candidate promotion does not automatically mutate canon except through explicit user action.
-
-## Known Planned Improvements / Backlog Themes
-
-### Candidate Queue Organization
-
-Planned:
-- organize Candidates Inbox by status
-- add or improve status filtering similar to search filtering
-- make Pending, Accepted, Needs Placement, Promoted, and Rejected easier to scan
-- keep Promoted and Rejected accessible without crowding active review
-- keep Accepted visibly non-canon until promoted
-- improve empty states, counts, and queue clarity
-
-### Data Safety / Persistence Hardening
-
-Planned dedicated hardening:
-- treat recovery, autosave, and recoverability as core product pillars
-- autosave important app state
-- autobackup SQLite/database data
-- back up SQLite/database data before risky migrations
-- add recovery/export path for canon data
-- strengthen edit persistence
-- prevent silent data loss
-- confirm destructive actions
-- smoke test persistence after navigation/restart
-- verify data survives app reloads and workflow transitions
-
-### Search / Tags / Status Management
-
-Stable:
-- Candidate Inbox has a lightweight editorial metadata panel for manual review-state changes and manual candidate tags.
-- Candidate tags are stored with candidate provenance metadata and remain non-canon.
-- Manual candidate tags can be added/removed.
-- Duplicate candidate tags are blocked.
-- Candidate metadata persists after navigation/reload.
-- Candidate metadata filters work.
-- Decision and Question records retain contextual tag and resolution-state editing in their detail panels.
-- Search indexing includes candidate status/tag metadata and is rebuilt after candidate tag/status edits.
-- Allowed candidate statuses/tags are explained in compact contextual help rather than a persistent admin block.
-
-Planned:
-- clearer tag-vs-text search result distinction
-- support natural searches like “contradiction risk” for contradiction-risk tags
-- add a master tag list
-- clarify status badges vs canon tags
-- broaden tag/status management only where it remains calm and editorial
-
-### Editorial Workflow
-
-Stable:
-- Decision / Question resolution tracking foundation exists.
-- Tag/status management foundation exists for Candidate Inbox plus existing Decision/Question metadata surfaces.
-- Phase 30 passed manual Electron smoke after debug, polish, and editorial UX hardening passes.
-- Questions support Open, Tentatively Answered, Resolved, and Deprecated states.
-- Decisions support Proposed, Accepted, Implemented, Reversed, and Deprecated states.
-- Decisions and Questions have visible manual create controls.
-- Decisions and Questions have calm delete actions with lightweight confirmation.
-- Decision/Question content and resolution fields are editable from the detail panel.
-- Questions metadata/status/tags/dependency controls are reachable near the top of the detail panel.
-- Final Answer / Final Decision, Rationale, and Resolution Notes are manually editable.
-- Resolution statuses persist through explicit user action and remain manual editorial state.
-- Resolution edits preserve prior state notes in a lightweight append-only history field.
-- Phase 30 UI polish reduced stacked admin-card weight and moved the workflow closer to a calm editorial notebook.
-- Questions have tier filtering and unobtrusive tier definitions for scanning.
-- Decision tiers have brief meaning hints.
-- Candidate Inbox filter behavior and detail-column scrolling were repaired after the Phase 30 polish regression.
-- Nav tooltips dismiss reliably.
-- Autosave/status footer now shows meaningful save state with Central Time timestamps.
-- Visible Phase labels/listings are removed or reduced enough for now.
-- Resolution state does not promote anything to canon automatically.
-
-Planned:
-- manual merge/review tooling
-- continuity/audit history
-- deeper decision tracking improvements
-- canon confidence levels: Confirmed Canon, Working Canon, Tentative, Exploratory, Rejected, Alternate, Unknown
-- timeline/continuity assistance
-- lightweight contradiction assistance, not autonomous canon resolution
-- lightweight backlinks/provenance surfaces across decisions, questions, candidates, AI sessions, imported conversations, and story bible entries
-- subtle, expandable provenance surfaces instead of graph-heavy or cluttered interfaces
-- calmer review interfaces
-- compact, low-noise editorial UI
-- avoid visible "Phase" labels/listings in the app UI unless there is clear editorial value
-- prefer editorial labels such as status, canon state, review state, source/provenance, decision history, blockers/dependencies, and updated timestamp
-
-### Creative Memory / Imported Conversations
-
-Planned:
-- Imported Conversations / Claude dump pipeline
-- immutable source archive
-- chunked reader for long imports
-- immediate search over imported source text
-- annotations, tags, and bookmarks
-- manual extraction to Candidates
-- manual promotion only
-- classification categories such as Serious Canon Discussion, Canon Proposal, Working Canon, Canon Conflict, Exploratory Brainstorming, Wild Ideas, Alternate Timeline, Non-Canon Exploration, Continuity Review, Episode Planning, Arc Planning, Revisit Later, Joke/Throwaway, Research Notes, and Timeline Notes
-- clear distinction between serious canon discussion, exploratory brainstorming, non-canon exploration, abandoned ideas, and joke/throwaway discussion
-- preservation of historical creative evolution, including abandoned and alternate ideas, as long-term narrative memory
-
-### Editorial Focus / Needs Attention
-
-Stable:
-- Dashboard Rework / Editorial Home Workspace passed manual Electron smoke.
-- Dashboard now acts as a calm editorial home workspace rather than a seeded-state metrics grid.
-- Continue Working surfaces active/recent editorial records and routes to the relevant workspace/detail.
-- Recent editorial activity, unresolved questions, candidates awaiting review/placement, recent decisions, and continuity attention are visible in lightweight readable lists.
-- Dashboard timestamps render visibly in Central Time.
-- Primary Dashboard UI avoids visible internal phase labels, including internal smoke records.
-- Dashboard surfaces are derived from editorial state rather than generic productivity metrics.
-
-Planned:
-- Accepted / Needs Placement grouping such as Future Episode, Season 1, Lore, Character Arc, Dialogue Ideas, Theme, Relationship, Twist, Canon Risk, Contradiction Risk, Maybe Later, Alternate Version, and Non-Canon Exploration
-- auto-surface unplaced accepted candidates, contradiction risks, unresolved questions, canon lacking provenance, imported sessions needing review, and timeline gaps
-- deeper dashboard personalization/rearrangement only if it remains calm and editorial
-- avoid enterprise-dashboard styling, fake productivity metrics, giant counters/charts, clutter-heavy widgets, and internal build Phase labels in the primary UI
-
-### Long-Term Slugline Direction
-
-Planned:
-- Revival Bible remains the narrative memory, continuity, provenance, canon, and decision-history layer.
-- Slugline remains the screenplay drafting/execution layer.
-- Future integration may support continuity-aware screenplay drafting, screenplay-to-canon provenance linkage, and canon/context retrieval during drafting.
-- Avoid tight coupling until Revival's core authority, archive, and provenance systems are stable.
-
-## Future Direction Priorities
-
-Prioritize:
-- continuity trust
-- editorial confidence
-- provenance
+The system prioritizes:
 - recall
+- provenance
+- editorial trust
+- continuity confidence
+- narrative traceability
+- calm UX
 - recoverability
-- low-friction creative workflows
+- long-term project memory
 
-Deprioritize:
-- aggressive AI automation
-- enterprise workflow complexity
+The system should not become:
+- an autonomous canon mutation engine
+- an enterprise dashboard
+- a noisy workflow system
+- an over-automated writing tool
+- a screenplay drafting replacement for Slugline
 
-## Workflow Rules for Future Phases
+The user remains authoritative. Nothing becomes canon automatically.
 
-- Use surgical patches.
-- Touch the fewest files possible.
-- Preserve architecture.
-- Use project-control docs.
-- Use ACTIVE_SCOPE for the current task.
-- Keep Codex prompts token-efficient.
-- Use concise copy/paste blocks.
-- Do not include malformed git commands.
-- Do not include `git log -1 --oneline` in future command blocks.
-- Generate only the Codex prompt unless the user explicitly asks for a ChatGPT handoff.
-- Tell the user when commits should be pushed.
-- Include strict self-audit, UI/UX acceptance gates, and output-control/silent-mode requirements in future phase prompts.
-- Keep visible timestamps in Central Time.
+## Current Stable Memory Model
 
-## Output Control Rule for Codex
+### Source Memory
 
-Codex prompts should include:
+Source Memory preserves raw or imported material without treating it as canon. This includes raw imports, AI exports, notes, rewrite batches, abandoned concepts, source archives, and other preserved creative material.
 
-No interim narration.
-No command narration.
-No repeated terminal output.
-No progress summaries.
-No exploratory explanations unless blocked.
+### Editorial Memory
 
-Final report only:
-Files changed:
-Root cause:
-One sentence fix:
-Build result:
-Smoke result:
-Unresolved blockers:
+Editorial Memory contains reviewable, unresolved, or in-progress material. This includes candidates, unresolved questions, continuity risks, narrative fragments, extracted material, duplicate review items, contradiction review items, and pending placement material.
+
+### Canon Memory
+
+Canon Memory contains explicitly promoted material only. Repetition across sources does not make a claim canon.
+
+## Completed Phase 33 State
+
+Phase 33 passed and added the foundational ingestion and continuity protection framework.
+
+Confirmed capabilities:
+- import sessions exist as architecture groundwork
+- source memory structures exist
+- editorial extraction structures exist
+- duplicate review groundwork exists
+- contradiction/continuity review routing exists
+- narrative fragment groundwork exists
+- provenance records are preserved
+- Dashboard surfacing groundwork exists
+- IPC/preload/store plumbing exists
+- canon is not mutated automatically
+
+Validation:
+- npm run build passed
+- Electron dev launch passed
+- transactional SQLite smoke passed
+- duplicate review, contradiction routing, provenance persistence, continuity review creation, narrative fragment creation, and unchanged canon counts were verified
+
+## Canon and Ingestion Rules
+
+- Imported material must never become canon automatically.
+- Contradictory imports preserve conflicting claims and route to manual review.
+- Duplicate uncertainty creates soft-merge review rather than automatic merge.
+- Provenance must be preserved for all imported, extracted, promoted, or reviewable material.
+- AI may help extract and organize material, but does not get authority to canonize, merge, overwrite, or resolve contradictions.
+- Ambiguity is allowed to remain ambiguous until the user resolves it.
+
+## Slugline Separation
+
+Slugline remains responsible for:
+- screenplay authoring
+- screenplay formatting
+- drafting and revision workflow
+
+Revival Bible remains responsible for:
+- editorial memory
+- continuity awareness
+- provenance
+- canon traceability
+- unresolved narrative material
+- editorial continuation
+
+## Immediate Next Direction
+
+The next recommended phase is a Dashboard / Editorial Home Structural UX Pass.
+
+This phase should address the pending long-scroll Dashboard issue now that Phase 33 has created the ingestion/review structures the Dashboard needs to surface.
+
+The Dashboard should become a calmer editorial home with contained sections, stronger Continue Working and Editorial Focus hierarchy, clear review surfaces, and less vertical sprawl. It should not become an enterprise dashboard and should not show internal build phase labels in primary UI.

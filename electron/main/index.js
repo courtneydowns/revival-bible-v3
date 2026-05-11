@@ -1,7 +1,7 @@
 import { app, BrowserWindow, clipboard, ipcMain, screen, shell } from 'electron';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { addContextPackLink, addEntityLink, addEntityTag, closeDatabase, createCandidate, createContextPack, createDecision, createQuestion, deleteCandidate, deleteContextPack, deleteDecision, deleteQuestion, ensureSearchIndex, getCandidate, getCandidates, getCanonTags, getCharacter, getCharacterRelationshipCount, getCharacterRelationships, getCharacters, getContextPacks, getDatabaseInfo, getDecision, getDecisionBlockers, getDecisions, getEntityLinks, getEntityTagLinks, getEpisode, getEpisodes, getEpisodesBySeason, getLatestNodeContent, getLivingDocumentEntry, getLivingDocuments, getLivingDocumentsByType, getNode, getNodeTree, getQuestion, getQuestions, getTimelineEvent, getTimelineEvents, initDatabase, promoteCandidate, removeContextPackLink, removeEntityLink, removeEntityTag, updateCandidate, updateCandidateStatus, updateContextPack, updateDecisionResolution, updateEntityStatus, updateQuestionResolution } from './db.js';
+import { addContextPackLink, addEntityLink, addEntityTag, closeDatabase, createCandidate, createContextPack, createContinuityReviewItem, createDecision, createEditorialExtraction, createImportSession, createNarrativeFragment, createPossibleDuplicateLink, createQuestion, createSourceMemoryRecord, deleteCandidate, deleteContextPack, deleteDecision, deleteQuestion, ensureSearchIndex, getCandidate, getCandidates, getCanonTags, getCharacter, getCharacterRelationshipCount, getCharacterRelationships, getCharacters, getContextPacks, getDatabaseInfo, getDecision, getDecisionBlockers, getDecisions, getEntityLinks, getEntityTagLinks, getEpisode, getEpisodes, getEpisodesBySeason, getIngestionReviewSummary, getLatestNodeContent, getLivingDocumentEntry, getLivingDocuments, getLivingDocumentsByType, getNode, getNodeTree, getQuestion, getQuestions, getTimelineEvent, getTimelineEvents, initDatabase, promoteCandidate, removeContextPackLink, removeEntityLink, removeEntityTag, updateCandidate, updateCandidateStatus, updateContextPack, updateContinuityReviewItem, updateDecisionResolution, updateEntityStatus, updatePossibleDuplicateReview, updateQuestionResolution } from './db.js';
 import { getPreferences, hasApiKey, initConfig, setApiKey, setPreferences, testProviderConnection } from './config.js';
 import { seedBible } from './seed-bible.js';
 import { seedCanonTags } from './seed-canon-tags.js';
@@ -113,6 +113,15 @@ function registerCoreHandlers() {
   ipcMain.handle('candidates:update-status', async (_event, payload) => updateCandidateStatus(payload?.id, payload?.status));
   ipcMain.handle('candidates:promote', async (_event, payload) => promoteCandidate(payload?.id, payload));
   ipcMain.handle('candidates:delete', async (_event, id) => deleteCandidate(id));
+  ipcMain.handle('ingestion:get-review-summary', async () => getIngestionReviewSummary());
+  ipcMain.handle('ingestion:create-session', async (_event, payload) => createImportSession(payload));
+  ipcMain.handle('ingestion:create-source-record', async (_event, payload) => createSourceMemoryRecord(payload));
+  ipcMain.handle('ingestion:create-extraction', async (_event, payload) => createEditorialExtraction(payload));
+  ipcMain.handle('ingestion:create-duplicate-link', async (_event, payload) => createPossibleDuplicateLink(payload));
+  ipcMain.handle('ingestion:update-duplicate-review', async (_event, payload) => updatePossibleDuplicateReview(payload));
+  ipcMain.handle('ingestion:create-continuity-review', async (_event, payload) => createContinuityReviewItem(payload));
+  ipcMain.handle('ingestion:update-continuity-review', async (_event, payload) => updateContinuityReviewItem(payload));
+  ipcMain.handle('ingestion:create-narrative-fragment', async (_event, payload) => createNarrativeFragment(payload));
 }
 
 app.whenReady().then(() => {

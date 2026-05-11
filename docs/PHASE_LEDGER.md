@@ -1,143 +1,59 @@
 # Revival Bible v3 — Phase Ledger
 
-## Phase 26A — Editorial Workspace Layout Stabilization
-Status: Passed.
+## Phase 33 — Editorial Ingestion / Continuity Protection Framework
 
-Summary:
-- Candidate Inbox layout was rebalanced.
-- Left candidate navigator was narrowed.
-- Candidate list became independently scrollable.
-- Right detail panel returned to document-style page scrolling.
-- Provenance/meta readability passed.
-- Location promotion target reachability passed.
-- Compact nav scrolling/tooltips passed.
+Status: Passed
 
-## Phase 26B — Candidate Acceptance Queue
-Status: Passed with manual UI retest pending.
+Completion summary:
+Phase 33 added ingestion protection architecture before large-scale extraction or seeding.
 
-Summary:
-- Accepted / Needs Placement workflow exists.
-- Build passed.
-- Temp SQLite workflow smoke passed.
-- Accepted state persisted.
-- Accepted state did not mutate canon.
-- Accepted candidate edit persisted.
-- Later promotion preserved provenance.
-- Browser UI smoke was blocked by `net::ERR_BLOCKED_BY_CLIENT`.
-- Compact nav/tooltips were not re-smoked due to browser block.
+Files changed:
+- electron/main/db.js
+- electron/main/schema.js
+- electron/main/index.js
+- electron/preload/index.js
+- src/store.js
+- src/components/Dashboard.jsx
+- phase docs
 
-## Phase 26C — Candidate Acceptance UI Retest + Editorial Queue Polish
-Status: Passed.
+Root cause:
+Phase 33 needed ingestion protection architecture before extraction/seeding.
 
-Summary:
-- Accepted / Needs Placement UI clarity passed.
-- Editorial queue polish passed.
-- Accepted candidates remained non-canon until explicit promotion.
+One sentence fix:
+Added import sessions, source memory, editorial extractions, duplicate review, continuity review, narrative fragments, IPC/preload/store plumbing, and dashboard surfacing without canon mutation.
 
-## Phase 27 — Candidate Inbox Queue Organization
-Status: Passed except browser UI smoke was not run.
+Build result:
+npm run build passed.
 
-Summary:
-- Candidate Inbox queue organization improved.
-- Queue labels/status summaries/counts were added.
-- Pending, Accepted, Needs Placement, Promoted, and Rejected became clearer.
-- Accepted candidates remain non-canon until explicitly promoted.
-- Edit/promote/reject/source navigation paths remained stable.
-- npm run build passed.
+Smoke result:
+Electron dev launch passed; transactional SQLite smoke verified duplicate review, contradiction routing, provenance records, continuity review creation, narrative fragment creation, and unchanged canon counts.
 
-## Phase 28 — Roadmap Audit + Project-Control Docs Update
-Status: Passed.
+Unresolved blockers:
+None.
 
-Summary:
-- Docs-only roadmap/project-control audit.
-- Future phases must preserve user authority, manual canon promotion, data safety, auditability, compact nav, calm UI, token-efficient Codex workflow, and output-control/silent mode.
-- Approved product direction added for creative memory retrieval, canon confidence, imported conversation archives, decision/question resolution tracking, provenance backlinks, editorial attention surfaces, calm command-center dashboard direction, and long-term Slugline separation.
-- Additional alignment added for creative state continuity, recoverability as a pillar, lightweight contradiction assistance, subtle provenance surfaces, historical creative evolution, editorial-state-derived dashboards, and Slugline continuity/provenance retrieval direction.
+## Next Planned Phase
 
-## Phase 29 — Autosave / Recovery + Candidate Inbox Filter Polish
-Status: Passed.
+### Phase 34 — Dashboard / Editorial Home Structural UX Pass
 
-Summary:
-- Autosave/recovery foundation added.
-- Candidate Inbox status/tag filters work.
-- Active/Traceable are passive derived summary text.
-- Candidate tags are color-coded/readable in dark mode.
-- Candidate Inbox left column polish improved.
-- Accepted remains non-canon until explicit promotion.
-- npm run build passed.
+Status: Planned
 
-## Phase 30 — Decision / Question Resolution Tracking Foundation
-Status: Passed manual Electron smoke.
+Reason:
+The Dashboard / Editorial Home passed as a concept, but the specific long-scroll structural UX issue has not yet been implemented. This should happen after Phase 33 because the new ingestion/review structures now define what the Dashboard needs to surface.
 
-Summary:
-- Initial manual UI smoke failed because create controls were missing, content editing was incomplete, status changes were not obvious/persistent enough, and Decision/Question detail scrolling could hide lower controls.
-- Questions gained Open, Tentatively Answered, Resolved, and Deprecated resolution states.
-- Decisions gained Proposed, Accepted, Implemented, Reversed, and Deprecated resolution states.
-- Visible New Decision and New Question controls were added.
-- Guarded delete actions were added for Decisions and Questions.
-- Decision/Question content plus resolution fields are editable in the detail panels.
-- Resolution statuses persist through manual user edits.
-- Decision/Question scroll/accessibility was tightened so lower controls remain reachable.
-- The resolution UI was calmed to reduce stacked admin-card/dashboard weight.
-- Question tier filtering/definitions and Decision tier hints were added for clarity.
-- Candidate Inbox filter/detail scrolling regression was repaired.
-- Nav tooltip dismissal was hardened.
-- Autosave/status footer and displayed timestamps were improved with Central Time formatting.
-- Decisions layout passed.
-- Questions layout passed.
-- Questions and Candidate filters passed.
-- Candidate second column scrolling passed.
-- Tooltip dismissal passed.
-- Explicit Central Time autosave/status timestamp passed.
-- Visible phase labels are removed/reduced enough for now.
-- Final Answer / Final Decision, Rationale, and Resolution Notes are editable.
-- Prior resolution values are preserved in lightweight append-only history fields.
-- Manual editorial authority is preserved; nothing becomes canon automatically.
+Goal:
+Rework the Dashboard so it no longer feels like one long scrolling window and instead functions as a calm, contained editorial home workspace.
 
-Future UI direction:
-- Visible "Phase" labels/listings should be removed or reconsidered in the app UI.
-- Phases are internal build/project-control metadata unless there is clear editorial value.
-- Prefer editorial labels: status, canon state, review state, source/provenance, decision history, blockers/dependencies, updated timestamp.
+Expected focus:
+- reduce vertical sprawl
+- improve contained section layout
+- strengthen Continue Working and Editorial Focus
+- surface duplicate review, continuity review, unresolved extraction, narrative fragments, pending placement, and editorial risks
+- preserve Central Time timestamps
+- avoid internal phase labels in primary UI
+- avoid enterprise-dashboard styling
+- avoid fake productivity metrics
 
-## Phase 31 — Tag / Status Management + Editorial Metadata Control
-Status: Passed final manual Electron smoke.
-
-Summary:
-- Candidate Inbox gained a compact editorial metadata panel.
-- Candidate review-state changes are explicit user actions.
-- Manual candidate tags can be added and removed without promoting candidates to canon.
-- Duplicate candidate tags are blocked.
-- Candidate tags are stored in candidate provenance metadata and remain non-canon.
-- Candidate metadata persists after navigation/reload.
-- Candidate metadata filters work.
-- Search indexing now includes candidate status/tag metadata and rebuilds after candidate tag/status edits.
-- Candidate action buttons are readable and usable.
-- Candidate delete works for non-promoted candidates.
-- Candidate delete supports cancel/confirm through an in-app modal.
-- Promoted/protected candidates show a clear protected explanation instead of silently failing.
-- Decision and Question tag/status controls remain contextual detail-panel tools.
-- Questions metadata/status/tags/dependency controls are reachable near the top of the detail panel.
-- Allowed candidate statuses/tags are explained in compact contextual help.
-- The UI avoids admin-table/dashboard styling and visible internal phase labels.
-- No automatic canon mutation.
-- npm run build passed.
-- Final manual Electron smoke passed.
-
-Future MVP direction:
-- Rework Dashboard into a calm editorial home workspace.
-- Prioritize Continue Working, recent editorial activity, unresolved questions, candidates awaiting placement, recent decisions, and continuity risks.
-- Avoid enterprise-dashboard styling, fake productivity metrics, giant counters/charts, clutter-heavy widgets, and internal build Phase labels in primary UI.
-- Use editorial labels like status, source/provenance, canon state, decision history, review state, and updated timestamps.
-
-## Dashboard Rework — Editorial Home Workspace
-Status: Passed manual Electron smoke.
-
-Summary:
-- Dashboard was reworked from a seeded-state/count surface into a calm editorial home workspace.
-- Continue Working now surfaces active/recent editorial records and routes into existing workspaces.
-- Unresolved questions, candidates awaiting review/placement, recent decisions, continuity attention, and recent editorial activity are surfaced as lightweight editorial lists.
-- Dashboard timestamps render visibly in Central Time.
-- Primary Dashboard UI avoids internal phase labels, including internal smoke records.
-- No automatic canon mutation was added.
-- npm run build passed.
-- Manual Electron smoke passed for Dashboard rendering, Central Time timestamps, absence of internal phase labels, and routing into Candidates, Questions, Decisions, and continuity attention.
+Validation expectation:
+- npm run build passes
+- manual Electron smoke passes
+- user confirms Dashboard no longer feels like one long scrolling window

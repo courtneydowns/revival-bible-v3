@@ -232,6 +232,101 @@ export function initializeSchema(db) {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS import_sessions (
+      id INTEGER PRIMARY KEY,
+      title TEXT NOT NULL,
+      source_type TEXT DEFAULT 'manual',
+      status TEXT DEFAULT 'active',
+      notes TEXT DEFAULT '',
+      provenance_metadata TEXT DEFAULT '{}',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS source_memory_records (
+      id INTEGER PRIMARY KEY,
+      import_session_id INTEGER,
+      source_label TEXT NOT NULL,
+      source_type TEXT DEFAULT 'note',
+      raw_content TEXT NOT NULL,
+      checksum TEXT,
+      provenance_metadata TEXT DEFAULT '{}',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (import_session_id) REFERENCES import_sessions(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS editorial_extractions (
+      id INTEGER PRIMARY KEY,
+      import_session_id INTEGER,
+      source_record_id INTEGER,
+      title TEXT NOT NULL,
+      content TEXT DEFAULT '',
+      classification TEXT DEFAULT 'candidate',
+      confidence_state TEXT DEFAULT 'weak',
+      trust_reason TEXT DEFAULT '',
+      status TEXT DEFAULT 'unresolved',
+      provenance_metadata TEXT DEFAULT '{}',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (import_session_id) REFERENCES import_sessions(id) ON DELETE SET NULL,
+      FOREIGN KEY (source_record_id) REFERENCES source_memory_records(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS possible_duplicate_links (
+      id INTEGER PRIMARY KEY,
+      left_type TEXT NOT NULL,
+      left_id TEXT NOT NULL,
+      right_type TEXT NOT NULL,
+      right_id TEXT NOT NULL,
+      confidence TEXT DEFAULT 'weak',
+      reason TEXT DEFAULT '',
+      status TEXT DEFAULT 'pending',
+      provenance_metadata TEXT DEFAULT '{}',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(left_type, left_id, right_type, right_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS continuity_review_items (
+      id INTEGER PRIMARY KEY,
+      review_type TEXT DEFAULT 'continuity-risk',
+      title TEXT NOT NULL,
+      claim_a TEXT DEFAULT '',
+      claim_b TEXT DEFAULT '',
+      confidence_state TEXT DEFAULT 'contradictory',
+      risk_level TEXT DEFAULT 'review',
+      status TEXT DEFAULT 'open',
+      provenance_metadata TEXT DEFAULT '{}',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS narrative_fragments (
+      id INTEGER PRIMARY KEY,
+      source_record_id INTEGER,
+      title TEXT NOT NULL,
+      content TEXT DEFAULT '',
+      fragment_type TEXT DEFAULT 'story-material',
+      confidence_state TEXT DEFAULT 'speculative',
+      status TEXT DEFAULT 'unplaced',
+      provenance_metadata TEXT DEFAULT '{}',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (source_record_id) REFERENCES source_memory_records(id) ON DELETE SET NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_source_memory_import_session
+      ON source_memory_records(import_session_id);
+
+    CREATE INDEX IF NOT EXISTS idx_editorial_extractions_review
+      ON editorial_extractions(status, confidence_state, classification);
+
+    CREATE INDEX IF NOT EXISTS idx_possible_duplicate_review
+      ON possible_duplicate_links(status, confidence);
+
+    CREATE INDEX IF NOT EXISTS idx_continuity_review_items_status
+      ON continuity_review_items(status, risk_level);
+
     CREATE TABLE IF NOT EXISTS exports (
       id INTEGER PRIMARY KEY,
       format TEXT,
@@ -268,6 +363,11 @@ export function initializeSchema(db) {
   createUpdatedAtTrigger(db, 'context_packs');
   createUpdatedAtTrigger(db, 'ai_sessions');
   createUpdatedAtTrigger(db, 'candidates');
+  createUpdatedAtTrigger(db, 'import_sessions');
+  createUpdatedAtTrigger(db, 'editorial_extractions');
+  createUpdatedAtTrigger(db, 'possible_duplicate_links');
+  createUpdatedAtTrigger(db, 'continuity_review_items');
+  createUpdatedAtTrigger(db, 'narrative_fragments');
 
   ensureColumn(db, 'characters', 'canon_state', "TEXT DEFAULT 'developing'");
   ensureColumn(db, 'ai_sessions', 'provider', 'TEXT');
@@ -289,6 +389,7 @@ export function initializeSchema(db) {
   ensureColumn(db, 'questions', 'rationale', 'TEXT');
   ensureColumn(db, 'questions', 'resolution_notes', 'TEXT');
   ensureColumn(db, 'questions', 'resolution_history', "TEXT DEFAULT '[]'");
+  ensureColumn(db, 'candidates', 'provenance_metadata', "TEXT DEFAULT '{}'");
 }
 
 function createUpdatedAtTrigger(db, tableName) {

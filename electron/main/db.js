@@ -891,6 +891,301 @@ export function promoteCandidate(id, payload = {}) {
   return response;
 }
 
+export function getIngestionReviewSummary() {
+  return {
+    sessions: connection
+      .prepare(`
+        SELECT *
+        FROM import_sessions
+        ORDER BY COALESCE(updated_at, created_at) DESC, id DESC
+        LIMIT 8
+      `)
+      .all()
+      .map(hydrateProvenanceRow),
+    unresolvedExtractions: connection
+      .prepare(`
+        SELECT ee.*, smr.source_label
+        FROM editorial_extractions ee
+        LEFT JOIN source_memory_records smr ON smr.id = ee.source_record_id
+        WHERE ee.status IN ('unresolved', 'in-review', 'pending-placement')
+        ORDER BY COALESCE(ee.updated_at, ee.created_at) DESC, ee.id DESC
+        LIMIT 8
+      `)
+      .all()
+      .map(hydrateProvenanceRow),
+    duplicateReviews: connection
+      .prepare(`
+        SELECT *
+        FROM possible_duplicate_links
+        WHERE status IN ('pending', 'review-later')
+        ORDER BY COALESCE(updated_at, created_at) DESC, id DESC
+        LIMIT 8
+      `)
+      .all()
+      .map(hydrateProvenanceRow),
+    continuityReviews: connection
+      .prepare(`
+        SELECT *
+        FROM continuity_review_items
+        WHERE status IN ('open', 'review-later')
+        ORDER BY COALESCE(updated_at, created_at) DESC, id DESC
+        LIMIT 8
+      `)
+      .all()
+      .map(hydrateProvenanceRow),
+    narrativeFragments: connection
+      .prepare(`
+        SELECT nf.*, smr.source_label
+        FROM narrative_fragments nf
+        LEFT JOIN source_memory_records smr ON smr.id = nf.source_record_id
+        WHERE nf.status IN ('unplaced', 'review-later')
+        ORDER BY COALESCE(nf.updated_at, nf.created_at) DESC, nf.id DESC
+        LIMIT 8
+      `)
+      .all()
+      .map(hydrateProvenanceRow)
+  };
+}
+
+export function createImportSession(payload = {}) {
+  const title = normalizeNullableText(payload.title) || 'Untitled import session';
+  const result = connection
+    .prepare(`
+      INSERT INTO import_sessions (title, source_type, status, notes, provenance_metadata)
+      VALUES (@title, @sourceType, @status, @notes, @provenanceMetadata)
+    `)
+    .run({
+      title,
+      sourceType: normalizeReviewToken(payload.sourceType, 'manual'),
+      status: normalizeReviewToken(payload.status, 'active'),
+      notes: String(payload.notes || '').trim(),
+      provenanceMetadata: JSON.stringify(normalizeFrameworkProvenance(payload.provenanceMetadata))
+    });
+
+  return {
+    ok: true,
+    session: hydrateProvenanceRow(connection.prepare('SELECT * FROM import_sessions WHERE id = ?').get(result.lastInsertRowid))
+  };
+}
+
+export function createSourceMemoryRecord(payload = {}) {
+  const rawContent = String(payload.rawContent || payload.raw_content || '').trim();
+  if (!rawContent) {
+    return { ok: false, message: 'Source content is required.' };
+  }
+
+  const sessionId = normalizeExistingImportSessionId(payload.importSessionId || payload.import_session_id);
+  const result = connection
+    .prepare(`
+      INSERT INTO source_memory_records (
+        import_session_id, source_label, source_type, raw_content, checksum, provenance_metadata
+      )
+      VALUES (
+        @importSessionId, @sourceLabel, @sourceType, @rawContent, @checksum, @provenanceMetadata
+      )
+    `)
+    .run({
+      importSessionId: sessionId,
+      sourceLabel: normalizeNullableText(payload.sourceLabel || payload.source_label) || 'Untitled source',
+      sourceType: normalizeReviewToken(payload.sourceType || payload.source_type, 'note'),
+      rawContent,
+      checksum: String(payload.checksum || '').trim() || null,
+      provenanceMetadata: JSON.stringify(normalizeFrameworkProvenance(payload.provenanceMetadata))
+    });
+
+  touchImportSession(sessionId);
+  return {
+    ok: true,
+    source: hydrateProvenanceRow(connection.prepare('SELECT * FROM source_memory_records WHERE id = ?').get(result.lastInsertRowid))
+  };
+}
+
+export function createEditorialExtraction(payload = {}) {
+  const title = normalizeNullableText(payload.title) || 'Untitled extraction';
+  const sourceRecordId = normalizeExistingSourceRecordId(payload.sourceRecordId || payload.source_record_id);
+  const importSessionId = normalizeExistingImportSessionId(payload.importSessionId || payload.import_session_id)
+    || getImportSessionIdForSource(sourceRecordId);
+  const result = connection
+    .prepare(`
+      INSERT INTO editorial_extractions (
+        import_session_id, source_record_id, title, content, classification,
+        confidence_state, trust_reason, status, provenance_metadata
+      )
+      VALUES (
+        @importSessionId, @sourceRecordId, @title, @content, @classification,
+        @confidenceState, @trustReason, @status, @provenanceMetadata
+      )
+    `)
+    .run({
+      importSessionId,
+      sourceRecordId,
+      title,
+      content: String(payload.content || '').trim(),
+      classification: normalizeExtractionClassification(payload.classification),
+      confidenceState: normalizeConfidenceState(payload.confidenceState || payload.confidence_state, 'weak'),
+      trustReason: String(payload.trustReason || payload.trust_reason || '').trim(),
+      status: normalizeReviewToken(payload.status, 'unresolved'),
+      provenanceMetadata: JSON.stringify(normalizeFrameworkProvenance({
+        ...payload.provenanceMetadata,
+        source_record_id: sourceRecordId,
+        import_session_id: importSessionId
+      }))
+    });
+
+  touchImportSession(importSessionId);
+  return {
+    ok: true,
+    extraction: hydrateProvenanceRow(connection.prepare('SELECT * FROM editorial_extractions WHERE id = ?').get(result.lastInsertRowid))
+  };
+}
+
+export function createPossibleDuplicateLink(payload = {}) {
+  const left = normalizeReviewEndpoint(payload.left || {
+    type: payload.leftType || payload.left_type,
+    id: payload.leftId || payload.left_id
+  });
+  const right = normalizeReviewEndpoint(payload.right || {
+    type: payload.rightType || payload.right_type,
+    id: payload.rightId || payload.right_id
+  });
+  if (!left || !right) {
+    return { ok: false, message: 'Both duplicate records are required.' };
+  }
+
+  connection
+    .prepare(`
+      INSERT INTO possible_duplicate_links (
+        left_type, left_id, right_type, right_id, confidence, reason, status, provenance_metadata
+      )
+      VALUES (
+        @leftType, @leftId, @rightType, @rightId, @confidence, @reason, 'pending', @provenanceMetadata
+      )
+      ON CONFLICT(left_type, left_id, right_type, right_id) DO UPDATE SET
+        confidence = excluded.confidence,
+        reason = excluded.reason,
+        status = 'pending',
+        provenance_metadata = excluded.provenance_metadata
+    `)
+    .run({
+      leftType: left.type,
+      leftId: left.id,
+      rightType: right.type,
+      rightId: right.id,
+      confidence: normalizeConfidenceState(payload.confidence, 'weak'),
+      reason: String(payload.reason || '').trim(),
+      provenanceMetadata: JSON.stringify(normalizeFrameworkProvenance(payload.provenanceMetadata))
+    });
+
+  const duplicate = connection
+    .prepare(`
+      SELECT *
+      FROM possible_duplicate_links
+      WHERE left_type = ? AND left_id = ? AND right_type = ? AND right_id = ?
+    `)
+    .get(left.type, left.id, right.type, right.id);
+
+  return { ok: true, duplicate: hydrateProvenanceRow(duplicate) };
+}
+
+export function updatePossibleDuplicateReview(payload = {}) {
+  const status = normalizeDuplicateReviewStatus(payload.status);
+  if (!status) {
+    return { ok: false, message: 'Duplicate review status is required.' };
+  }
+
+  const existing = connection.prepare('SELECT * FROM possible_duplicate_links WHERE id = ?').get(payload.id);
+  if (!existing) {
+    return { ok: false, message: 'Duplicate review item not found.' };
+  }
+
+  connection
+    .prepare('UPDATE possible_duplicate_links SET status = ?, reason = ? WHERE id = ?')
+    .run(status, String(payload.reason || existing.reason || '').trim(), existing.id);
+
+  return {
+    ok: true,
+    duplicate: hydrateProvenanceRow(connection.prepare('SELECT * FROM possible_duplicate_links WHERE id = ?').get(existing.id))
+  };
+}
+
+export function createContinuityReviewItem(payload = {}) {
+  const title = normalizeNullableText(payload.title) || 'Untitled continuity review';
+  const result = connection
+    .prepare(`
+      INSERT INTO continuity_review_items (
+        review_type, title, claim_a, claim_b, confidence_state, risk_level, status, provenance_metadata
+      )
+      VALUES (
+        @reviewType, @title, @claimA, @claimB, @confidenceState, @riskLevel, 'open', @provenanceMetadata
+      )
+    `)
+    .run({
+      reviewType: normalizeReviewToken(payload.reviewType || payload.review_type, 'continuity-risk'),
+      title,
+      claimA: String(payload.claimA || payload.claim_a || '').trim(),
+      claimB: String(payload.claimB || payload.claim_b || '').trim(),
+      confidenceState: normalizeConfidenceState(payload.confidenceState || payload.confidence_state, 'contradictory'),
+      riskLevel: normalizeReviewToken(payload.riskLevel || payload.risk_level, 'review'),
+      provenanceMetadata: JSON.stringify(normalizeFrameworkProvenance(payload.provenanceMetadata))
+    });
+
+  return {
+    ok: true,
+    item: hydrateProvenanceRow(connection.prepare('SELECT * FROM continuity_review_items WHERE id = ?').get(result.lastInsertRowid))
+  };
+}
+
+export function updateContinuityReviewItem(payload = {}) {
+  const status = normalizeContinuityReviewStatus(payload.status);
+  if (!status) {
+    return { ok: false, message: 'Continuity review status is required.' };
+  }
+
+  const existing = connection.prepare('SELECT * FROM continuity_review_items WHERE id = ?').get(payload.id);
+  if (!existing) {
+    return { ok: false, message: 'Continuity review item not found.' };
+  }
+
+  connection
+    .prepare('UPDATE continuity_review_items SET status = ?, risk_level = ? WHERE id = ?')
+    .run(status, normalizeReviewToken(payload.riskLevel || payload.risk_level, existing.risk_level), existing.id);
+
+  return {
+    ok: true,
+    item: hydrateProvenanceRow(connection.prepare('SELECT * FROM continuity_review_items WHERE id = ?').get(existing.id))
+  };
+}
+
+export function createNarrativeFragment(payload = {}) {
+  const sourceRecordId = normalizeExistingSourceRecordId(payload.sourceRecordId || payload.source_record_id);
+  const result = connection
+    .prepare(`
+      INSERT INTO narrative_fragments (
+        source_record_id, title, content, fragment_type, confidence_state, status, provenance_metadata
+      )
+      VALUES (
+        @sourceRecordId, @title, @content, @fragmentType, @confidenceState, @status, @provenanceMetadata
+      )
+    `)
+    .run({
+      sourceRecordId,
+      title: normalizeNullableText(payload.title) || 'Untitled narrative fragment',
+      content: String(payload.content || '').trim(),
+      fragmentType: normalizeReviewToken(payload.fragmentType || payload.fragment_type, 'story-material'),
+      confidenceState: normalizeConfidenceState(payload.confidenceState || payload.confidence_state, 'speculative'),
+      status: normalizeReviewToken(payload.status, 'unplaced'),
+      provenanceMetadata: JSON.stringify(normalizeFrameworkProvenance({
+        ...payload.provenanceMetadata,
+        source_record_id: sourceRecordId
+      }))
+    });
+
+  return {
+    ok: true,
+    fragment: hydrateProvenanceRow(connection.prepare('SELECT * FROM narrative_fragments WHERE id = ?').get(result.lastInsertRowid))
+  };
+}
+
 export function addEntityLink({ sourceType, sourceId, targetType, targetId, relationshipType = 'related', note = '' } = {}) {
   const normalized = normalizeEntityLinkInput({ sourceType, sourceId, targetType, targetId, relationshipType, note });
   validateEntityReference(normalized.source_type, normalized.source_id);
@@ -1908,6 +2203,103 @@ function normalizeCandidateTags(provenanceMetadata = {}, tags = null) {
     ...metadata,
     tags: normalizedTags.slice(0, 24)
   };
+}
+
+function normalizeFrameworkProvenance(value = {}) {
+  const provenance = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  return {
+    ...provenance,
+    memory_layer: String(provenance.memory_layer || 'editorial').trim(),
+    preserved: provenance.preserved === false ? false : true,
+    canon_mutation: false,
+    created_at: String(provenance.created_at || new Date().toISOString()).trim()
+  };
+}
+
+function hydrateProvenanceRow(row) {
+  if (!row) return null;
+  return {
+    ...row,
+    provenance_metadata: parseJsonObject(row.provenance_metadata)
+  };
+}
+
+function normalizeConfidenceState(value, fallback = 'weak') {
+  const normalized = normalizeReviewToken(value, fallback);
+  const allowed = new Set(['explicit', 'strong', 'weak', 'inferred', 'contradictory', 'deprecated', 'speculative']);
+  return allowed.has(normalized) ? normalized : fallback;
+}
+
+function normalizeExtractionClassification(value) {
+  const normalized = normalizeReviewToken(value, 'candidate');
+  const allowed = new Set([
+    'candidate',
+    'unresolved-question',
+    'continuity-risk',
+    'possible-duplicate',
+    'contradiction',
+    'narrative-fragment',
+    'story-material',
+    'scene-fragment',
+    'pending-placement'
+  ]);
+  return allowed.has(normalized) ? normalized : 'candidate';
+}
+
+function normalizeDuplicateReviewStatus(value) {
+  const normalized = normalizeReviewToken(value, '');
+  const allowed = new Set(['pending', 'confirmed-merge', 'rejected', 'review-later']);
+  return allowed.has(normalized) ? normalized : null;
+}
+
+function normalizeContinuityReviewStatus(value) {
+  const normalized = normalizeReviewToken(value, '');
+  const allowed = new Set(['open', 'resolved', 'rejected', 'review-later']);
+  return allowed.has(normalized) ? normalized : null;
+}
+
+function normalizeReviewToken(value, fallback = '') {
+  const normalized = String(value || fallback || '')
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, '-')
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+  return normalized || fallback;
+}
+
+function normalizeReviewEndpoint(endpoint = {}) {
+  const type = normalizeReviewToken(endpoint.type || endpoint.entity_type || '');
+  const id = String(endpoint.id || endpoint.entity_id || '').trim();
+  if (!type || !id) return null;
+  return { type, id };
+}
+
+function normalizeExistingImportSessionId(id) {
+  const normalizedId = normalizeInteger(id, 0);
+  if (!normalizedId) return null;
+  const exists = connection.prepare('SELECT id FROM import_sessions WHERE id = ?').get(normalizedId);
+  return exists ? normalizedId : null;
+}
+
+function normalizeExistingSourceRecordId(id) {
+  const normalizedId = normalizeInteger(id, 0);
+  if (!normalizedId) return null;
+  const exists = connection.prepare('SELECT id FROM source_memory_records WHERE id = ?').get(normalizedId);
+  return exists ? normalizedId : null;
+}
+
+function getImportSessionIdForSource(sourceRecordId) {
+  if (!sourceRecordId) return null;
+  return connection
+    .prepare('SELECT import_session_id FROM source_memory_records WHERE id = ?')
+    .get(sourceRecordId)?.import_session_id || null;
+}
+
+function touchImportSession(importSessionId) {
+  if (!importSessionId) return;
+  connection.prepare('UPDATE import_sessions SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(importSessionId);
 }
 
 function createPromotedEntity(targetType, fields, candidate, provenanceNote) {

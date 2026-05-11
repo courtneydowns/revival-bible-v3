@@ -87,6 +87,17 @@ contextBridge.exposeInMainWorld('revival', {
     promote: (payload) => invoke('candidates:promote', payload),
     delete: (id) => invoke('candidates:delete', id)
   },
+  ingestion: {
+    getReviewSummary: () => invoke('ingestion:get-review-summary'),
+    createSession: (payload) => invoke('ingestion:create-session', payload),
+    createSourceRecord: (payload) => invoke('ingestion:create-source-record', payload),
+    createExtraction: (payload) => invoke('ingestion:create-extraction', payload),
+    createDuplicateLink: (payload) => invoke('ingestion:create-duplicate-link', payload),
+    updateDuplicateReview: (payload) => invoke('ingestion:update-duplicate-review', payload),
+    createContinuityReview: (payload) => invoke('ingestion:create-continuity-review', payload),
+    updateContinuityReview: (payload) => invoke('ingestion:update-continuity-review', payload),
+    createNarrativeFragment: (payload) => invoke('ingestion:create-narrative-fragment', payload)
+  },
   search: {
     query: (query) => invoke('search:query', query),
     rebuildIndex: () => invoke('search:rebuild-index')
