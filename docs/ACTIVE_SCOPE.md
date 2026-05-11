@@ -4,18 +4,28 @@
 
 ## Current Phase
 
-Phase 31 — Tag / Status Management + Editorial Metadata Control — Passed build and smoke
+Post Phase 31 — Project-Control Docs Update
 
 ## Goal
 
-Give the user better control over tags, statuses, canon states, and review states without making the app feel like an admin dashboard.
+Record Phase 31 as passed after final manual Electron smoke and keep the next MVP direction aligned around a calm editorial home workspace.
 
 ## Current Stable Status
 
 - Phase 29 passed.
 - Phase 30 passed manual Electron smoke.
 - Phase 31 added lightweight tag/status metadata control for Candidate Inbox and preserved Decision/Question metadata tools.
+- Phase 31 passed final manual Electron smoke.
 - Candidate metadata/search smoke passed.
+- Candidate metadata controls work.
+- Manual candidate tags can be added/removed and duplicate tags are blocked.
+- Candidate metadata persists after navigation/reload.
+- Candidate metadata filters work.
+- Search indexing updates around candidate metadata edits.
+- Candidate action buttons are readable and usable.
+- Candidate delete works for non-promoted candidates with cancel/confirm.
+- Promoted/protected candidates show a clear protected explanation instead of silently failing.
+- Questions metadata/status/tags/dependency controls are reachable near the top of the detail panel.
 - Decisions layout passes.
 - Questions layout passes.
 - Questions and Candidate filters pass.
@@ -31,6 +41,57 @@ Give the user better control over tags, statuses, canon states, and review state
 - Accepted remains non-canon until explicit promotion.
 - Existing promotion/source traceability and AI Sessions remain stable.
 - npm run build passes.
+
+## Phase 31 Final Status
+
+Passed:
+- Candidate metadata/tag/status controls added.
+- Candidate review-state changes remain explicit user actions.
+- Manual candidate tags are stored in candidate provenance metadata and remain non-canon.
+- Duplicate candidate tags are blocked.
+- Candidate metadata persists after navigation/reload.
+- Candidate metadata filters work.
+- Search rebuilds/updates around candidate metadata edits.
+- Candidate delete modal replaced unreliable/silent delete behavior.
+- Candidate delete distinguishes protected/promoted candidates from deletable non-promoted candidates.
+- Questions metadata layout was improved for accessibility by moving key status/tag/dependency controls higher.
+- No automatic canon mutation.
+- No visible internal phase labels.
+- npm run build passed.
+- Manual Electron smoke passed.
+
+## Future MVP Phase — Dashboard Rework / Editorial Home Workspace
+
+Goal:
+Rework Dashboard into a calm editorial home workspace that helps the user continue real editorial work without becoming an enterprise dashboard.
+
+Prioritize:
+- Continue Working.
+- Recent editorial activity.
+- Unresolved questions.
+- Candidates awaiting placement.
+- Recent decisions.
+- Continuity risks.
+- Editorial labels such as status, source/provenance, canon state, decision history, review state, and updated timestamps.
+- Central Time for visible timestamps.
+
+Avoid:
+- enterprise-dashboard styling
+- fake productivity metrics
+- giant counters/charts
+- clutter-heavy widgets
+- internal build Phase labels in primary UI
+
+## Workflow Rules to Preserve
+
+- User remains authoritative.
+- Nothing becomes canon automatically.
+- Candidates remain non-canon until explicit promotion.
+- AI may assist, suggest, extract, and organize, but must not mutate canon autonomously.
+- Preserve provenance, source links, decision history, review state, and editorial traceability.
+- Keep UI calm and editorial.
+- Use Central Time for visible timestamps.
+- Future phase prompts must include strict self-audit, UI/UX acceptance gates, and output-control/silent-mode requirements.
 
 ## Phase 31 Scope
 

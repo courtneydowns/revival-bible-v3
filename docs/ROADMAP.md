@@ -45,10 +45,10 @@ Completed / passed:
 - Phase 30 UI polish added guarded delete actions and reduced the admin/dashboard feel of Decision and Question resolution editing.
 - Phase 30 editorial UX hardening added tier filtering/definitions, tooltip cleanup, Candidate Inbox regression repair, and Central Time autosave/timestamp polish.
 - Phase 30 passed manual Electron smoke.
-- Phase 31 passed build and smoke after adding a lightweight Candidate Inbox editorial metadata panel for manual review-state and tag edits, preserving Decision/Question metadata controls, and expanding search indexing to candidate metadata.
+- Phase 31 passed final manual Electron smoke after adding Candidate Inbox editorial metadata controls, manual candidate tag add/remove, duplicate tag prevention, candidate metadata persistence/filtering/search updates, Questions metadata layout accessibility improvements, and a reliable Candidate delete modal that distinguishes protected/promoted candidates from deletable non-promoted candidates.
 
 Current / next:
-- Next — continue surgical implementation from remaining roadmap priorities
+- Next MVP direction — Dashboard Rework / Editorial Home Workspace
 
 ## Remaining Roadmap Arc
 
@@ -154,9 +154,15 @@ Make tags and statuses understandable, editable, searchable, and trustworthy.
 Completed foundation:
 - Candidate Inbox manual tag editing via compact editorial metadata panel
 - Candidate review-state changes exposed as explicit user actions
+- duplicate candidate tag prevention
+- candidate metadata persistence after navigation/reload
+- candidate metadata filtering
 - compact allowed status/tag guidance
 - candidate status/tag metadata included in search indexing
+- candidate delete modal with cancel/confirm for non-promoted candidates
+- clear protected explanation for promoted candidates
 - Decision and Question tag/status controls preserved in contextual detail surfaces
+- Questions metadata/status/tags/dependency controls made easier to reach near the top of the detail panel
 
 Future additions:
 - master tag list
@@ -273,6 +279,36 @@ Include:
 - Story Status
 - quiet surfaces for attention, provenance, and continuity confidence
 - dashboard/task systems derived from editorial state rather than generic productivity workflows
+
+### Future MVP Phase — Dashboard Rework / Editorial Home Workspace
+
+Goal:
+Rework Dashboard into a calm editorial home workspace that helps the user resume meaningful creative work quickly.
+
+Prioritize:
+- Continue Working
+- recent editorial activity
+- unresolved questions
+- candidates awaiting placement
+- recent decisions
+- continuity risks
+- editorial labels like status, source/provenance, canon state, decision history, review state, and updated timestamps
+- Central Time for visible timestamps
+
+Avoid:
+- enterprise-dashboard styling
+- fake productivity metrics
+- giant counters/charts
+- clutter-heavy widgets
+- internal build Phase labels in primary UI
+
+Rules:
+- user remains authoritative
+- nothing becomes canon automatically
+- candidates remain non-canon until explicit promotion
+- AI may assist, suggest, extract, and organize, but must not mutate canon autonomously
+- preserve provenance, source links, decision history, review state, and editorial traceability
+- keep UI calm and editorial
 
 ### Future Phase — Audit / History Systems
 

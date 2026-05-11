@@ -100,17 +100,31 @@ Future UI direction:
 - Prefer editorial labels: status, canon state, review state, source/provenance, decision history, blockers/dependencies, updated timestamp.
 
 ## Phase 31 — Tag / Status Management + Editorial Metadata Control
-Status: Passed build and smoke.
+Status: Passed final manual Electron smoke.
 
 Summary:
 - Candidate Inbox gained a compact editorial metadata panel.
 - Candidate review-state changes are explicit user actions.
 - Manual candidate tags can be added and removed without promoting candidates to canon.
+- Duplicate candidate tags are blocked.
 - Candidate tags are stored in candidate provenance metadata and remain non-canon.
+- Candidate metadata persists after navigation/reload.
+- Candidate metadata filters work.
 - Search indexing now includes candidate status/tag metadata and rebuilds after candidate tag/status edits.
+- Candidate action buttons are readable and usable.
+- Candidate delete works for non-promoted candidates.
+- Candidate delete supports cancel/confirm through an in-app modal.
+- Promoted/protected candidates show a clear protected explanation instead of silently failing.
 - Decision and Question tag/status controls remain contextual detail-panel tools.
+- Questions metadata/status/tags/dependency controls are reachable near the top of the detail panel.
 - Allowed candidate statuses/tags are explained in compact contextual help.
 - The UI avoids admin-table/dashboard styling and visible internal phase labels.
+- No automatic canon mutation.
 - npm run build passed.
-- Electron app launch/search-index smoke passed.
-- Temp Electron-node candidate metadata/search smoke passed.
+- Final manual Electron smoke passed.
+
+Future MVP direction:
+- Rework Dashboard into a calm editorial home workspace.
+- Prioritize Continue Working, recent editorial activity, unresolved questions, candidates awaiting placement, recent decisions, and continuity risks.
+- Avoid enterprise-dashboard styling, fake productivity metrics, giant counters/charts, clutter-heavy widgets, and internal build Phase labels in primary UI.
+- Use editorial labels like status, source/provenance, canon state, decision history, review state, and updated timestamps.

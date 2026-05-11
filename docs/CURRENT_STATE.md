@@ -71,7 +71,9 @@ Stable:
 - Candidate Inbox queue organization improved.
 - Queue labels/status summaries/counts exist.
 - Candidate persistence works.
-- Candidate delete flow works.
+- Candidate delete flow works for non-promoted candidates.
+- Candidate delete supports cancel/confirm through an in-app modal.
+- Promoted/protected candidates show a clear protected explanation instead of silently failing.
 - Candidate editing works.
 - Review notes persist.
 - Manual extraction from AI responses works.
@@ -139,6 +141,10 @@ Planned dedicated hardening:
 Stable:
 - Candidate Inbox has a lightweight editorial metadata panel for manual review-state changes and manual candidate tags.
 - Candidate tags are stored with candidate provenance metadata and remain non-canon.
+- Manual candidate tags can be added/removed.
+- Duplicate candidate tags are blocked.
+- Candidate metadata persists after navigation/reload.
+- Candidate metadata filters work.
 - Decision and Question records retain contextual tag and resolution-state editing in their detail panels.
 - Search indexing includes candidate status/tag metadata and is rebuilt after candidate tag/status edits.
 - Allowed candidate statuses/tags are explained in compact contextual help rather than a persistent admin block.
@@ -161,6 +167,7 @@ Stable:
 - Decisions and Questions have visible manual create controls.
 - Decisions and Questions have calm delete actions with lightweight confirmation.
 - Decision/Question content and resolution fields are editable from the detail panel.
+- Questions metadata/status/tags/dependency controls are reachable near the top of the detail panel.
 - Final Answer / Final Decision, Rationale, and Resolution Notes are manually editable.
 - Resolution statuses persist through explicit user action and remain manual editorial state.
 - Resolution edits preserve prior state notes in a lightweight append-only history field.
@@ -204,10 +211,18 @@ Planned:
 ### Editorial Focus / Needs Attention
 
 Planned:
+- Dashboard Rework / Editorial Home Workspace as a future MVP phase
 - calm dashboard layer for Continue Working, Editorial Focus, Creative Memory, and Story Status
+- recent editorial activity
+- unresolved questions
+- candidates awaiting placement
+- recent decisions
+- continuity risks
 - dashboard/task systems derived from editorial state rather than generic productivity workflows
+- editorial labels such as status, source/provenance, canon state, decision history, review state, and updated timestamps
 - Accepted / Needs Placement grouping such as Future Episode, Season 1, Lore, Character Arc, Dialogue Ideas, Theme, Relationship, Twist, Canon Risk, Contradiction Risk, Maybe Later, Alternate Version, and Non-Canon Exploration
 - auto-surface unplaced accepted candidates, contradiction risks, unresolved questions, canon lacking provenance, imported sessions needing review, and timeline gaps
+- avoid enterprise-dashboard styling, fake productivity metrics, giant counters/charts, clutter-heavy widgets, and internal build Phase labels in the primary UI
 
 ### Long-Term Slugline Direction
 
@@ -244,6 +259,8 @@ Deprioritize:
 - Do not include `git log -1 --oneline` in future command blocks.
 - Generate only the Codex prompt unless the user explicitly asks for a ChatGPT handoff.
 - Tell the user when commits should be pushed.
+- Include strict self-audit, UI/UX acceptance gates, and output-control/silent-mode requirements in future phase prompts.
+- Keep visible timestamps in Central Time.
 
 ## Output Control Rule for Codex
 
