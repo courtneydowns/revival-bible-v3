@@ -2,62 +2,76 @@
 
 Rolling current-task file. Keep this short and update it at the start of each phase.
 
+Use docs/ROADMAP.md for future phase planning.
+Use docs/PHASE_LEDGER.md for completed/pending phase status.
+Use docs/CURRENT_STATE.md for stable completed architecture.
+
 ## Current Phase / Task
-Phase 16B — Session Context / Context Packs workflow polish.
+Phase 25 — Promotion Coverage + Real-State Validation.
 
 ## Latest Commit
-b62b565 Phase 7: Add tag and status management
+Add promotion traceability and restore nav scrolling
 
 ## Known Passes
-- Phase 8 passed.
-- Phase 9 context-pack persistence smoke passed.
-- Phase 9 context-pack navigation smoke passed.
-- Phase 15 Electron-runtime smoke passed for OpenAI and Anthropic one-response sessions, local save, reload persistence, and reopen.
+- Phase 19 passed.
+- Phase 20 passed.
+- Phase 21 passed.
+- Phase 22 passed.
+- Phase 23 passed.
+- Phase 24 passed.
+- Candidate promotion foundation stable.
+- Provenance backlinking stable.
+- Compact/expanded nav scrolling restored.
+- OpenAI generation works.
+- Claude / Anthropic generation works.
 
 ## Known Failures
-- None for Phase 16A before implementation.
+- None currently confirmed.
 
 ## Latest Fix
-- Phase 16A passed: AI Sessions workflow is usable, collapsible nav works, compact nav tooltips work, OpenAI and Claude generation work, and Context Packs still opens.
+- Phase 24 added canon provenance rows, candidate ↔ canon linking, source AI Session navigation, and restored compact-nav scrolling/tooltips.
 
 ## Allowed Files
 - docs/ACTIVE_SCOPE.md
-- Focused UI and CSS files required for Context Packs / Session Context editability and inline generation feedback
+- Focused promotion/provenance UI files
+- Focused navigation/UI files required for validation fixes
 - Focused smoke-test notes under docs/SMOKE_TESTS/ if needed
 
 ## Forbidden Files
-- Agents or autonomous workflows
-- Streaming chat
-- Embeddings, vector DB/search, memory orchestration, semantic search
-- Provider routing, tool calling, or function calling
-- Large schema rewrites
-- Export system
-- Broad search refactor
-- Broad schema/store/navigation redesigns
-- Tag/status changes unless strictly required
+- Autonomous workflows
+- Embeddings/vector systems
+- Automatic canon mutation
+- Relationship inference systems
+- Broad schema rewrites
+- Enterprise dashboards
+- Broad navigation redesigns
+- Large architectural refactors
 
 ## Patch Class
-Focused UI polish for Context Packs / Session Context workflow ergonomics.
+Focused editorial workflow validation and provenance polish.
 
 ## Acceptance Criteria
-- Context Packs opens normally.
-- Generate Session Context shows inline success feedback near the generate control.
-- Generated session context text can be edited before copy.
-- Prompt template instructions can be edited for the current generated prompt where appropriate.
-- Generated full prompt text can be edited before copy.
-- Copy Full Prompt copies edited prompt text.
-- Context Pack save/delete behavior remains intact.
-- AI Sessions still opens and remains distinct from Context Packs / Session Context.
-- OpenAI/gpt-4.1 and Claude/claude-sonnet-4-6 generation still work.
-- Compact nav still works.
-- Context Packs still opens normally.
+- All promotion destinations open correctly:
+  - Character
+  - Episode
+  - Decision
+  - Question
+  - Location
+  - Story Bible
+- Promotion creates canon entities only after explicit confirmation.
+- Candidate remains permanently preserved.
+- Canon entity shows provenance metadata.
+- Candidate ↔ canon navigation works.
+- Source AI Session navigation works.
+- Nav scrolling/tooltips continue working.
+- npm run build passes.
 
 ## Verification
-- Pending Phase 16B verification.
+- Pending Phase 25 verification.
 
 ## Report Format
 - Files changed.
-- One sentence per fix.
-- Exact smoke result.
-- Exact build result.
-- Unresolved blockers.
+- Root cause.
+- One sentence fix.
+- Build result.
+- Smoke result.

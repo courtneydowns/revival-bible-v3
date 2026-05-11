@@ -31,3 +31,22 @@ Use the active patch class to keep changes small and predictable.
 - Allowed: Tag/status controls, validation, display labels, local edit state, focused save behavior.
 - Forbidden: Schema migrations, search indexing changes, broad persistence changes unless explicitly allowed.
 - Expected scope: 1-4 files around tag/status editing and display.
+
+## PROMOTION_TRACEABILITY
+- Allowed: Candidate ↔ canon linking, provenance metadata rows, source-session traceability, subtle editorial navigation.
+- Forbidden: Auto-merging, automatic canon mutation, relationship inference, broad workspace redesigns.
+- Expected scope: 1-5 focused provenance or editorial workflow files.
+
+## ROADMAP_DOCS
+- Allowed: Updates to docs/ROADMAP.md, concise references in PHASE_LEDGER/CURRENT_STATE/ACTIVE_SCOPE.
+- Forbidden: Moving speculative roadmap content into ACTIVE_SCOPE, bloating CURRENT_STATE, or implying future phases are already implemented.
+- Expected scope: docs-only.
+
+## OUTPUT_CONTROL
+- Codex prompts must avoid narrating commands or dumping repeated terminal output.
+- Final reports should remain concise:
+  - Files changed
+  - Root cause
+  - One sentence fix
+  - Build result
+  - Smoke result
