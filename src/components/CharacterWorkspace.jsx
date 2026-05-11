@@ -3,6 +3,7 @@ import { useRevivalStore } from '../store.js';
 import CanonTagBadges from './CanonTagBadges.jsx';
 import EntityPreviewCard from './EntityPreviewCard.jsx';
 import InspectorPanel from './InspectorPanel.jsx';
+import PromotionProvenance from './PromotionProvenance.jsx';
 import MasterDetailShell from './MasterDetailShell.jsx';
 import RelatedRecords from './RelatedRecords.jsx';
 import StatusBadge from './StatusBadge.jsx';
@@ -104,6 +105,7 @@ export default function CharacterWorkspace() {
                   <Field title="Season 3 Arc" value={selectedCharacter.arc_season_3} />
                   <Field title="Notes" value={selectedCharacter.notes} />
                 </div>
+                <PromotionProvenance text={selectedCharacter.notes} />
                 <RelatedRecords
                   entityId={selectedCharacter.id}
                   entityType="character"

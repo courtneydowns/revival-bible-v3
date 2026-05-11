@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { BookOpen, Brain, Boxes, ChevronLeft, ChevronRight, CircleHelp, Clock3, FileStack, GitBranch, Inbox, LayoutDashboard, Map, MessageSquareText, Network, PanelLeftClose, PanelLeftOpen, Users } from 'lucide-react';
 import { useRevivalStore } from '../store.js';
 
@@ -21,6 +21,7 @@ const items = [
 ];
 
 export default function NavRail() {
+  const [tooltip, setTooltip] = useState(null);
   const activeView = useRevivalStore((state) => state.activeView);
   const navMode = useRevivalStore((state) => state.navMode);
   const activeNodeId = useRevivalStore((state) => state.activeNodeId);
@@ -33,6 +34,17 @@ export default function NavRail() {
   const toggleExpandedNode = useRevivalStore((state) => state.toggleExpandedNode);
   const selectNode = useRevivalStore((state) => state.selectNode);
   const storyBibleExpanded = expandedNodes.includes(STORY_BIBLE_TREE_ID);
+  const showTooltip = (label, event) => {
+    if (navMode !== 'compact') return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const navRect = event.currentTarget.closest('.nav-rail')?.getBoundingClientRect();
+    setTooltip({
+      label,
+      top: rect.top + rect.height / 2,
+      left: (navRect?.right || rect.right) + 10
+    });
+  };
+  const hideTooltip = () => setTooltip(null);
   const sections = nodeTree.filter((node) => !node.parent_id);
   const childrenByParent = nodeTree.reduce((accumulator, node) => {
     if (!node.parent_id) return accumulator;
@@ -77,12 +89,15 @@ export default function NavRail() {
                 data-tooltip={label}
                 key={id}
                 onClick={() => setActiveView(id)}
+                onBlur={hideTooltip}
+                onFocus={(event) => showTooltip(label, event)}
+                onMouseEnter={(event) => showTooltip(label, event)}
+                onMouseLeave={hideTooltip}
                 title={label}
                 type="button"
               >
                 <Icon size={17} />
                 <span className="nav-label">{label}</span>
-                <span className="nav-tooltip" aria-hidden="true">{label}</span>
               </button>
             );
           }
@@ -102,12 +117,15 @@ export default function NavRail() {
                       setNodeExpanded(STORY_BIBLE_TREE_ID, true);
                     }
                   }}
+                  onBlur={hideTooltip}
+                  onFocus={(event) => showTooltip(label, event)}
+                  onMouseEnter={(event) => showTooltip(label, event)}
+                  onMouseLeave={hideTooltip}
                   title={label}
                   type="button"
                 >
                   <Icon size={17} />
                   <span className="nav-label">{label}</span>
-                  <span className="nav-tooltip" aria-hidden="true">{label}</span>
                 </button>
                 <button
                   aria-label={storyBibleExpanded ? 'Collapse Story Bible' : 'Expand Story Bible'}
@@ -171,6 +189,15 @@ export default function NavRail() {
           );
         })}
       </div>
+      {tooltip ? (
+        <span
+          className="nav-tooltip floating"
+          style={{ left: tooltip.left, top: tooltip.top }}
+          aria-hidden="true"
+        >
+          {tooltip.label}
+        </span>
+      ) : null}
     </nav>
   );
 }

@@ -41,6 +41,7 @@ export default function CandidateInbox() {
   const updateCandidate = useRevivalStore((state) => state.updateCandidate);
   const updateCandidateStatus = useRevivalStore((state) => state.updateCandidateStatus);
   const deleteCandidate = useRevivalStore((state) => state.deleteCandidate);
+  const navigateToEntity = useRevivalStore((state) => state.navigateToEntity);
   const openCandidateSourceSession = useRevivalStore((state) => state.openCandidateSourceSession);
   const selectedCandidate = useMemo(
     () => candidates.find((candidate) => String(candidate.id) === String(activeCandidateId)) || candidates[0] || null,
@@ -374,6 +375,17 @@ export default function CandidateInbox() {
                 <span>Provenance</span>
                 <Info size={14} title={formatProvenance(selectedCandidate)} />
                 <small>{formatProvenanceSummary(selectedCandidate)}</small>
+                {getCandidatePromotions(selectedCandidate).map((promotion) => (
+                  <button
+                    className="candidate-source-link"
+                    key={`${promotion.target_type}:${promotion.target_id}:${promotion.promoted_at}`}
+                    onClick={() => navigateToEntity(promotion.target_type, promotion.target_id)}
+                    type="button"
+                  >
+                    <ExternalLink size={13} />
+                    <span>Open {promotion.target_label || 'Canon Record'}</span>
+                  </button>
+                ))}
                 {hasSourceSession(selectedCandidate) ? (
                   <button className="candidate-source-link" disabled={saving} onClick={openSourceSession} type="button">
                     <ExternalLink size={13} />
@@ -488,6 +500,10 @@ export default function CandidateInbox() {
                   <p>{formatSuggestedLinks(selectedCandidate.suggested_links)}</p>
                 </div>
                 <div>
+                  <strong>Linked Canon</strong>
+                  <p>{formatPromotions(selectedCandidate)}</p>
+                </div>
+                <div>
                   <strong>Notes</strong>
                   {editing ? (
                     <textarea
@@ -537,6 +553,18 @@ function hasSourceSession(candidate) {
 
 function formatSuggestedLinks(links = []) {
   return links.length ? links.map((link) => link.title || link.entity_id || 'Suggested record').join(', ') : 'None yet.';
+}
+
+function getCandidatePromotions(candidate) {
+  const promotions = candidate?.provenance_metadata?.promotions;
+  return Array.isArray(promotions) ? promotions.filter((promotion) => promotion?.target_type && promotion?.target_id) : [];
+}
+
+function formatPromotions(candidate) {
+  const promotions = getCandidatePromotions(candidate);
+  return promotions.length
+    ? promotions.map((promotion) => `${promotion.target_label || 'Canon record'} #${promotion.target_id}`).join(', ')
+    : 'No promoted canon record yet.';
 }
 
 function createPromotionDraft(candidate, target) {

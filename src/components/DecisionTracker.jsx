@@ -4,6 +4,7 @@ import CanonTagBadges from './CanonTagBadges.jsx';
 import EntityPreviewCard from './EntityPreviewCard.jsx';
 import InspectorPanel from './InspectorPanel.jsx';
 import MasterDetailShell from './MasterDetailShell.jsx';
+import PromotionProvenance from './PromotionProvenance.jsx';
 import RelatedRecords from './RelatedRecords.jsx';
 import StatusBadge from './StatusBadge.jsx';
 import StatusSelector from './StatusSelector.jsx';
@@ -140,6 +141,7 @@ export default function DecisionTracker() {
                   <Field title="Blocked By" value={formatList(selectedDecision.blocked_by)} />
                   <Field title="Blocks" value={formatList(selectedDecision.blocks)} />
                 </div>
+                <PromotionProvenance text={selectedDecision.what_we_know} />
                 <RelatedRecords
                   entityId={selectedDecision.id}
                   entityType="decision"

@@ -1,4 +1,5 @@
 import { useRevivalStore } from '../store.js';
+import PromotionProvenance from './PromotionProvenance.jsx';
 import StatusBadge from './StatusBadge.jsx';
 
 export default function EpisodeDetail({ episode }) {
@@ -45,6 +46,7 @@ export default function EpisodeDetail({ episode }) {
       <Section title="Arc Summary" value={selectedEpisode.arc_summary} />
       <Section title="Cold Open" value={selectedEpisode.cold_open} />
       <Section title="Flanagan Moment" value={selectedEpisode.flanagan_moment} />
+      <PromotionProvenance text={selectedEpisode.rewatch_notes} />
       <Section title="Rewatch Notes" value={selectedEpisode.rewatch_notes} />
     </article>
   );
