@@ -3,87 +3,107 @@
 # Revival Bible v3 — Active Scope
 
 ## Current Phase
-PHASE 26B — Candidate Acceptance Queue
 
-## Current Goal
-Add a non-canon candidate state for editorial items the user wants to keep and probably use later, but cannot or does not want to place into a canon destination yet.
+Phase 28 — Roadmap Audit + Project-Control Docs Update
 
-## Product Rule
-Nothing becomes canon automatically.
+## Goal
 
-Candidate acceptance is not promotion.
+Audit the current roadmap and project-control docs against the actual product direction, completed phases, known backlog items, and prior recommendations, then update the docs so future phases include data safety, autosave/autobackup, candidate queue organization, editorial workflow polish, and production-readiness hardening.
 
-An accepted candidate means:
-- the candidate has editorial value
-- the user wants to preserve it for future use
-- the candidate is not yet assigned to Character, Location, Episode, Decision, Story Bible, or another canon destination
-- no canon entity should be created or changed until the user explicitly promotes it
+## Current Stable Status
 
-## Phase 26A Result
-Phase 26A passed.
+- Phase 26A passed.
+- Phase 26B passed.
+- Phase 26C passed.
+- Phase 27 is Candidate Inbox Queue Organization.
+- Candidate Inbox architecture is stable.
+- Accepted / Needs Placement workflow exists.
+- Accepted state persists correctly.
+- Accepted candidates remain editable.
+- Accepted candidates can still be promoted normally.
+- Accepted state clearly says: “Accepted for future placement. Not canon until promoted.”
+- Existing promotion workflows still work.
+- Existing provenance/source navigation still works.
+- Compact nav scrolling/tooltips work.
+- OpenAI generation works.
+- Claude / Anthropic generation works.
+- npm run build passes.
 
-Completed:
-- Candidate Inbox layout stabilized
-- candidate navigator narrowed
-- candidate list made independently scrollable
-- right-side detail panel made calmer and more document-like
-- nested/cramped scrolling reduced
-- provenance/meta readability preserved
-- Location promotion target reachability smoke-passed
-- compact nav scrolling/tooltips smoke-passed
+## Phase 28 Scope
 
-Deferred:
-- promoted-candidate navigation was not directly re-smoked because no promoted candidate record existed in preview state
+Update project-control docs only.
 
-## Phase 26B Scope
-Strictly implement candidate review-state workflow and light UI support.
-
-Allowed:
-- add an Accepted / Needs Placement candidate state
-- expose the state in Candidates Inbox filters/list/detail UI
-- let user mark a candidate as Accepted / Needs Placement without choosing a canon destination
-- preserve source/provenance/history
-- make accepted candidates easy to find later
-- update smoke tests/checklists accordingly
-
-Not allowed:
-- automatic canon mutation
-- automatic promotion
-- auto-merging
-- AI classification
-- embeddings/vector systems
-- relationship inference
-- graph systems
-- enterprise dashboards
-- large navigation rewrites
-- modal-heavy redesigns
-
-## Acceptance Criteria
-- User can mark a candidate as Accepted / Needs Placement.
-- Accepted candidates remain candidates, not canon.
-- Accepted candidates do not require destination selection.
-- Candidate list/filtering makes accepted candidates easy to find.
-- Provenance and source-session links remain intact.
-- Existing New / Needs Review, Promoted, Rejected, and delete flows remain stable.
-- Build passes.
-- Manual smoke passes.
-
-## Files Likely In Scope
-- src/components/CandidateInbox.jsx
-- src/store.js if candidate status persistence/state handling requires it
-- src/index.css if UI styling is needed
+Allowed files:
 - docs/ACTIVE_SCOPE.md
 - docs/CURRENT_STATE.md
 - docs/ROADMAP.md
-- docs/PHASE_LEDGER.md
 - docs/PATCH_CLASSES.md
+- docs/PHASE_LEDGER.md if it already exists and needs a brief status note
+- docs/SMOKE_TESTS/ only if adding a small docs-only smoke checklist is appropriate
 
-## Output Control
-No interim updates unless blocked.
-Final report only:
-- Files changed
-- Root cause
-- One sentence fix
-- Build result
-- Smoke result
-- Unresolved blockers
+Do not touch app code during this phase.
+
+## Required Audit Additions
+
+Make sure the roadmap/backlog explicitly includes:
+
+- autosave
+- autobackup
+- database backup before risky migrations
+- recovery/export path for canon data
+- safer edit persistence
+- destructive-action confirmations
+- no silent data loss
+- persistence smoke tests after navigation/restart
+- Candidates Inbox status filtering / queue organization
+- clearer Pending vs Accepted vs Needs Placement vs Promoted vs Rejected organization
+- accepted candidates remain non-canon until explicit promotion
+- promotion traceability
+- source-session provenance
+- manual merge/review tooling
+- audit/history systems
+- tag/status management
+- search result clarity, including tag-vs-text distinction
+- master tag list
+- continuity/timeline tooling
+- calm UI/layout cleanup
+- compact nav preservation
+- production-readiness hardening
+- token-efficient Codex workflow
+- surgical debug loop
+- concise output control
+
+## Strict Scope
+
+Do not add:
+- new app features
+- code changes
+- new architecture
+- embeddings/vector systems
+- autonomous AI agents
+- automatic canon mutation
+- auto-merge
+- relationship inference
+- kanban boards
+- drag/drop systems
+- broad rewrites
+
+## Acceptance Criteria
+
+- ROADMAP.md clearly reflects remaining roadmap priorities.
+- CURRENT_STATE.md reflects stable completed systems without becoming a backlog dump.
+- ACTIVE_SCOPE.md points future work toward docs audit and then Phase 27/29 continuation.
+- Docs mention autosave/autobackup/data safety as a dedicated hardening phase.
+- Docs mention Candidates Inbox status filtering/organization as a planned or current queue clarity feature.
+- Docs preserve the rule: nothing becomes canon automatically.
+- Docs preserve token-management and output-control rules.
+- npm run build is not required unless Codex chooses to verify no app files changed, but git diff should confirm docs-only changes.
+
+## Final Response Format
+
+Files changed:
+Root cause:
+One sentence fix:
+Build result:
+Smoke result:
+Unresolved blockers:

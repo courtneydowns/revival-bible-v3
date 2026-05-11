@@ -4,7 +4,36 @@ import { useRevivalStore } from '../store.js';
 
 const acceptedStatus = 'Accepted / Needs Placement';
 const statuses = ['New', 'In Review', acceptedStatus, 'Promoted', 'Rejected'];
-const statusFilters = ['All', 'New', 'In Review', acceptedStatus, 'Promoted', 'Rejected'];
+const statusFilters = [
+  ['All', 'All candidates'],
+  ['New', 'Pending review'],
+  ['In Review', 'In review'],
+  [acceptedStatus, 'Needs placement'],
+  ['Promoted', 'Promoted'],
+  ['Rejected', 'Rejected']
+];
+const statusCopy = {
+  New: {
+    label: 'Pending',
+    summary: 'Awaiting first review.'
+  },
+  'In Review': {
+    label: 'In Review',
+    summary: 'Being evaluated.'
+  },
+  [acceptedStatus]: {
+    label: 'Needs Placement',
+    summary: 'Accepted to keep, not canon.'
+  },
+  Promoted: {
+    label: 'Promoted',
+    summary: 'Traceable canon record exists.'
+  },
+  Rejected: {
+    label: 'Rejected',
+    summary: 'Archived from active review.'
+  }
+};
 const promotionTargets = [
   ['character', 'Character'],
   ['episode', 'Episode'],
@@ -56,6 +85,19 @@ export default function CandidateInbox() {
       : candidates.filter((candidate) => normalizeCandidateStatusLabel(candidate.status) === statusFilter),
     [candidates, statusFilter]
   );
+  const queueCounts = useMemo(() => {
+    const counts = Object.fromEntries(statuses.map((status) => [status, 0]));
+    candidates.forEach((candidate) => {
+      const status = normalizeCandidateStatusLabel(candidate.status);
+      counts[status] = (counts[status] || 0) + 1;
+    });
+    return counts;
+  }, [candidates]);
+  const activeQueueCount = (queueCounts.New || 0) + (queueCounts['In Review'] || 0) + (queueCounts[acceptedStatus] || 0);
+  const traceableQueueCount = (queueCounts.Promoted || 0) + (queueCounts.Rejected || 0);
+  const selectedFilterSummary = statusFilter === 'All'
+    ? 'Pending, in-review, accepted, promoted, and rejected candidates.'
+    : statusCopy[statusFilter]?.summary;
 
   useEffect(() => {
     loadCandidates();
@@ -277,11 +319,21 @@ export default function CandidateInbox() {
             <label>
               <span>Queue</span>
               <select aria-label="Filter candidates by status" onChange={(event) => setStatusFilter(event.target.value)} value={statusFilter}>
-                {statusFilters.map((status) => (
-                  <option key={status} value={status}>{status}</option>
+                {statusFilters.map(([status, label]) => (
+                  <option key={status} value={status}>
+                    {label} ({status === 'All' ? candidates.length : queueCounts[status] || 0})
+                  </option>
                 ))}
               </select>
             </label>
+            <div className="candidate-filter-summary" aria-live="polite">
+              <strong>{filteredCandidates.length}</strong>
+              <span>{selectedFilterSummary}</span>
+            </div>
+            <div className="candidate-queue-counts" aria-label="Candidate queue totals">
+              <span>Active {activeQueueCount}</span>
+              <span>Traceable {traceableQueueCount}</span>
+            </div>
           </div>
 
           <div className="candidate-list">
@@ -298,12 +350,13 @@ export default function CandidateInbox() {
                   <span>{candidate.type || 'Narrative Note'}</span>
                 </span>
                 <strong>{candidate.title}</strong>
+                <span className="candidate-card-state">{statusCopy[normalizeCandidateStatusLabel(candidate.status)]?.summary}</span>
                 <span>{candidate.content || 'No content yet.'}</span>
               </button>
             )) : candidates.length ? (
               <div className="candidate-empty-state">
-                <strong>No {statusFilter} candidates.</strong>
-                <span>Change the queue filter to see other candidates.</span>
+                <strong>No {statusFilter === 'All' ? 'candidates' : statusFilters.find(([status]) => status === statusFilter)?.[1].toLowerCase()}.</strong>
+                <span>This queue is clear for now. Change the filter to review another status.</span>
               </div>
             ) : (
               <div className="candidate-empty-state">
@@ -403,7 +456,8 @@ export default function CandidateInbox() {
 
               {selectedCandidate.status === acceptedStatus ? (
                 <div className="candidate-acceptance-note">
-                  Accepted for future placement. Not canon until promoted.
+                  <strong>Accepted.</strong>
+                  <span>Needs a placement decision later; not canon until explicitly promoted.</span>
                 </div>
               ) : null}
 
@@ -567,7 +621,7 @@ export default function CandidateInbox() {
 
 function CandidateStatusBadge({ status }) {
   const label = normalizeCandidateStatusLabel(status);
-  return <span className={`candidate-status ${statusClassName(label)}`}>{label}</span>;
+  return <span className={`candidate-status ${statusClassName(label)}`}>{statusCopy[label]?.label || label}</span>;
 }
 
 function normalizeCandidateStatusLabel(status) {
