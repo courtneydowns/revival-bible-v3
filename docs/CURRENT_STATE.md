@@ -37,6 +37,25 @@ Editorial Memory contains reviewable, unresolved, or in-progress material. This 
 
 Canon Memory contains explicitly promoted material only. Repetition across sources does not make a claim canon.
 
+## Completed Phase 34 State
+
+Phase 34 passed and reworked the Dashboard / Editorial Home structure.
+
+Confirmed capabilities:
+- Dashboard uses a contained two-column editorial workspace on desktop
+- Continue Working remains a primary continuation region
+- Editorial Focus is a stable review column with compact contained queues
+- review queues surface continuity review, source review, weak-confidence material, pending placement, open questions, and recent decisions
+- Phase 33 duplicate review, continuity review, unresolved extraction, narrative fragment, weak-confidence, pending-placement, and editorial-risk concepts remain visible
+- Central Time timestamps remain visible
+- primary Dashboard UI avoids internal phase labels
+- autosave/status display and Dashboard routing actions remain stable
+
+Validation:
+- npm run build passed
+- Electron dev launch passed
+- manual Dashboard smoke confirmed the view no longer presents as one long scrolling admin page
+
 ## Completed Phase 33 State
 
 Phase 33 passed and added the foundational ingestion and continuity protection framework.
@@ -85,8 +104,6 @@ Revival Bible remains responsible for:
 
 ## Immediate Next Direction
 
-The next recommended phase is a Dashboard / Editorial Home Structural UX Pass.
+The next recommended phase is controlled planning for source import / extraction now that the ingestion safeguards and Dashboard review home are in place.
 
-This phase should address the pending long-scroll Dashboard issue now that Phase 33 has created the ingestion/review structures the Dashboard needs to surface.
-
-The Dashboard should become a calmer editorial home with contained sections, stronger Continue Working and Editorial Focus hierarchy, clear review surfaces, and less vertical sprawl. It should not become an enterprise dashboard and should not show internal build phase labels in primary UI.
+Any next import work must remain review-first: preserve source memory, route uncertain duplicates and contradictions to manual review, keep provenance permanent, and require explicit user promotion for canon.

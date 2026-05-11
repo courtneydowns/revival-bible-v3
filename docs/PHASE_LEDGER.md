@@ -1,5 +1,35 @@
 # Revival Bible v3 — Phase Ledger
 
+## Phase 34 — Dashboard / Editorial Home Structural UX Pass
+
+Status: Passed
+
+Completion summary:
+Phase 34 reworked the Dashboard from a long vertical stack into a contained editorial home workspace.
+
+Files changed:
+- src/components/Dashboard.jsx
+- src/index.css
+- docs/ACTIVE_SCOPE.md
+- docs/CURRENT_STATE.md
+- docs/ROADMAP.md
+- docs/PHASE_LEDGER.md
+
+Root cause:
+Phase 33 added real review surfaces, but the Dashboard still presented them in a vertically sprawling page structure.
+
+One sentence fix:
+Created a two-column Dashboard with a primary Continue Working area, contained Recent Editorial Activity, and an Editorial Focus column with compact review queues.
+
+Build result:
+npm run build passed.
+
+Smoke result:
+Electron dev launch passed; manual Dashboard smoke verified reduced long-scroll sprawl, visible Phase 33 review surfaces, Central Time timestamps, no internal phase labels in primary UI, stable Dashboard routing actions, and stable autosave/status display.
+
+Unresolved blockers:
+None.
+
 ## Phase 33 — Editorial Ingestion / Continuity Protection Framework
 
 Status: Passed
@@ -33,27 +63,12 @@ None.
 
 ## Next Planned Phase
 
-### Phase 34 — Dashboard / Editorial Home Structural UX Pass
+### Phase 35 — Controlled Source Import / Extraction Planning
 
 Status: Planned
 
 Reason:
-The Dashboard / Editorial Home passed as a concept, but the specific long-scroll structural UX issue has not yet been implemented. This should happen after Phase 33 because the new ingestion/review structures now define what the Dashboard needs to surface.
+The ingestion safety framework and Dashboard review home are now in place, so the next step should define the smallest safe controlled import/extraction workflow.
 
 Goal:
-Rework the Dashboard so it no longer feels like one long scrolling window and instead functions as a calm, contained editorial home workspace.
-
-Expected focus:
-- reduce vertical sprawl
-- improve contained section layout
-- strengthen Continue Working and Editorial Focus
-- surface duplicate review, continuity review, unresolved extraction, narrative fragments, pending placement, and editorial risks
-- preserve Central Time timestamps
-- avoid internal phase labels in primary UI
-- avoid enterprise-dashboard styling
-- avoid fake productivity metrics
-
-Validation expectation:
-- npm run build passes
-- manual Electron smoke passes
-- user confirms Dashboard no longer feels like one long scrolling window
+Plan the next narrow source import/extraction step while preserving review-first behavior, provenance, duplicate review, continuity review, and explicit canon promotion.

@@ -92,6 +92,14 @@ button {
   grid-template-columns: 72px minmax(0, 1fr);
 }
 
+.app-shell.view-dashboard {
+  grid-template-columns: 244px minmax(0, 1fr);
+}
+
+.app-shell.nav-compact.view-dashboard {
+  grid-template-columns: 72px minmax(0, 1fr);
+}
+
 .app-shell.view-decisions,
 .app-shell.view-questions {
   grid-template-columns: 244px minmax(0, 1fr);
@@ -479,12 +487,20 @@ button {
   display: none;
 }
 
+.view-dashboard .right-panel {
+  display: none;
+}
+
 .view-decisions .right-panel,
 .view-questions .right-panel {
   display: none;
 }
 
 .view-candidates .content {
+  overflow: hidden;
+}
+
+.view-dashboard .content {
   overflow: hidden;
 }
 
@@ -560,11 +576,24 @@ h1 {
 }
 
 .dashboard-home {
-  max-width: 1180px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 18px;
+  height: 100%;
+  max-width: none;
+  min-height: 0;
 }
 
 .dashboard-home h1 {
+  margin-bottom: 8px;
   max-width: 760px;
+}
+
+.dashboard-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 18px;
 }
 
 .dashboard-focus,
@@ -575,7 +604,6 @@ h1 {
 }
 
 .dashboard-focus {
-  margin-top: 28px;
   padding: 20px;
 }
 
@@ -616,6 +644,24 @@ h1 {
   white-space: nowrap;
 }
 
+.dashboard-workspace {
+  display: grid;
+  grid-template-columns: minmax(430px, 1fr) minmax(360px, 42%);
+  gap: 16px;
+  min-height: 0;
+}
+
+.dashboard-primary-column,
+.dashboard-editorial-focus {
+  min-height: 0;
+}
+
+.dashboard-primary-column {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 16px;
+}
+
 .dashboard-continue-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -638,7 +684,7 @@ h1 {
   grid-template-columns: 34px minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
-  min-height: 84px;
+  min-height: 76px;
   padding: 14px;
 }
 
@@ -683,15 +729,7 @@ h1 {
   white-space: nowrap;
 }
 
-.dashboard-editorial-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 16px;
-}
-
 .dashboard-panel {
-  min-height: 280px;
   padding: 16px;
 }
 
@@ -707,8 +745,8 @@ h1 {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
-  min-height: 70px;
-  padding: 12px;
+  min-height: 58px;
+  padding: 10px 12px;
 }
 
 .dashboard-row .status-badge {
@@ -720,7 +758,75 @@ h1 {
 }
 
 .dashboard-activity {
-  margin-top: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.dashboard-editorial-focus {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.dashboard-focus-queues {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+}
+
+.dashboard-queue {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-panel);
+  padding: 12px;
+}
+
+.dashboard-queue .dashboard-panel-list {
+  max-height: 176px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 3px;
+}
+
+.dashboard-queue-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.dashboard-queue-title span {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.dashboard-queue-title strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-queue-title small {
+  display: inline-flex;
+  min-width: 24px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
 }
 
 .panel-card {
@@ -4334,9 +4440,27 @@ button.candidate-tag {
     grid-template-columns: 1fr;
   }
 
-  .dashboard-continue-list,
-  .dashboard-editorial-grid {
+  .dashboard-header,
+  .dashboard-workspace,
+  .dashboard-continue-list {
     grid-template-columns: 1fr;
+  }
+
+  .view-dashboard .content {
+    overflow-y: auto;
+  }
+
+  .dashboard-home {
+    height: auto;
+  }
+
+  .dashboard-primary-column {
+    grid-template-rows: auto;
+  }
+
+  .dashboard-activity,
+  .dashboard-editorial-focus {
+    overflow: visible;
   }
 
   .split-view,
@@ -4365,6 +4489,40 @@ button.candidate-tag {
 
   .decision-workspace {
     grid-template-columns: minmax(300px, 390px) minmax(0, 1fr);
+  }
+}
+
+@media (min-width: 861px) {
+  .dashboard-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .dashboard-workspace {
+    grid-template-columns: minmax(420px, 1fr) minmax(350px, 40%);
+  }
+
+  .dashboard-continue-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .view-dashboard .content {
+    overflow: hidden;
+  }
+
+  .dashboard-home {
+    height: 100%;
+  }
+
+  .dashboard-primary-column {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .dashboard-activity {
+    overflow-y: auto;
+  }
+
+  .dashboard-editorial-focus {
+    overflow: hidden;
   }
 }
 

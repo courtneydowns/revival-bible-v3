@@ -53,7 +53,11 @@ export default function Dashboard() {
     [editorialCandidates, editorialDecisions, editorialQuestions, ingestionReviewSummary, timelineEvents]
   );
   const ingestionReviewItems = useMemo(
-    () => buildIngestionReviewItems(ingestionReviewSummary).slice(0, 5),
+    () => buildIngestionReviewItems(ingestionReviewSummary).slice(0, 6),
+    [ingestionReviewSummary]
+  );
+  const weakConfidenceItems = useMemo(
+    () => buildWeakConfidenceItems(ingestionReviewSummary).slice(0, 4),
     [ingestionReviewSummary]
   );
   const recentActivity = useMemo(
@@ -84,129 +88,158 @@ export default function Dashboard() {
 
   return (
     <section className="view dashboard-home">
-      <div className="eyebrow">Editorial Home</div>
-      <h1>Continue the story work</h1>
-      <p className="dashboard-lede">
-        A quiet recall space for open editorial threads, recent changes, and narrative continuity work.
-        Nothing here promotes or changes canon without an explicit user action.
-      </p>
+      <header className="dashboard-header">
+        <div>
+          <div className="eyebrow">Editorial Home</div>
+          <h1>Continue the story work</h1>
+          <p className="dashboard-lede">
+            A quiet recall space for open editorial threads, recent changes, and narrative continuity work.
+            Nothing here promotes or changes canon without an explicit user action.
+          </p>
+        </div>
+        <button className="secondary-button dashboard-heading-action" onClick={() => setActiveView('session')} type="button">
+          <Sparkles size={15} />
+          <span>AI Sessions</span>
+        </button>
+      </header>
 
-      <section className="dashboard-focus" aria-labelledby="continue-working-heading">
-        <div className="dashboard-section-heading">
-          <div>
-            <span className="dashboard-kicker">Continue Working</span>
-            <h2 id="continue-working-heading">Pick up where the memory is warm</h2>
+      <div className="dashboard-workspace">
+        <div className="dashboard-primary-column">
+          <section className="dashboard-focus" aria-labelledby="continue-working-heading">
+            <div className="dashboard-section-heading">
+              <div>
+                <span className="dashboard-kicker">Continue Working</span>
+                <h2 id="continue-working-heading">Pick up where the memory is warm</h2>
+              </div>
+            </div>
+            <div className="dashboard-continue-list">
+              {continueItems.map((item) => (
+                <button className="dashboard-continue-card" key={item.key} onClick={item.onOpen} type="button">
+                  <span className="dashboard-card-icon">{item.icon}</span>
+                  <span>
+                    <strong>{item.title}</strong>
+                    <small>{item.meta}</small>
+                  </span>
+                  <ArrowRight size={16} />
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="dashboard-panel dashboard-activity" aria-labelledby="recent-activity-heading">
+            <div className="dashboard-panel-title">
+              <History size={17} />
+              <h2 id="recent-activity-heading">Recent Editorial Activity</h2>
+            </div>
+            <div className="dashboard-activity-list">
+              {recentActivity.map((activity) => (
+                <button className="dashboard-row" key={activity.key} onClick={activity.onOpen} type="button">
+                  <span>
+                    <strong>{activity.title}</strong>
+                    <small>{activity.type} / {activity.meta || 'Editorial record'} / {formatDate(activity.timestamp)}</small>
+                  </span>
+                  <ArrowRight size={15} />
+                </button>
+              ))}
+              {!recentActivity.length ? <p className="muted">No recent editorial activity is currently loaded.</p> : null}
+            </div>
+          </section>
+        </div>
+
+        <aside className="dashboard-panel dashboard-editorial-focus" aria-labelledby="editorial-focus-heading">
+          <div className="dashboard-panel-title">
+            <FileSearch size={17} />
+            <h2 id="editorial-focus-heading">Editorial Focus</h2>
           </div>
-          <button className="secondary-button dashboard-heading-action" onClick={() => setActiveView('session')} type="button">
-            <Sparkles size={15} />
-            <span>AI Sessions</span>
-          </button>
-        </div>
-        <div className="dashboard-continue-list">
-          {continueItems.map((item) => (
-            <button className="dashboard-continue-card" key={item.key} onClick={item.onOpen} type="button">
-              <span className="dashboard-card-icon">{item.icon}</span>
-              <span>
-                <strong>{item.title}</strong>
-                <small>{item.meta}</small>
-              </span>
-              <ArrowRight size={16} />
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <div className="dashboard-editorial-grid">
-        <DashboardPanel
-          emptyText="No unresolved questions are currently loaded."
-          icon={<MessageSquareText size={17} />}
-          items={unresolvedQuestions.map((question) => ({
-            key: `question-${question.id}`,
-            title: question.question,
-            meta: `${question.status || 'Open'} / Updated ${formatDate(question.updated_at)}`,
-            status: question.urgency,
-            onOpen: () => selectQuestion(question.id)
-          }))}
-          title="Unresolved Questions"
-        />
-        <DashboardPanel
-          emptyText="No active candidate placement work is currently loaded."
-          icon={<MapPin size={17} />}
-          items={awaitingPlacement.map((candidate) => ({
-            key: `candidate-${candidate.id}`,
-            title: candidate.title,
-            meta: `${normalizeCandidateStatus(candidate.status)} / Updated ${formatDate(candidate.updated_at || candidate.created_at)}`,
-            status: getCandidateSource(candidate),
-            onOpen: () => selectCandidate(candidate.id)
-          }))}
-          title="Candidates Awaiting Review"
-        />
-        <DashboardPanel
-          emptyText="No recent decisions are currently loaded."
-          icon={<BookOpen size={17} />}
-          items={recentDecisions.map((decision) => ({
-            key: `decision-${decision.id}`,
-            title: decision.title,
-            meta: `${decision.status || 'Proposed'} / Updated ${formatDate(decision.updated_at)}`,
-            status: decision.final_decision || decision.answer ? 'Decision text present' : 'Final decision pending',
-            onOpen: () => selectDecision(decision.id)
-          }))}
-          title="Recent Decisions"
-        />
-        <DashboardPanel
-          emptyText="No continuity risks are currently surfaced from loaded data."
-          icon={<TriangleAlert size={17} />}
-          items={continuityRisks.map((risk) => ({
-            key: risk.key,
-            title: risk.title,
-            meta: risk.meta,
-            status: risk.status,
-            onOpen: risk.onOpen || (() => setActiveView(risk.fallbackView))
-          }))}
-          title="Continuity Attention"
-        />
-        <DashboardPanel
-          emptyText="No source-memory review items are currently waiting."
-          icon={<FileSearch size={17} />}
-          items={ingestionReviewItems.map((item) => ({
-            key: item.key,
-            title: item.title,
-            meta: item.meta,
-            status: item.status,
-            onOpen: () => setActiveView('candidates')
-          }))}
-          title="Ingestion Review"
-        />
+          <div className="dashboard-focus-queues">
+            <DashboardQueue
+              emptyText="No continuity review items are currently surfaced."
+              icon={<TriangleAlert size={15} />}
+              items={continuityRisks.map((risk) => ({
+                key: risk.key,
+                title: risk.title,
+                meta: risk.meta,
+                status: risk.status,
+                onOpen: risk.onOpen || (() => setActiveView(risk.fallbackView))
+              }))}
+              title="Continuity Review"
+            />
+            <DashboardQueue
+              emptyText="No source-memory review items are currently waiting."
+              icon={<FileSearch size={15} />}
+              items={ingestionReviewItems.map((item) => ({
+                key: item.key,
+                title: item.title,
+                meta: item.meta,
+                status: item.status,
+                onOpen: () => setActiveView('candidates')
+              }))}
+              title="Source Review"
+            />
+            <DashboardQueue
+              emptyText="No weak-confidence material is currently waiting."
+              icon={<Sparkles size={15} />}
+              items={weakConfidenceItems.map((item) => ({
+                key: item.key,
+                title: item.title,
+                meta: item.meta,
+                status: item.status,
+                onOpen: () => setActiveView('candidates')
+              }))}
+              title="Confidence Check"
+            />
+            <DashboardQueue
+              emptyText="No pending placement work is currently loaded."
+              icon={<MapPin size={15} />}
+              items={awaitingPlacement.map((candidate) => ({
+                key: `candidate-${candidate.id}`,
+                title: candidate.title,
+                meta: `${normalizeCandidateStatus(candidate.status)} / Updated ${formatDate(candidate.updated_at || candidate.created_at)}`,
+                status: getCandidateSource(candidate),
+                onOpen: () => selectCandidate(candidate.id)
+              }))}
+              title="Pending Placement"
+            />
+            <DashboardQueue
+              emptyText="No unresolved questions are currently loaded."
+              icon={<MessageSquareText size={15} />}
+              items={unresolvedQuestions.map((question) => ({
+                key: `question-${question.id}`,
+                title: question.question,
+                meta: `${question.status || 'Open'} / Updated ${formatDate(question.updated_at)}`,
+                status: question.urgency,
+                onOpen: () => selectQuestion(question.id)
+              }))}
+              title="Open Questions"
+            />
+            <DashboardQueue
+              emptyText="No recent decisions are currently loaded."
+              icon={<BookOpen size={15} />}
+              items={recentDecisions.map((decision) => ({
+                key: `decision-${decision.id}`,
+                title: decision.title,
+                meta: `${decision.status || 'Proposed'} / Updated ${formatDate(decision.updated_at)}`,
+                status: decision.final_decision || decision.answer ? 'Decision text present' : 'Final decision pending',
+                onOpen: () => selectDecision(decision.id)
+              }))}
+              title="Recent Decisions"
+            />
+          </div>
+        </aside>
       </div>
-
-      <section className="dashboard-panel dashboard-activity" aria-labelledby="recent-activity-heading">
-        <div className="dashboard-panel-title">
-          <History size={17} />
-          <h2 id="recent-activity-heading">Recent Editorial Activity</h2>
-        </div>
-        <div className="dashboard-activity-list">
-          {recentActivity.map((activity) => (
-            <button className="dashboard-row" key={activity.key} onClick={activity.onOpen} type="button">
-              <span>
-                <strong>{activity.title}</strong>
-                <small>{activity.type} / {activity.meta || 'Editorial record'} / {formatDate(activity.timestamp)}</small>
-              </span>
-              <ArrowRight size={15} />
-            </button>
-          ))}
-          {!recentActivity.length ? <p className="muted">No recent editorial activity is currently loaded.</p> : null}
-        </div>
-      </section>
     </section>
   );
 }
 
-function DashboardPanel({ emptyText, icon, items, title }) {
+function DashboardQueue({ emptyText, icon, items, title }) {
   return (
-    <section className="dashboard-panel">
-      <div className="dashboard-panel-title">
-        {icon}
-        <h2>{title}</h2>
+    <section className="dashboard-queue">
+      <div className="dashboard-queue-title">
+        <span>
+          {icon}
+          <strong>{title}</strong>
+        </span>
+        <small>{items.length}</small>
       </div>
       <div className="dashboard-panel-list">
         {items.map((item) => (
@@ -366,28 +399,28 @@ function buildContinuityRisks({ candidates, questions, decisions, timelineEvents
 function buildIngestionReviewItems(summary = {}) {
   const duplicates = (summary.duplicateReviews || []).map((item) => ({
     key: `duplicate-${item.id}`,
-    title: `Possible duplicate: ${formatReviewEndpoint(item.left_type, item.left_id)} / ${formatReviewEndpoint(item.right_type, item.right_id)}`,
+    title: `Duplicate review: ${formatReviewEndpoint(item.left_type, item.left_id)} / ${formatReviewEndpoint(item.right_type, item.right_id)}`,
     meta: `${item.reason || 'Manual duplicate review'} / Updated ${formatDate(item.updated_at || item.created_at)}`,
     status: item.confidence || item.status,
     timestamp: item.updated_at || item.created_at
   }));
   const extractions = (summary.unresolvedExtractions || []).map((item) => ({
     key: `extraction-${item.id}`,
-    title: item.title,
+    title: `Unresolved extraction: ${item.title}`,
     meta: `${formatReviewType(item.classification)} / ${item.source_label || 'Source preserved'} / Updated ${formatDate(item.updated_at || item.created_at)}`,
     status: item.confidence_state || item.status,
     timestamp: item.updated_at || item.created_at
   }));
   const fragments = (summary.narrativeFragments || []).map((item) => ({
     key: `fragment-${item.id}`,
-    title: item.title,
+    title: `Narrative fragment: ${item.title}`,
     meta: `${formatReviewType(item.fragment_type)} / ${item.source_label || 'Source preserved'} / Updated ${formatDate(item.updated_at || item.created_at)}`,
     status: item.confidence_state || item.status,
     timestamp: item.updated_at || item.created_at
   }));
   const continuity = (summary.continuityReviews || []).map((item) => ({
     key: `continuity-${item.id}`,
-    title: item.title,
+    title: `Continuity review: ${item.title}`,
     meta: `${formatReviewType(item.review_type)} / Updated ${formatDate(item.updated_at || item.created_at)}`,
     status: item.confidence_state || item.risk_level,
     timestamp: item.updated_at || item.created_at
@@ -395,6 +428,16 @@ function buildIngestionReviewItems(summary = {}) {
 
   return [...continuity, ...duplicates, ...extractions, ...fragments]
     .sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
+}
+
+function buildWeakConfidenceItems(summary = {}) {
+  const weakStates = new Set(['low', 'weak', 'uncertain', 'unverified', 'needs-review']);
+  return buildIngestionReviewItems(summary)
+    .filter((item) => weakStates.has(normalize(item.status)) || normalize(item.status).includes('weak') || normalize(item.status).includes('low'))
+    .map((item) => ({
+      ...item,
+      title: item.title.replace(/^(Unresolved extraction|Narrative fragment|Continuity review): /, '')
+    }));
 }
 
 function toActivity(type, record, title, meta, onOpen) {

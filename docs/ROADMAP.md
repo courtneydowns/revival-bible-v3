@@ -15,6 +15,28 @@ The system should help the user remember, compare, review, and intentionally pro
 
 ## Completed Recent Phases
 
+### Phase 34 — Dashboard / Editorial Home Structural UX Pass
+
+Status: Passed
+
+Summary:
+Reworked the Dashboard from a vertically stacked page into a calmer contained editorial home.
+
+Delivered:
+- desktop two-column Dashboard workspace
+- primary Continue Working region
+- contained Editorial Focus review column
+- compact review queues for continuity review, source review, weak-confidence material, pending placement, open questions, and recent decisions
+- continued surfacing for duplicate review, continuity review, unresolved extraction, narrative fragments, weak-confidence material, pending placement, and editorial risks
+- preserved Central Time timestamps
+- preserved autosave/status display and routing actions
+- avoided internal phase labels in primary Dashboard UI
+
+Validation:
+- npm run build passed
+- Electron dev launch passed
+- manual Dashboard smoke confirmed reduced long-scroll sprawl and visible contained editorial review surfaces
+
 ### Phase 33 — Editorial Ingestion / Continuity Protection Framework
 
 Status: Passed
@@ -43,45 +65,28 @@ Validation:
 
 ## Next Priority Phase
 
-### Phase 34 — Dashboard / Editorial Home Structural UX Pass
+### Phase 35 — Controlled Source Import / Extraction Planning
 
 Goal:
-Fix the Dashboard long-scroll issue and turn the Dashboard into a calmer, more structured editorial home workspace.
+Define the smallest safe next import/extraction workflow now that protected ingestion structures and a review-oriented Dashboard home exist.
 
 Why now:
-Phase 33 created the ingestion/review structures the Dashboard needs to surface. The layout should now be reworked around real editorial-review concepts instead of stacking more sections into a long scrolling page.
+Phase 33 created the safety framework and Phase 34 made review surfaces usable. The next phase should decide how controlled source import begins without bypassing provenance, duplicate review, continuity review, or explicit canon promotion.
 
 Primary objectives:
-- reduce the long-scrolling single-window feel
-- create contained, readable editorial workspace regions
-- improve Continue Working hierarchy
-- improve Editorial Focus hierarchy
-- surface review queues without clutter
-- support duplicate review, continuity review, unresolved extraction, weak-confidence material, narrative fragments, pending placement, and unresolved editorial risks
-- use calm, document-oriented UI patterns
-- preserve Central Time timestamps
-- preserve autosave expectations
-- preserve routing/history behavior
-- avoid visible internal phase labels in primary UI
+- identify the narrowest source import/extraction path to implement next
+- keep source memory preserved
+- keep extracted material reviewable before any canon promotion
+- route uncertain duplicates into review
+- route contradictions into continuity review
+- keep Dashboard review surfaces useful
 
 Strict non-goals:
-- no new ingestion architecture
-- no bulk extraction/import
 - no automatic canon mutation
-- no auto-merge
-- no auto-resolution of contradictions
+- no automatic duplicate merge
+- no automatic contradiction resolution
+- no bulk uncontrolled import
 - no screenplay-authoring systems
-- no enterprise dashboard styling
-- no fake productivity metrics
-
-Acceptance expectations:
-- Dashboard no longer feels like one long scroll window.
-- Main editorial surfaces are scannable without excessive vertical wandering.
-- Continue Working and Editorial Focus feel primary.
-- Review queues are visible but calm.
-- No internal build phase labels appear in primary UI.
-- npm run build passes.
-- Manual Electron smoke passes.
 
 ## Future Priorities
 

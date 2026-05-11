@@ -2,11 +2,31 @@
 
 ## Current Status
 
-Phase 33 passed.
+Phase 34 passed.
 
-Phase 33 established the Editorial Ingestion / Continuity Protection Framework before any large-scale document extraction or seeding. The app now has foundational structures for import sessions, source memory, editorial extractions, duplicate review, continuity review, contradiction routing, narrative fragments, provenance preservation, IPC/preload/store plumbing, and Dashboard surfacing groundwork without automatic canon mutation.
+Phase 34 reworked the Dashboard / Editorial Home into a calmer contained continuation workspace. Continue Working is now a stable primary region, Editorial Focus is a separate review column with compact contained queues, and the Dashboard no longer relies on a single long vertical stack.
 
 ## Recently Completed Phase
+
+### Phase 34 — Dashboard / Editorial Home Structural UX Pass
+
+Status: Passed
+
+Files changed:
+- src/components/Dashboard.jsx
+- src/index.css
+- phase docs
+
+Validated:
+- npm run build passed.
+- Electron dev launch passed.
+- Dashboard smoke confirmed a two-column contained editorial home with Continue Working, Recent Editorial Activity, and Editorial Focus visible without long-page sprawl.
+- Phase 33 review structures remain surfaced through duplicate review, continuity review, unresolved extraction, narrative fragment, weak-confidence, pending-placement, and editorial-risk queues.
+- Central Time timestamps remain visible.
+- No internal phase labels appear in primary Dashboard UI.
+- Dashboard navigation actions and autosave/status display remained stable in smoke.
+
+No unresolved blockers.
 
 ### Phase 33 — Editorial Ingestion / Continuity Protection Framework
 
@@ -74,31 +94,17 @@ Explicitly promoted material only.
 
 ## Next Recommended Phase
 
-### Phase 34 — Dashboard / Editorial Home Structural UX Pass
+### Phase 35 — Controlled Source Import / Extraction Planning
 
 Goal:
-Rework the Dashboard / Editorial Home so it no longer feels like one long scrolling window.
-
-Rationale:
-Phase 33 created the ingestion/review structures the Dashboard must eventually surface. The next phase should organize those structures into a calmer, more usable editorial home rather than continuing to stack more content vertically.
-
-Primary targets:
-- reduce long-scroll dashboard sprawl
-- create calmer contained workspace regions
-- improve Continue Working and Editorial Focus hierarchy
-- surface ingestion/review work without enterprise-dashboard styling
-- support review queues such as duplicate review, continuity review, unresolved extraction, weak-confidence material, narrative fragment review, pending placement, and unresolved editorial risks
-- avoid visible internal phase labels in primary UI
-- preserve Central Time timestamps
-- preserve autosave/routing/history expectations
+Define the smallest safe next step for controlled source import or extraction using the Phase 33 protection framework and Phase 34 Dashboard review home.
 
 Strict scope:
-- Dashboard structure and layout only
-- no new ingestion architecture
-- no canon mutation
-- no bulk import
+- planning and narrow workflow definition only unless explicitly approved
+- no automatic canon mutation
+- no automatic duplicate merge
+- no automatic contradiction resolution
 - no screenplay authoring features
-- no fake productivity metrics
 
 ## Workflow Reminder
 
