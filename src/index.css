@@ -461,7 +461,7 @@ button {
 }
 
 .view-candidates .content {
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .view {
@@ -2069,9 +2069,9 @@ h1 {
 .candidate-inbox-view {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 18px;
-  height: 100%;
-  min-height: 0;
+  gap: 14px;
+  min-height: 100%;
+  height: auto;
 }
 
 .candidate-header {
@@ -2084,36 +2084,39 @@ h1 {
 
 .candidate-layout {
   display: grid;
-  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+  grid-template-columns: minmax(210px, 240px) minmax(0, 1fr);
+  align-items: start;
   gap: 16px;
-  height: 100%;
+  height: auto;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .candidate-list-panel,
 .candidate-detail-panel {
   min-width: 0;
   min-height: 0;
-  overflow-y: auto;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--bg-raised);
 }
 
 .candidate-list-panel {
+  position: sticky;
+  top: 0;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   align-content: start;
-  gap: 12px;
+  gap: 10px;
+  max-height: calc(100vh - 146px);
   overflow: hidden;
-  padding: 12px;
+  padding: 10px;
 }
 
 .candidate-create {
   display: grid;
-  gap: 9px;
-  padding: 12px;
+  gap: 8px;
+  padding: 10px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: #151514;
@@ -2153,7 +2156,7 @@ h1 {
 }
 
 .candidate-create textarea {
-  min-height: 82px;
+  min-height: 64px;
   resize: vertical;
 }
 
@@ -2187,10 +2190,11 @@ h1 {
 .candidate-list {
   display: grid;
   align-content: start;
-  gap: 9px;
+  gap: 7px;
   min-height: 0;
   overflow-y: auto;
   padding-right: 2px;
+  overscroll-behavior: contain;
 }
 
 .candidate-empty-state {
@@ -2216,15 +2220,17 @@ h1 {
 
 .candidate-card {
   display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
   min-width: 0;
-  gap: 7px;
+  column-gap: 8px;
+  row-gap: 5px;
   width: 100%;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--bg-soft);
   color: var(--text-muted);
   cursor: pointer;
-  padding: 12px;
+  padding: 9px;
   text-align: left;
 }
 
@@ -2236,6 +2242,7 @@ h1 {
 }
 
 .candidate-card strong {
+  grid-column: 2;
   min-width: 0;
   overflow-wrap: anywhere;
   color: var(--text);
@@ -2243,16 +2250,26 @@ h1 {
 }
 
 .candidate-card > span:last-child {
+  grid-column: 2;
   display: -webkit-box;
   overflow: hidden;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   font-size: 13px;
   line-height: 1.45;
 }
 
+.candidate-card-index {
+  grid-row: 1 / span 3;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.8;
+}
+
 .candidate-card-topline {
   display: flex;
+  grid-column: 2;
   min-width: 0;
   flex-wrap: wrap;
   align-items: center;
@@ -2266,8 +2283,9 @@ h1 {
 .candidate-detail-panel {
   display: grid;
   align-content: start;
-  gap: 16px;
-  padding: 18px;
+  gap: 18px;
+  overflow: visible;
+  padding: 22px;
 }
 
 .candidate-detail-heading {
@@ -2289,13 +2307,13 @@ h1 {
 }
 
 .candidate-content {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-block: 1px solid var(--line);
   background: #141412;
-  padding: 16px;
+  padding: 20px 0;
 }
 
 .candidate-content p {
+  max-width: 82ch;
   margin-bottom: 0;
   color: var(--text);
   line-height: 1.7;
@@ -2394,6 +2412,7 @@ h1 {
 .candidate-promotion-panel {
   display: grid;
   gap: 14px;
+  max-width: 900px;
   border: 1px solid var(--accent);
   border-radius: var(--radius);
   background: #181714;
@@ -2457,7 +2476,7 @@ h1 {
 
 .candidate-meta-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
   gap: 12px;
 }
 
@@ -2505,27 +2524,16 @@ h1 {
 .candidate-status.rejected { color: var(--provisional); }
 
 @media (max-width: 860px) {
-  .view-candidates .content {
-    overflow-y: auto;
-  }
-
-  .candidate-inbox-view {
-    height: auto;
-  }
-
   .candidate-layout {
     grid-template-columns: 1fr;
-    height: auto;
-    overflow: visible;
   }
 
-  .candidate-list-panel,
-  .candidate-detail-panel {
-    overflow: visible;
+  .candidate-list-panel {
+    position: static;
+    max-height: 42vh;
   }
 
   .candidate-list {
-    overflow: visible;
     padding-right: 0;
   }
 }

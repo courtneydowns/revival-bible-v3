@@ -265,13 +265,14 @@ export default function CandidateInbox() {
           </form>
 
           <div className="candidate-list">
-            {candidates.length ? candidates.map((candidate) => (
+            {candidates.length ? candidates.map((candidate, index) => (
               <button
                 className={`candidate-card ${String(selectedCandidate?.id) === String(candidate.id) ? 'selected' : ''}`}
                 key={candidate.id}
                 onClick={() => selectCandidate(candidate.id)}
                 type="button"
               >
+                <span className="candidate-card-index">{String(index + 1).padStart(2, '0')}</span>
                 <span className="candidate-card-topline">
                   <CandidateStatusBadge status={candidate.status} />
                   <span>{candidate.type || 'Narrative Note'}</span>
