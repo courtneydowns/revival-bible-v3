@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BookOpen, Brain, Boxes, ChevronLeft, ChevronRight, CircleHelp, Clock3, FileStack, GitBranch, LayoutDashboard, Map, MessageSquareText, Network, PanelLeftClose, PanelLeftOpen, Users } from 'lucide-react';
+import { BookOpen, Brain, Boxes, ChevronLeft, ChevronRight, CircleHelp, Clock3, FileStack, GitBranch, Inbox, LayoutDashboard, Map, MessageSquareText, Network, PanelLeftClose, PanelLeftOpen, Users } from 'lucide-react';
 import { useRevivalStore } from '../store.js';
 
 const STORY_BIBLE_TREE_ID = 'story-bible';
@@ -10,6 +10,7 @@ const items = [
   ['episodes', 'Episodes', FileStack],
   ['characters', 'Characters', Users],
   ['context-packs', 'Context Packs', Boxes],
+  ['candidates', 'Candidates Inbox', Inbox],
   ['decisions', 'Decisions', GitBranch],
   ['questions', 'Questions', CircleHelp],
   ['session', 'AI Sessions', MessageSquareText],

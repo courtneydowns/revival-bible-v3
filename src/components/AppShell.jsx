@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useRevivalStore } from '../store.js';
 import AIPanel from './AIPanel.jsx';
 import BibleSection from './BibleSection.jsx';
+import CandidateInbox from './CandidateInbox.jsx';
 import CharacterRelationshipMap from './CharacterRelationshipMap.jsx';
 import CharacterWorkspace from './CharacterWorkspace.jsx';
 import ContextPacks from './ContextPacks.jsx';
@@ -26,6 +27,7 @@ const views = {
   episodes: EpisodeGuide,
   characters: CharacterWorkspace,
   'context-packs': ContextPacks,
+  candidates: CandidateInbox,
   decisions: DecisionTracker,
   questions: QuestionsLog,
   session: SessionInterface,
@@ -48,7 +50,7 @@ export default function AppShell() {
   }, [hydratePhaseOneData]);
 
   return (
-    <div className={`app-shell nav-${navMode} view-${activeView} ${['session', 'bible', 'living-docs'].includes(activeView) ? 'workspace-wide' : ''}`}>
+    <div className={`app-shell nav-${navMode} view-${activeView} ${['session', 'bible', 'living-docs', 'candidates'].includes(activeView) ? 'workspace-wide' : ''}`}>
       <NavRail />
       <main className="main-column">
         <TopBar />

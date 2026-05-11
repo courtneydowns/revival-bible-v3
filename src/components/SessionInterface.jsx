@@ -1,5 +1,5 @@
-import { Check, Copy, List, Pencil, PanelRightClose, PanelRightOpen, Play, RotateCcw, Trash2, X } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { Check, Copy, Expand, List, Pencil, PanelRightClose, PanelRightOpen, Play, Plus, RotateCcw, Trash2, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   assembleContextPackPrompt,
   assembleContextPackSessionContext,
@@ -25,6 +25,7 @@ const getSavedHistoryMode = () => {
 };
 
 const customSessionTitleStorageKey = 'revival-ai-session-titles';
+const sessionResponseScrollStorageKey = 'revival-ai-session-response-scroll';
 
 export default function SessionInterface() {
   const [contextPackId, setContextPackId] = useState('');
@@ -41,8 +42,11 @@ export default function SessionInterface() {
   const [status, setStatus] = useState('');
   const [titleDraft, setTitleDraft] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [deletingSessionId, setDeletingSessionId] = useState(null);
   const [historyMode, setHistoryMode] = useState(getSavedHistoryMode);
+  const [reader, setReader] = useState(null);
   const [customPromptTemplates] = useState(() => loadCustomPromptTemplates());
+  const responseScrollRef = useRef(null);
   const contextPacks = useRevivalStore((state) => state.contextPacks);
   const characters = useRevivalStore((state) => state.characters);
   const episodes = useRevivalStore((state) => state.episodes);
@@ -168,11 +172,42 @@ export default function SessionInterface() {
     setSessionToHydrateId(null);
   }, [activeAiSession, contextPacks, hydratedSessionId, sessionToHydrateId, submitting, templates]);
 
+  useEffect(() => {
+    const responseNode = responseScrollRef.current;
+    if (!responseNode || !activeAiSession?.id) return undefined;
+
+    const savedScroll = getSavedResponseScroll(activeAiSession.id);
+    const responseLength = String(activeAiSession.response || '').length;
+    const updatedAt = activeAiSession.updated_at || activeAiSession.created_at || '';
+    const nextTop = savedScroll
+      && savedScroll.responseLength === responseLength
+      && savedScroll.updatedAt === updatedAt
+      ? savedScroll.top
+      : 0;
+
+    const frameId = window.requestAnimationFrame(() => {
+      const maxTop = Math.max(0, responseNode.scrollHeight - responseNode.clientHeight);
+      responseNode.scrollTop = Math.min(nextTop, maxTop);
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [activeAiSession?.created_at, activeAiSession?.id, activeAiSession?.response, activeAiSession?.updated_at]);
+
   const openSavedSession = (sessionId) => {
     setCopyMessage('');
     setEditingTitle(false);
     setSessionToHydrateId(sessionId);
     selectAiSession(sessionId);
+  };
+
+  const startNewSessionDraft = () => {
+    setCopyMessage('');
+    setEditingTitle(false);
+    setHydratedSessionId(null);
+    setSessionToHydrateId(null);
+    setAdditionalInstructions('');
+    setStatus('New session draft ready.');
+    selectAiSession(null);
   };
 
   const changeTemplate = (nextTemplateId) => {
@@ -300,28 +335,45 @@ export default function SessionInterface() {
     }
   };
 
-  const confirmDeleteSession = async () => {
-    if (!activeAiSession?.id || submitting) return;
+  const saveResponseScroll = (event) => {
+    if (!activeAiSession?.id) return;
 
-    const confirmed = window.confirm(`Delete "${activeSessionTitle}"? This only removes the selected saved AI session.`);
+    persistResponseScroll(activeAiSession.id, {
+      responseLength: String(activeAiSession.response || '').length,
+      top: event.currentTarget.scrollTop,
+      updatedAt: activeAiSession.updated_at || activeAiSession.created_at || ''
+    });
+  };
+
+  const confirmDeleteSession = async () => {
+    if (!activeAiSession?.id || submitting || deletingSessionId) return;
+
+    const sessionId = activeAiSession.id;
+    const sessionTitle = activeSessionTitle;
+    const confirmed = window.confirm(`Delete "${sessionTitle}"? This only removes the selected saved AI session.`);
     if (!confirmed) return;
 
-    const deletedSessionId = activeAiSession.id;
-    const response = await deleteAiSession(deletedSessionId);
+    try {
+      setDeletingSessionId(sessionId);
+      const response = await deleteAiSession(sessionId);
 
-    if (response?.ok) {
-      const nextTitles = { ...customSessionTitles };
-      delete nextTitles[deletedSessionId];
-      persistCustomSessionTitles(nextTitles);
-      setCustomSessionTitles(nextTitles);
-      setCopyMessage('');
-      setEditingTitle(false);
-      setHydratedSessionId(null);
-      setSessionToHydrateId(null);
-      setStatus('Selected session deleted.');
-      showToast('Selected session deleted');
-    } else {
-      setStatus(response?.message || 'AI session delete failed.');
+      if (response?.ok) {
+        const nextTitles = { ...customSessionTitles };
+        delete nextTitles[sessionId];
+        persistCustomSessionTitles(nextTitles);
+        removeResponseScroll(sessionId);
+        setCustomSessionTitles(nextTitles);
+        setCopyMessage('');
+        setEditingTitle(false);
+        setHydratedSessionId(null);
+        setSessionToHydrateId(null);
+        setStatus('Selected session deleted.');
+        showToast('Selected session deleted');
+      } else {
+        setStatus(response?.message || 'AI session delete failed.');
+      }
+    } finally {
+      setDeletingSessionId(null);
     }
   };
 
@@ -331,6 +383,12 @@ export default function SessionInterface() {
         <div>
           <div className="eyebrow">AI Session</div>
           <h1>Single Response Workflow</h1>
+        </div>
+        <div className="session-workspace-actions">
+          <button className="secondary-button" disabled={submitting} onClick={startNewSessionDraft} type="button">
+            <Plus size={15} />
+            <span>New Session</span>
+          </button>
         </div>
       </div>
 
@@ -467,22 +525,47 @@ export default function SessionInterface() {
                   <RotateCcw size={14} />
                   <span>Re-run</span>
                 </button>
-                <button className="secondary-button danger-button" disabled={submitting} onClick={confirmDeleteSession} type="button">
+                <button className="secondary-button danger-button" disabled={submitting || Boolean(deletingSessionId)} onClick={confirmDeleteSession} type="button">
                   <Trash2 size={14} />
-                  <span>Delete</span>
+                  <span>{deletingSessionId ? 'Deleting...' : 'Delete'}</span>
                 </button>
               </div>
               <div className="session-response-grid">
                 <section>
                   <div className="session-context-header">
                     <h3>Prompt Preview</h3>
-                    <span>{(activeAiSession.prompt || '').length.toLocaleString()} chars</span>
+                    <div className="session-reader-actions">
+                      <span>{(activeAiSession.prompt || '').length.toLocaleString()} chars</span>
+                      <button
+                        aria-label="Expand prompt preview"
+                        className="icon-button"
+                        onClick={() => setReader({ title: 'Prompt Preview', text: activeAiSession.prompt || '', tone: 'mono' })}
+                        title="Expand prompt preview"
+                        type="button"
+                      >
+                        <Expand size={14} />
+                      </button>
+                    </div>
                   </div>
                   <pre>{activeAiSession.prompt}</pre>
                 </section>
                 <section>
-                  <h3>Response</h3>
-                  <pre className="session-response-text">{activeAiSession.response}</pre>
+                  <div className="session-context-header">
+                    <h3>Response</h3>
+                    <div className="session-reader-actions">
+                      <span>{(activeAiSession.response || '').length.toLocaleString()} chars</span>
+                      <button
+                        aria-label="Expand response"
+                        className="icon-button"
+                        onClick={() => setReader({ title: 'Response', text: activeAiSession.response || '', tone: 'response' })}
+                        title="Expand response"
+                        type="button"
+                      >
+                        <Expand size={14} />
+                      </button>
+                    </div>
+                  </div>
+                  <pre className="session-response-text" onScroll={saveResponseScroll} ref={responseScrollRef}>{activeAiSession.response}</pre>
                 </section>
               </div>
             </>
@@ -490,11 +573,24 @@ export default function SessionInterface() {
             <section className="prompt-preview" aria-label="Final prompt preview">
               <div className="session-context-header">
                 <h3>No Session Selected</h3>
-                <span>{finalPrompt.length.toLocaleString()} chars</span>
+                <div className="session-reader-actions">
+                  <span>{finalPrompt.length.toLocaleString()} chars</span>
+                  {finalPrompt ? (
+                    <button
+                      aria-label="Expand prompt preview"
+                      className="icon-button"
+                      onClick={() => setReader({ title: 'Prompt Preview', text: finalPrompt, tone: 'mono' })}
+                      title="Expand prompt preview"
+                      type="button"
+                    >
+                      <Expand size={14} />
+                    </button>
+                  ) : null}
+                </div>
               </div>
               <div className="session-empty-state">
-                <strong>{aiSessions.length ? 'Choose a saved session from history.' : 'No AI sessions saved yet.'}</strong>
-                <span>{finalPrompt ? 'Your current prompt preview is ready below.' : 'Create a context pack before starting an AI session.'}</span>
+                <strong>{aiSessions.length ? 'New session draft ready.' : 'No AI sessions saved yet.'}</strong>
+                <span>{finalPrompt ? 'Choose context and instructions, then generate when ready.' : 'Create a context pack before starting an AI session.'}</span>
               </div>
               {finalPrompt ? <pre>{finalPrompt}</pre> : null}
             </section>
@@ -537,28 +633,25 @@ export default function SessionInterface() {
           </div>
           {historyMode !== 'collapsed' ? <div className="session-history-list">
             {aiSessions.length ? aiSessions.map((session) => {
-              const isSelected = activeAiSession?.id === session.id;
+              const isSelected = String(activeAiSession?.id) === String(session.id);
               const sessionTitle = getSessionTitle(session, customSessionTitles);
 
               return (
-                <div
+                <button
                   aria-current={isSelected ? 'true' : undefined}
                   className={`session-history-item ${isSelected ? 'selected' : ''}`}
                   key={session.id}
+                  onClick={() => openSavedSession(session.id)}
+                  title={`${sessionTitle} / ${formatProvider(session.provider)} / ${session.model || 'model unset'} / ${formatDate(session.created_at)}`}
+                  type="button"
                 >
-                  <button
-                    onClick={() => openSavedSession(session.id)}
-                    title={`${sessionTitle} / ${formatProvider(session.provider)} / ${session.model || 'model unset'} / ${formatDate(session.created_at)}`}
-                    type="button"
-                  >
-                    <strong>
-                      <span>{sessionTitle}</span>
-                      {isSelected ? <span className="session-history-current">Current</span> : null}
-                    </strong>
-                  </button>
+                  <strong>
+                    <span>{sessionTitle}</span>
+                    {isSelected ? <span className="session-history-current">Current</span> : null}
+                  </strong>
                   {historyMode === 'expanded' ? <span>{session.model || 'model unset'}</span> : null}
                   {historyMode === 'expanded' ? <span>{formatDate(session.created_at)}</span> : null}
-                </div>
+                </button>
               );
             }) : (
               <div className="placeholder-block">No AI sessions saved yet.</div>
@@ -566,7 +659,7 @@ export default function SessionInterface() {
           </div> : (
             <div className="session-history-list collapsed-list" aria-label="Collapsed session history">
               {aiSessions.length ? aiSessions.map((session) => {
-                const isSelected = activeAiSession?.id === session.id;
+                const isSelected = String(activeAiSession?.id) === String(session.id);
                 const sessionTitle = getSessionTitle(session, customSessionTitles);
 
                 return (
@@ -587,6 +680,25 @@ export default function SessionInterface() {
           )}
         </aside>
       </div>
+      {reader ? (
+        <div className="session-reader-backdrop" role="presentation" onMouseDown={() => setReader(null)}>
+          <section
+            aria-label={reader.title}
+            aria-modal="true"
+            className="session-reader-modal"
+            onMouseDown={(event) => event.stopPropagation()}
+            role="dialog"
+          >
+            <div className="session-context-header">
+              <h2>{reader.title}</h2>
+              <button aria-label="Close reader" className="icon-button" onClick={() => setReader(null)} title="Close reader" type="button">
+                <X size={15} />
+              </button>
+            </div>
+            <pre className={reader.tone === 'response' ? 'session-reader-response' : ''}>{reader.text}</pre>
+          </section>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -623,6 +735,45 @@ function loadCustomSessionTitles() {
 function persistCustomSessionTitles(titles) {
   if (typeof localStorage === 'undefined') return;
   localStorage.setItem(customSessionTitleStorageKey, JSON.stringify(titles));
+}
+
+function getSavedResponseScroll(sessionId) {
+  if (typeof localStorage === 'undefined' || !sessionId) return null;
+
+  try {
+    const savedScrolls = JSON.parse(localStorage.getItem(sessionResponseScrollStorageKey) || '{}');
+    return savedScrolls[sessionId] || null;
+  } catch {
+    return null;
+  }
+}
+
+function persistResponseScroll(sessionId, scrollState) {
+  if (typeof localStorage === 'undefined' || !sessionId) return;
+
+  let savedScrolls = {};
+  try {
+    savedScrolls = JSON.parse(localStorage.getItem(sessionResponseScrollStorageKey) || '{}');
+  } catch {
+    savedScrolls = {};
+  }
+
+  localStorage.setItem(sessionResponseScrollStorageKey, JSON.stringify({
+    ...savedScrolls,
+    [sessionId]: scrollState
+  }));
+}
+
+function removeResponseScroll(sessionId) {
+  if (typeof localStorage === 'undefined' || !sessionId) return;
+
+  try {
+    const savedScrolls = JSON.parse(localStorage.getItem(sessionResponseScrollStorageKey) || '{}');
+    delete savedScrolls[sessionId];
+    localStorage.setItem(sessionResponseScrollStorageKey, JSON.stringify(savedScrolls));
+  } catch {
+    localStorage.removeItem(sessionResponseScrollStorageKey);
+  }
 }
 
 function getSessionTitle(session, customTitles = {}) {

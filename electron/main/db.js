@@ -528,6 +528,71 @@ export function createAiSession({
   };
 }
 
+export function getCandidates() {
+  return connection
+    .prepare('SELECT * FROM candidates ORDER BY COALESCE(updated_at, created_at) DESC, id DESC')
+    .all()
+    .map(hydrateCandidate);
+}
+
+export function getCandidate(id) {
+  const candidate = connection.prepare('SELECT * FROM candidates WHERE id = ?').get(id);
+  return candidate ? hydrateCandidate(candidate) : null;
+}
+
+export function createCandidate({
+  title = '',
+  content = '',
+  type = 'Narrative Note',
+  provenanceMetadata = {},
+  suggestedLinks = [],
+  notes = ''
+} = {}) {
+  const normalizedTitle = String(title || '').trim();
+  if (!normalizedTitle) {
+    return { ok: false, message: 'Candidate title is required.' };
+  }
+
+  const result = connection
+    .prepare(`
+      INSERT INTO candidates (title, content, type, provenance_metadata, suggested_links, notes)
+      VALUES (@title, @content, @type, @provenanceMetadata, @suggestedLinks, @notes)
+    `)
+    .run({
+      title: normalizedTitle,
+      content: String(content || '').trim(),
+      type: String(type || 'Narrative Note').trim() || 'Narrative Note',
+      provenanceMetadata: JSON.stringify(normalizeProvenanceMetadata(provenanceMetadata)),
+      suggestedLinks: JSON.stringify(Array.isArray(suggestedLinks) ? suggestedLinks : []),
+      notes: String(notes || '').trim()
+    });
+
+  return {
+    ok: true,
+    candidate: getCandidate(result.lastInsertRowid)
+  };
+}
+
+export function updateCandidateStatus(id, status) {
+  const nextStatus = normalizeCandidateStatus(status);
+  if (!nextStatus) {
+    return { ok: false, message: 'Candidate status is required.' };
+  }
+
+  const result = connection
+    .prepare('UPDATE candidates SET status = ? WHERE id = ?')
+    .run(nextStatus, id);
+
+  if (!result.changes) {
+    return { ok: false, message: 'Candidate not found.' };
+  }
+
+  return {
+    ok: true,
+    candidate: getCandidate(id)
+  };
+}
+
 export function addEntityLink({ sourceType, sourceId, targetType, targetId, relationshipType = 'related', note = '' } = {}) {
   const normalized = normalizeEntityLinkInput({ sourceType, sourceId, targetType, targetId, relationshipType, note });
   validateEntityReference(normalized.source_type, normalized.source_id);
@@ -1397,10 +1462,41 @@ function normalizeStatusValue(value) {
     .slice(0, 64);
 }
 
+function normalizeCandidateStatus(value) {
+  const label = String(value || '').trim().toLowerCase();
+  const allowed = {
+    new: 'New',
+    'in review': 'In Review',
+    'in-review': 'In Review',
+    promoted: 'Promoted',
+    rejected: 'Rejected'
+  };
+
+  return allowed[label] || null;
+}
+
+function normalizeProvenanceMetadata(value) {
+  const provenance = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  return {
+    source: String(provenance.source || 'Manual editorial note').trim(),
+    source_id: String(provenance.source_id || '').trim(),
+    workflow: String(provenance.workflow || 'Candidate Inbox').trim(),
+    created_at: String(provenance.created_at || new Date().toISOString()).trim()
+  };
+}
+
 function validateEntityReference(entityType, entityId) {
   if (!getEntityRecord(entityType, entityId)) {
     throw new Error(`Cannot tag missing ${entityType} record.`);
   }
+}
+
+function hydrateCandidate(candidate) {
+  return {
+    ...candidate,
+    provenance_metadata: parseJsonObject(candidate.provenance_metadata),
+    suggested_links: parseJsonArray(candidate.suggested_links)
+  };
 }
 
 function getEntityRecord(entityType, entityId) {
@@ -1694,6 +1790,11 @@ function parseJsonValue(value) {
 function parseJsonObject(value) {
   const parsed = parseJsonValue(value);
   return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+}
+
+function parseJsonArray(value) {
+  const parsed = parseJsonValue(value);
+  return Array.isArray(parsed) ? parsed : [];
 }
 
 function formatDocType(docType) {

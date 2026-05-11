@@ -72,6 +72,12 @@ contextBridge.exposeInMainWorld('revival', {
     addLink: (payload) => invoke('context-packs:add-link', payload),
     removeLink: (linkId) => invoke('context-packs:remove-link', linkId)
   },
+  candidates: {
+    getAll: () => invoke('candidates:get-all'),
+    get: (id) => invoke('candidates:get', id),
+    create: (payload) => invoke('candidates:create', payload),
+    updateStatus: (payload) => invoke('candidates:update-status', payload)
+  },
   search: {
     query: (query) => invoke('search:query', query),
     rebuildIndex: () => invoke('search:rebuild-index')

@@ -12,6 +12,23 @@ const getSavedNavMode = () => {
   return localStorage.getItem('revival-nav-mode') === 'compact' ? 'compact' : 'expanded';
 };
 
+const activeAiSessionStorageKey = 'revival-active-ai-session-id';
+const localCandidateStorageKey = 'revival-local-candidates';
+
+const getSavedActiveAiSessionId = () => {
+  if (typeof localStorage === 'undefined') return null;
+  return localStorage.getItem(activeAiSessionStorageKey) || null;
+};
+
+const persistActiveAiSessionId = (sessionId) => {
+  if (typeof localStorage === 'undefined') return;
+  if (sessionId) {
+    localStorage.setItem(activeAiSessionStorageKey, String(sessionId));
+  } else {
+    localStorage.removeItem(activeAiSessionStorageKey);
+  }
+};
+
 export const useRevivalStore = create((set, get) => ({
   navMode: getSavedNavMode(),
   activeView: 'dashboard',
@@ -23,6 +40,7 @@ export const useRevivalStore = create((set, get) => ({
   activeQuestionId: null,
   activeContextPackId: null,
   activeTimelineEventId: null,
+  activeCandidateId: null,
   activeLivingDocType: 'rewatch_ledger',
   activeLivingDocEntryId: null,
   expandedNodes: [],
@@ -40,7 +58,8 @@ export const useRevivalStore = create((set, get) => ({
   contextPacks: [],
   contextPackSessionContexts: {},
   aiSessions: [],
-  activeAiSessionId: null,
+  candidates: [],
+  activeAiSessionId: getSavedActiveAiSessionId(),
   activeAiSession: null,
   timelineEvents: [],
   canonTags: [],
@@ -91,7 +110,11 @@ export const useRevivalStore = create((set, get) => ({
   setActiveDecisionId: (activeDecisionId) => set({ activeDecisionId }),
   setActiveQuestionId: (activeQuestionId) => set({ activeQuestionId }),
   setActiveContextPackId: (activeContextPackId) => set({ activeContextPackId }),
-  setActiveAiSessionId: (activeAiSessionId) => set({ activeAiSessionId }),
+  setActiveCandidateId: (activeCandidateId) => set({ activeCandidateId }),
+  setActiveAiSessionId: (activeAiSessionId) => {
+    persistActiveAiSessionId(activeAiSessionId);
+    set({ activeAiSessionId });
+  },
   setContextPackSessionContext: (contextPackId, sessionContext) => set((state) => ({
     contextPackSessionContexts: {
       ...state.contextPackSessionContexts,
@@ -311,28 +334,72 @@ export const useRevivalStore = create((set, get) => ({
   },
   loadAiSessions: async () => {
     const aiSessions = await window.revival?.ai.listSessions();
-    const activeAiSessionId = get().activeAiSessionId || aiSessions?.[0]?.id || null;
+    const activeAiSessionId = get().activeAiSessionId || getSavedActiveAiSessionId();
     const activeAiSession = activeAiSessionId
       ? aiSessions?.find((session) => String(session.id) === String(activeAiSessionId))
       : null;
+    const nextActiveAiSession = activeAiSession || aiSessions?.[0] || null;
+    persistActiveAiSessionId(nextActiveAiSession?.id || null);
     set({
       aiSessions: aiSessions || [],
-      activeAiSessionId: activeAiSession?.id || aiSessions?.[0]?.id || null,
-      activeAiSession: activeAiSession || aiSessions?.[0] || null
+      activeAiSessionId: nextActiveAiSession?.id || null,
+      activeAiSession: nextActiveAiSession
     });
     return aiSessions || [];
   },
+  loadCandidates: async () => {
+    const candidates = window.revival?.candidates
+      ? await window.revival.candidates.getAll()
+      : getLocalCandidates();
+    const activeCandidateId = get().activeCandidateId || candidates?.[0]?.id || null;
+    set({ candidates: candidates || [], activeCandidateId });
+    return candidates || [];
+  },
+  selectCandidate: async (candidateId) => {
+    const api = window.revival;
+    if (!candidateId) return null;
+
+    const localCandidate = get().candidates.find((candidate) => String(candidate.id) === String(candidateId));
+    const candidate = localCandidate || await api?.candidates?.get(candidateId) || getLocalCandidates().find((item) => String(item.id) === String(candidateId));
+    set({
+      activeView: 'candidates',
+      activeCandidateId: candidate?.id || candidateId
+    });
+    return candidate || null;
+  },
+  createCandidate: async (payload) => {
+    const response = window.revival?.candidates
+      ? await window.revival.candidates.create(payload)
+      : createLocalCandidate(payload);
+    if (!response?.ok || !response.candidate) return response;
+    await get().loadCandidates();
+    set({ activeView: 'candidates', activeCandidateId: response.candidate.id });
+    return response;
+  },
+  updateCandidateStatus: async ({ id, status }) => {
+    const response = window.revival?.candidates
+      ? await window.revival.candidates.updateStatus({ id, status })
+      : updateLocalCandidateStatus({ id, status });
+    if (!response?.ok || !response.candidate) return response;
+    set((state) => ({
+      candidates: replaceById(state.candidates, response.candidate),
+      activeCandidateId: response.candidate.id
+    }));
+    return response;
+  },
   selectAiSession: async (sessionId) => {
     if (!sessionId) {
+      persistActiveAiSessionId(null);
       set({ activeAiSessionId: null, activeAiSession: null });
       return null;
     }
 
     const localSession = get().aiSessions.find((session) => String(session.id) === String(sessionId));
     const activeAiSession = localSession || await window.revival?.ai.getSession(sessionId);
+    persistActiveAiSessionId(activeAiSession?.id || null);
     set({
       activeView: 'session',
-      activeAiSessionId: activeAiSession?.id || sessionId,
+      activeAiSessionId: activeAiSession?.id || null,
       activeAiSession: activeAiSession || null
     });
     return activeAiSession || null;
@@ -346,6 +413,7 @@ export const useRevivalStore = create((set, get) => ({
       activeAiSessionId: response.session.id,
       activeAiSession: response.session
     });
+    persistActiveAiSessionId(response.session.id);
     return response;
   },
   deleteAiSession: async (sessionId) => {
@@ -366,6 +434,7 @@ export const useRevivalStore = create((set, get) => ({
 
     const aiSessions = await window.revival?.ai.listSessions();
     const nextActiveSession = aiSessions?.find((session) => String(session.id) !== String(sessionId)) || null;
+    persistActiveAiSessionId(nextActiveSession?.id || null);
     set({
       aiSessions: aiSessions || [],
       activeAiSessionId: nextActiveSession?.id || null,
@@ -560,9 +629,13 @@ export const useRevivalStore = create((set, get) => ({
   },
   hydratePhaseOneData: async () => {
     const api = window.revival;
-    if (!api) return;
+    if (!api) {
+      const candidates = getLocalCandidates();
+      set({ candidates, activeCandidateId: get().activeCandidateId || candidates[0]?.id || null });
+      return;
+    }
 
-    const [databaseInfo, nodeTree, episodes, characters, decisions, questions, contextPacks, aiSessions, livingRows, timelineEvents, canonTags, entityTagLinks, characterRelationshipCount] = await Promise.all([
+    const [databaseInfo, nodeTree, episodes, characters, decisions, questions, contextPacks, aiSessions, candidates, livingRows, timelineEvents, canonTags, entityTagLinks, characterRelationshipCount] = await Promise.all([
       api.app.getDatabaseInfo(),
       api.nodes.getTree(),
       api.episodes.getAll(),
@@ -571,6 +644,7 @@ export const useRevivalStore = create((set, get) => ({
       api.questions.getAll(),
       api.contextPacks.getAll(),
       api.ai.listSessions(),
+      api.candidates?.getAll() || [],
       api.living.getAll(),
       api.timeline.getEvents(),
       api.canon.getTags(),
@@ -581,6 +655,8 @@ export const useRevivalStore = create((set, get) => ({
     const livingDocs = groupLivingDocs(livingRows || []);
     const entityTagsByKey = groupEntityTags(entityTagLinks || []);
 
+    const hydratedAiSession = getHydratedAiSession(aiSessions, get().activeAiSessionId);
+
     set({
       databaseInfo,
       nodeTree,
@@ -590,8 +666,10 @@ export const useRevivalStore = create((set, get) => ({
       questions,
       contextPacks: contextPacks || [],
       aiSessions: aiSessions || [],
-      activeAiSessionId: get().activeAiSessionId || aiSessions?.[0]?.id || null,
-      activeAiSession: get().activeAiSession || aiSessions?.[0] || null,
+      candidates: candidates || [],
+      activeCandidateId: get().activeCandidateId || candidates?.[0]?.id || null,
+      activeAiSessionId: hydratedAiSession?.id || null,
+      activeAiSession: hydratedAiSession,
       livingDocs,
       timelineEvents: timelineEvents || [],
       canonTags: canonTags || [],
@@ -660,6 +738,79 @@ function replaceById(rows, nextRow) {
   return rows.map((row) => (String(row.id) === String(nextRow.id) ? nextRow : row));
 }
 
+function getLocalCandidates() {
+  if (typeof localStorage === 'undefined') return [];
+
+  try {
+    const candidates = JSON.parse(localStorage.getItem(localCandidateStorageKey) || '[]');
+    return Array.isArray(candidates) ? candidates : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistLocalCandidates(candidates) {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.setItem(localCandidateStorageKey, JSON.stringify(candidates));
+}
+
+function createLocalCandidate(payload = {}) {
+  const title = String(payload.title || '').trim();
+  if (!title) return { ok: false, message: 'Candidate title is required.' };
+
+  const createdAt = new Date().toISOString();
+  const candidate = {
+    id: `local-${Date.now()}`,
+    title,
+    content: String(payload.content || '').trim(),
+    status: 'New',
+    type: String(payload.type || 'Narrative Note').trim() || 'Narrative Note',
+    provenance_metadata: {
+      source: payload.provenanceMetadata?.source || 'Manual editorial note',
+      source_id: payload.provenanceMetadata?.source_id || '',
+      workflow: payload.provenanceMetadata?.workflow || 'Candidate Inbox',
+      created_at: payload.provenanceMetadata?.created_at || createdAt
+    },
+    suggested_links: Array.isArray(payload.suggestedLinks) ? payload.suggestedLinks : [],
+    notes: String(payload.notes || '').trim(),
+    created_at: createdAt,
+    updated_at: createdAt
+  };
+  const candidates = [candidate, ...getLocalCandidates()];
+  persistLocalCandidates(candidates);
+  return { ok: true, candidate };
+}
+
+function updateLocalCandidateStatus({ id, status }) {
+  const allowedStatuses = new Set(['New', 'In Review', 'Promoted', 'Rejected']);
+  if (!allowedStatuses.has(status)) return { ok: false, message: 'Candidate status is required.' };
+
+  let updatedCandidate = null;
+  const candidates = getLocalCandidates().map((candidate) => {
+    if (String(candidate.id) !== String(id)) return candidate;
+    updatedCandidate = {
+      ...candidate,
+      status,
+      updated_at: new Date().toISOString()
+    };
+    return updatedCandidate;
+  });
+
+  if (!updatedCandidate) return { ok: false, message: 'Candidate not found.' };
+  persistLocalCandidates(candidates);
+  return { ok: true, candidate: updatedCandidate };
+}
+
+function getHydratedAiSession(aiSessions = [], preferredSessionId = null) {
+  const savedSessionId = preferredSessionId || getSavedActiveAiSessionId();
+  const savedSession = savedSessionId
+    ? aiSessions.find((session) => String(session.id) === String(savedSessionId))
+    : null;
+  const nextSession = savedSession || aiSessions[0] || null;
+  persistActiveAiSessionId(nextSession?.id || null);
+  return nextSession;
+}
+
 function createNavigationSnapshot(state) {
   return {
     activeView: state.activeView,
@@ -673,6 +824,7 @@ function createNavigationSnapshot(state) {
     activeDecisionId: state.activeDecisionId,
     activeQuestionId: state.activeQuestionId,
     activeContextPackId: state.activeContextPackId,
+    activeCandidateId: state.activeCandidateId,
     activeAiSessionId: state.activeAiSessionId,
     activeAiSession: state.activeAiSession,
     activeTimelineEventId: state.activeTimelineEventId,

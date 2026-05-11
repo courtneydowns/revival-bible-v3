@@ -211,6 +211,19 @@ export function initializeSchema(db) {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS candidates (
+      id INTEGER PRIMARY KEY,
+      title TEXT NOT NULL,
+      content TEXT DEFAULT '',
+      status TEXT DEFAULT 'New',
+      type TEXT DEFAULT 'Narrative Note',
+      provenance_metadata TEXT DEFAULT '{}',
+      suggested_links TEXT DEFAULT '[]',
+      notes TEXT DEFAULT '',
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS exports (
       id INTEGER PRIMARY KEY,
       format TEXT,
@@ -246,6 +259,7 @@ export function initializeSchema(db) {
   createUpdatedAtTrigger(db, 'entity_links');
   createUpdatedAtTrigger(db, 'context_packs');
   createUpdatedAtTrigger(db, 'ai_sessions');
+  createUpdatedAtTrigger(db, 'candidates');
 
   ensureColumn(db, 'characters', 'canon_state', "TEXT DEFAULT 'developing'");
   ensureColumn(db, 'ai_sessions', 'provider', 'TEXT');
@@ -255,6 +269,10 @@ export function initializeSchema(db) {
   ensureColumn(db, 'ai_sessions', 'template_id', 'TEXT');
   ensureColumn(db, 'ai_sessions', 'user_instructions', 'TEXT');
   ensureColumn(db, 'ai_sessions', 'updated_at', 'DATETIME DEFAULT CURRENT_TIMESTAMP');
+  ensureColumn(db, 'candidates', 'provenance_metadata', "TEXT DEFAULT '{}'");
+  ensureColumn(db, 'candidates', 'suggested_links', "TEXT DEFAULT '[]'");
+  ensureColumn(db, 'candidates', 'notes', "TEXT DEFAULT ''");
+  ensureColumn(db, 'candidates', 'updated_at', 'DATETIME DEFAULT CURRENT_TIMESTAMP');
 }
 
 function createUpdatedAtTrigger(db, tableName) {
