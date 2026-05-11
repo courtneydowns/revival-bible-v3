@@ -8,7 +8,7 @@ Phase 28 — Roadmap Audit + Project-Control Docs Update
 
 ## Goal
 
-Audit the current roadmap and project-control docs against the actual product direction, completed phases, known backlog items, and prior recommendations, then update the docs so future phases include data safety, autosave/autobackup, candidate queue organization, editorial workflow polish, and production-readiness hardening.
+Audit the current roadmap and project-control docs against the actual product direction, completed phases, known backlog items, and prior recommendations, then update the docs so future phases include data safety, autosave/autobackup, recoverability, candidate queue organization, editorial workflow polish, creative memory retrieval, creative state continuity, canon confidence, provenance/archive direction, and production-readiness hardening.
 
 ## Current Stable Status
 
@@ -76,6 +76,28 @@ Make sure the roadmap/backlog explicitly includes:
 - token-efficient Codex workflow
 - surgical debug loop
 - concise output control
+- continuity-aware editorial operating system identity
+- creative continuity confidence and creative memory retrieval
+- manual canon authority
+- future Decision/Question resolution tracking
+- canon confidence levels
+- Imported Conversations / Claude dump pipeline
+- brainstorming/conversation classification categories
+- lightweight backlinks/provenance surfaces
+- Accepted / Needs Placement organizational grouping
+- Editorial Focus / Needs Attention dashboard layer
+- calm creative command center dashboard direction
+- long-term Slugline integration direction without premature coupling
+- explicit clarification that Revival Bible is not a generic to-do list, kanban board, enterprise dashboard, or productivity app
+- creative state continuity when reopening the project later
+- recovery, autosave, and recoverability as core product pillars
+- distinction between serious canon discussion, exploratory brainstorming, non-canon exploration, abandoned ideas, and joke/throwaway discussion
+- contradiction systems as lightweight editorial assistance, not autonomous canon resolution
+- subtle, expandable backlinks/provenance surfaces instead of graph-heavy interfaces
+- dashboard/task systems derived from editorial state
+- historical creative evolution, including abandoned and alternate ideas
+- future Slugline support for continuity-aware drafting, screenplay-to-canon provenance linkage, and canon/context retrieval during drafting
+- future priorities: continuity trust, editorial confidence, provenance, recall, recoverability, and low-friction creative workflows over aggressive AI automation or enterprise workflow complexity
 
 ## Strict Scope
 
@@ -99,6 +121,8 @@ Do not add:
 - ACTIVE_SCOPE.md points future work toward docs audit and then Phase 29 continuation.
 - Docs mention autosave/autobackup/data safety as a dedicated hardening phase.
 - Docs mention Candidates Inbox status filtering/organization as a planned or current queue clarity feature.
+- Docs mention creative memory, canon confidence, imported conversations, provenance backlinks, and editorial attention surfaces as future directions.
+- Docs mention creative state continuity, recoverability, lightweight contradiction assistance, historical creative evolution, and editorial-state-derived dashboard surfaces.
 - Docs preserve the rule: nothing becomes canon automatically.
 - Docs preserve token-management and output-control rules.
 - npm run build is not required unless Codex chooses to verify no app files changed, but git diff should confirm docs-only changes.

@@ -8,6 +8,21 @@ Nothing becomes canon automatically.
 
 The user remains authoritative. All promotion, merging, canonization, and continuity decisions must remain explicit and reviewable.
 
+Revival Bible v3 is not a generic to-do list, kanban board, enterprise dashboard, or productivity app. It is a continuity-aware editorial operating system: a permanent creative memory system, canon-management environment, provenance/archive layer, and decision-history system.
+
+Core differentiator:
+- creative continuity confidence
+- creative memory retrieval
+- creative state continuity across sessions
+
+When reopening the project later, the user should quickly understand:
+- what matters
+- what is unresolved
+- what changed
+- what needs attention
+- what is risky
+- where ideas originated
+
 ## Current Roadmap Position
 
 Completed / passed:
@@ -37,9 +52,19 @@ The remaining roadmap should focus less on foundational architecture and more on
 - data safety
 - review confidence
 - continuity assistance
+- creative memory retrieval
+- canon confidence
 - auditability
+- continuity trust
+- editorial confidence
+- provenance
+- recall
+- recoverability
+- low-friction creative workflows
 - production-readiness
 - calm UI polish
+
+These priorities should outrank aggressive AI automation or enterprise workflow complexity.
 
 ## Planned Phases / Workstreams
 
@@ -91,6 +116,8 @@ Docs-only phase.
 Goal:
 Protect user-authored canon, candidates, sessions, and editorial records from silent loss.
 
+Recovery, autosave, and recoverability are core product pillars.
+
 Include:
 - autosave important app state
 - autobackup SQLite/database data
@@ -136,6 +163,47 @@ Include:
 - clear before/after changes
 - no automatic merging
 
+### Future Phase — Creative Memory / Imported Conversations
+
+Goal:
+Make old development conversations useful without letting imported material mutate canon.
+
+Include:
+- immutable source archive for imported conversations / Claude dumps
+- chunked reader for long imports
+- immediate search over imported source text
+- annotations, tags, and bookmarks
+- manual extraction from imports into Candidates
+- manual promotion only
+- conversation classification such as Serious Canon Discussion, Canon Proposal, Working Canon, Canon Conflict, Exploratory Brainstorming, Wild Ideas, Alternate Timeline, Non-Canon Exploration, Continuity Review, Episode Planning, Arc Planning, Revisit Later, Joke/Throwaway, Research Notes, and Timeline Notes
+- clear distinction between serious canon discussion, exploratory brainstorming, non-canon exploration, abandoned ideas, and joke/throwaway discussion
+- preservation of historical creative evolution, including abandoned and alternate ideas, as long-term narrative memory
+
+### Future Phase — Decision / Question Resolution Tracking
+
+Goal:
+Track creative decisions and open questions through resolution without turning them into automatic canon.
+
+Include:
+- resolved states
+- final decision fields
+- rationale
+- linked entities
+- revision history
+- lightweight backlinks to decisions, questions, candidates, AI sessions, imported conversations, and story bible entries
+
+### Future Phase — Canon Confidence / Editorial Attention
+
+Goal:
+Help the user see how settled, sourced, and risky material is while preserving manual authority.
+
+Include:
+- canon confidence levels: Confirmed Canon, Working Canon, Tentative, Exploratory, Rejected, Alternate, Unknown
+- Accepted / Needs Placement organizational groups such as Future Episode, Season 1, Lore, Character Arc, Dialogue Ideas, Theme, Relationship, Twist, Canon Risk, Contradiction Risk, Maybe Later, Alternate Version, and Non-Canon Exploration
+- Editorial Focus / Needs Attention dashboard layer
+- auto-surfaced attention examples: unplaced accepted candidates, contradiction risks, unresolved questions, canon lacking provenance, imported sessions needing review, and timeline gaps
+- task/dashboard surfaces derived from editorial state, not generic productivity workflows
+
 ### Future Phase — Continuity / Timeline Assistance
 
 Goal:
@@ -146,8 +214,23 @@ Include:
 - timeline references
 - contradiction-risk visibility
 - source-backed suggestions
+- lightweight editorial-assistance contradiction review
 - no autonomous canon changes
+- no autonomous canon resolution
 - no relationship inference as fact
+
+### Future Phase — Creative Command Center Dashboard
+
+Goal:
+Evolve the dashboard into a calm creative command center rather than a productivity board.
+
+Include:
+- Continue Working
+- Editorial Focus
+- Creative Memory
+- Story Status
+- quiet surfaces for attention, provenance, and continuity confidence
+- dashboard/task systems derived from editorial state rather than generic productivity workflows
 
 ### Future Phase — Audit / History Systems
 
@@ -158,6 +241,8 @@ Include:
 - decision history
 - promotion history
 - source backlinks
+- provenance backlinks from decisions, questions, candidates, AI sessions, imported conversations, and story bible entries
+- subtle, expandable provenance surfaces instead of graph-heavy or cluttered interfaces
 - candidate history
 - lightweight audit trails
 - recovery-oriented review
@@ -188,6 +273,17 @@ Include:
 - accessibility/readability improvements
 - reduced crowding
 
+### Long-Term Direction — Slugline Integration
+
+Goal:
+Let Revival Bible and Slugline complement each other without premature coupling.
+
+Direction:
+- Revival Bible remains the narrative memory, continuity, canon, provenance, and decision-history layer.
+- Slugline remains the screenplay drafting and execution layer.
+- Future integration may support continuity-aware screenplay drafting, screenplay-to-canon provenance linkage, and canon/context retrieval during drafting.
+- Integration should be delayed until Revival's own data model, source archive, and canon authority flows are stable.
+
 ## Permanent Constraints
 
 Do not build:
@@ -197,6 +293,9 @@ Do not build:
 - relationship inference as fact
 - embeddings/vector systems unless deliberately approved later
 - enterprise dashboards
+- generic productivity dashboards
+- generic to-do lists
+- kanban boards
 - broad rewrites
 - modal-heavy workflows
 - kanban/drag-drop unless explicitly requested

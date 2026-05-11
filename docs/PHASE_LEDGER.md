@@ -51,3 +51,5 @@ Status: In progress.
 Summary:
 - Docs-only roadmap/project-control audit.
 - Future phases must preserve user authority, manual canon promotion, data safety, auditability, compact nav, calm UI, token-efficient Codex workflow, and output-control/silent mode.
+- Approved product direction added for creative memory retrieval, canon confidence, imported conversation archives, decision/question resolution tracking, provenance backlinks, editorial attention surfaces, calm command-center dashboard direction, and long-term Slugline separation.
+- Additional alignment added for creative state continuity, recoverability as a pillar, lightweight contradiction assistance, subtle provenance surfaces, historical creative evolution, editorial-state-derived dashboards, and Slugline continuity/provenance retrieval direction.

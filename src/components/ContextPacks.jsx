@@ -165,6 +165,9 @@ export default function ContextPacks() {
   const deletePack = async () => {
     if (!selectedPack || saving) return;
 
+    const confirmed = window.confirm(`Delete "${selectedPack.title}"? This removes only the context pack, not linked canon records.`);
+    if (!confirmed) return;
+
     await runAction(async () => {
       const response = await deleteContextPack(selectedPack.id);
       if (response?.ok) {
@@ -299,6 +302,9 @@ export default function ContextPacks() {
 
   const deletePromptTemplate = () => {
     if (!selectedTemplate || selectedTemplate.builtIn) return;
+
+    const confirmed = window.confirm(`Delete custom prompt template "${selectedTemplate.label}"?`);
+    if (!confirmed) return;
 
     const nextTemplates = customPromptTemplates.filter((template) => template.id !== selectedTemplate.id);
     persistCustomPromptTemplates(nextTemplates);

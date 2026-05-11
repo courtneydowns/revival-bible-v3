@@ -4,7 +4,15 @@
 
 ## Product Identity
 
-Revival Bible v3 is a continuity-aware narrative operating system and creative editorial environment for developing, reviewing, preserving, and promoting story material.
+Revival Bible v3 is a continuity-aware editorial operating system for developing, reviewing, preserving, and promoting story material.
+
+It is also a permanent creative memory system, canon-management environment, provenance/archive layer, and decision-history system.
+
+Its core differentiator is creative continuity confidence and creative memory retrieval.
+
+It is not a generic to-do list, kanban board, enterprise dashboard, or productivity app.
+
+It prioritizes creative state continuity: when reopening the project later, the user should immediately understand what matters, what is unresolved, what changed, what needs attention, what is risky, and where ideas originated.
 
 The app supports:
 - permanent development history
@@ -13,6 +21,9 @@ The app supports:
 - manual canon promotion
 - provenance/source traceability
 - editorial decision-making
+- creative memory retrieval
+- canon confidence review
+- recovery and recoverability
 - story bible/canon organization
 
 ## Core Product Rule
@@ -112,6 +123,7 @@ Planned:
 ### Data Safety / Persistence Hardening
 
 Planned dedicated hardening:
+- treat recovery, autosave, and recoverability as core product pillars
 - autosave important app state
 - autobackup SQLite/database data
 - back up SQLite/database data before risky migrations
@@ -139,9 +151,58 @@ Planned:
 - manual merge/review tooling
 - continuity/audit history
 - decision tracking improvements
+- future Decision/Question resolution tracking with resolved states, final decision fields, rationale, linked entities, and revision history
+- canon confidence levels: Confirmed Canon, Working Canon, Tentative, Exploratory, Rejected, Alternate, Unknown
 - timeline/continuity assistance
+- lightweight contradiction assistance, not autonomous canon resolution
+- lightweight backlinks/provenance surfaces across decisions, questions, candidates, AI sessions, imported conversations, and story bible entries
+- subtle, expandable provenance surfaces instead of graph-heavy or cluttered interfaces
 - calmer review interfaces
 - compact, low-noise editorial UI
+
+### Creative Memory / Imported Conversations
+
+Planned:
+- Imported Conversations / Claude dump pipeline
+- immutable source archive
+- chunked reader for long imports
+- immediate search over imported source text
+- annotations, tags, and bookmarks
+- manual extraction to Candidates
+- manual promotion only
+- classification categories such as Serious Canon Discussion, Canon Proposal, Working Canon, Canon Conflict, Exploratory Brainstorming, Wild Ideas, Alternate Timeline, Non-Canon Exploration, Continuity Review, Episode Planning, Arc Planning, Revisit Later, Joke/Throwaway, Research Notes, and Timeline Notes
+- clear distinction between serious canon discussion, exploratory brainstorming, non-canon exploration, abandoned ideas, and joke/throwaway discussion
+- preservation of historical creative evolution, including abandoned and alternate ideas, as long-term narrative memory
+
+### Editorial Focus / Needs Attention
+
+Planned:
+- calm dashboard layer for Continue Working, Editorial Focus, Creative Memory, and Story Status
+- dashboard/task systems derived from editorial state rather than generic productivity workflows
+- Accepted / Needs Placement grouping such as Future Episode, Season 1, Lore, Character Arc, Dialogue Ideas, Theme, Relationship, Twist, Canon Risk, Contradiction Risk, Maybe Later, Alternate Version, and Non-Canon Exploration
+- auto-surface unplaced accepted candidates, contradiction risks, unresolved questions, canon lacking provenance, imported sessions needing review, and timeline gaps
+
+### Long-Term Slugline Direction
+
+Planned:
+- Revival Bible remains the narrative memory, continuity, provenance, canon, and decision-history layer.
+- Slugline remains the screenplay drafting/execution layer.
+- Future integration may support continuity-aware screenplay drafting, screenplay-to-canon provenance linkage, and canon/context retrieval during drafting.
+- Avoid tight coupling until Revival's core authority, archive, and provenance systems are stable.
+
+## Future Direction Priorities
+
+Prioritize:
+- continuity trust
+- editorial confidence
+- provenance
+- recall
+- recoverability
+- low-friction creative workflows
+
+Deprioritize:
+- aggressive AI automation
+- enterprise workflow complexity
 
 ## Workflow Rules for Future Phases
 

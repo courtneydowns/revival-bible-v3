@@ -1,16 +1,39 @@
-import { Check, ExternalLink, Info, Plus, Send, Trash2, X } from 'lucide-react';
+import { Check, ExternalLink, Info, Plus, Send, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRevivalStore } from '../store.js';
 
 const acceptedStatus = 'Accepted / Needs Placement';
 const statuses = ['New', 'In Review', acceptedStatus, 'Promoted', 'Rejected'];
+const statusAliases = {
+  accepted: acceptedStatus,
+  acceptedandneedsplacement: acceptedStatus,
+  acceptedneedsplacement: acceptedStatus,
+  inreview: 'In Review',
+  needsplacement: acceptedStatus,
+  new: 'New',
+  pending: 'New',
+  promoted: 'Promoted',
+  rejected: 'Rejected'
+};
 const statusFilters = [
   ['All', 'All candidates'],
-  ['New', 'Pending review'],
-  ['In Review', 'In review'],
+  ['Pending', 'Pending'],
   [acceptedStatus, 'Needs placement'],
   ['Promoted', 'Promoted'],
   ['Rejected', 'Rejected']
+];
+const commonTagFilters = [
+  'contradiction-risk',
+  'canon',
+  'developing',
+  'character',
+  'timeline',
+  'relationship',
+  'episode',
+  'decision',
+  'question',
+  'location',
+  'unresolved'
 ];
 const statusCopy = {
   New: {
@@ -42,6 +65,7 @@ const promotionTargets = [
   ['location', 'Location'],
   ['bible_section', 'Story Bible entry/section']
 ];
+const candidateRecoveryStorageKey = 'revival-candidate-edit-drafts';
 
 export default function CandidateInbox() {
   const [draftTitle, setDraftTitle] = useState('');
@@ -51,14 +75,21 @@ export default function CandidateInbox() {
   const [editing, setEditing] = useState(false);
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
+  const [autoSaveStatus, setAutoSaveStatus] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [tagFilter, setTagFilter] = useState('');
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const [promotionOpen, setPromotionOpen] = useState(false);
   const [promotionTarget, setPromotionTarget] = useState('character');
   const [promotionDraft, setPromotionDraft] = useState(createPromotionDraft(null, 'character'));
   const titleInputRef = useRef(null);
   const contentInputRef = useRef(null);
   const typeInputRef = useRef(null);
+  const autoSaveTimerRef = useRef(null);
+  const filterRef = useRef(null);
   const candidates = useRevivalStore((state) => state.candidates);
+  const databasePath = useRevivalStore((state) => state.databaseInfo.path);
   const nodeTree = useRevivalStore((state) => state.nodeTree);
   const activeCandidateId = useRevivalStore((state) => state.activeCandidateId);
   const loadCandidates = useRevivalStore((state) => state.loadCandidates);
@@ -80,24 +111,29 @@ export default function CandidateInbox() {
     [activeCandidateId, candidates]
   );
   const filteredCandidates = useMemo(
-    () => statusFilter === 'All'
-      ? candidates
-      : candidates.filter((candidate) => normalizeCandidateStatusLabel(candidate.status) === statusFilter),
-    [candidates, statusFilter]
+    () => candidates.filter((candidate) => matchesCandidateFilter(candidate, statusFilter, tagFilter)),
+    [candidates, statusFilter, tagFilter]
   );
   const queueCounts = useMemo(() => {
-    const counts = Object.fromEntries(statuses.map((status) => [status, 0]));
+    const counts = Object.fromEntries(statusFilters.map(([status]) => [status, 0]));
     candidates.forEach((candidate) => {
       const status = normalizeCandidateStatusLabel(candidate.status);
-      counts[status] = (counts[status] || 0) + 1;
+      counts.All += 1;
+      if (status === 'New' || status === 'In Review') counts.Pending += 1;
+      if (status === acceptedStatus) counts[acceptedStatus] += 1;
+      if (status === 'Promoted') counts.Promoted += 1;
+      if (status === 'Rejected') counts.Rejected += 1;
     });
     return counts;
   }, [candidates]);
-  const activeQueueCount = (queueCounts.New || 0) + (queueCounts['In Review'] || 0) + (queueCounts[acceptedStatus] || 0);
-  const traceableQueueCount = (queueCounts.Promoted || 0) + (queueCounts.Rejected || 0);
-  const selectedFilterSummary = statusFilter === 'All'
-    ? 'Pending, in-review, accepted, promoted, and rejected candidates.'
-    : statusCopy[statusFilter]?.summary;
+  const tagOptions = useMemo(() => getTagOptions(candidates), [candidates]);
+  const activeQueueCount = (queueCounts.Pending || 0) + (queueCounts[acceptedStatus] || 0);
+  const traceableQueueCount = useMemo(
+    () => candidates.filter(hasTraceableProvenance).length,
+    [candidates]
+  );
+  const selectedFilterSummary = getFilterSummary(statusFilter, tagFilter, filteredCandidates.length);
+  const hasActiveFilters = statusFilter !== 'All' || Boolean(tagFilter);
 
   useEffect(() => {
     loadCandidates();
@@ -110,23 +146,90 @@ export default function CandidateInbox() {
   }, [activeCandidateId, candidates, selectCandidate]);
 
   useEffect(() => {
+    if (!filteredCandidates.length) return;
+    if (filteredCandidates.some((candidate) => String(candidate.id) === String(activeCandidateId))) return;
+    selectCandidate(filteredCandidates[0].id);
+  }, [activeCandidateId, filteredCandidates, selectCandidate]);
+
+  useEffect(() => {
+    if (!filterOpen) return undefined;
+
+    const closeFilter = (event) => {
+      if (event.key === 'Escape' || (event.type === 'mousedown' && !filterRef.current?.contains(event.target))) {
+        setFilterOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', closeFilter);
+    document.addEventListener('keydown', closeFilter);
+
+    return () => {
+      document.removeEventListener('mousedown', closeFilter);
+      document.removeEventListener('keydown', closeFilter);
+    };
+  }, [filterOpen]);
+
+  useEffect(() => {
     if (!selectedCandidate) {
       setEditing(false);
       setEditDraft({ title: '', content: '', type: 'Narrative Note', notes: '' });
+      setAutoSaveStatus('');
       return;
     }
 
+    const recoveredDraft = getCandidateRecoveryDraft(databasePath, selectedCandidate.id);
+    const shouldRecoverDraft = recoveredDraft && !candidateDraftsEqual(recoveredDraft, selectedCandidate);
     setEditing(false);
-    setEditDraft({
+    setEditDraft(shouldRecoverDraft ? recoveredDraft : {
       title: selectedCandidate.title || '',
       content: selectedCandidate.content || '',
       type: selectedCandidate.type || 'Narrative Note',
       notes: selectedCandidate.notes || ''
     });
+    setAutoSaveStatus(shouldRecoverDraft ? 'Recovered unsaved edits' : '');
+    if (shouldRecoverDraft) setEditing(true);
     setPromotionOpen(false);
     setPromotionTarget('character');
     setPromotionDraft(createPromotionDraft(selectedCandidate, 'character'));
-  }, [selectedCandidate?.id]);
+  }, [databasePath, selectedCandidate?.id]);
+
+  useEffect(() => {
+    if (!editing || !selectedCandidate) return undefined;
+
+    if (!hasCandidateDraftChanges(editDraft, selectedCandidate)) {
+      removeCandidateRecoveryDraft(databasePath, selectedCandidate.id);
+      setAutoSaveStatus('');
+      return undefined;
+    }
+
+    persistCandidateRecoveryDraft(databasePath, selectedCandidate.id, editDraft);
+    setAutoSaveStatus(editDraft.title.trim() ? 'Unsaved changes' : 'Title required to save');
+
+    if (!editDraft.title.trim()) return undefined;
+
+    if (autoSaveTimerRef.current) window.clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = window.setTimeout(async () => {
+      setAutoSaveStatus('Saving...');
+      const response = await updateCandidate({
+        id: selectedCandidate.id,
+        title: editDraft.title,
+        content: editDraft.content,
+        type: editDraft.type,
+        notes: editDraft.notes
+      });
+
+      if (response?.ok) {
+        removeCandidateRecoveryDraft(databasePath, selectedCandidate.id);
+        setAutoSaveStatus('Saved');
+      } else {
+        setAutoSaveStatus('Recovery draft saved locally');
+      }
+    }, 900);
+
+    return () => {
+      if (autoSaveTimerRef.current) window.clearTimeout(autoSaveTimerRef.current);
+    };
+  }, [databasePath, editDraft, editing, selectedCandidate, updateCandidate]);
 
   const addCandidate = async (event) => {
     event.preventDefault();
@@ -166,6 +269,7 @@ export default function CandidateInbox() {
 
   const cancelEdit = () => {
     if (!selectedCandidate) return;
+    removeCandidateRecoveryDraft(databasePath, selectedCandidate.id);
     setEditDraft({
       title: selectedCandidate.title || '',
       content: selectedCandidate.content || '',
@@ -173,6 +277,7 @@ export default function CandidateInbox() {
       notes: selectedCandidate.notes || ''
     });
     setEditing(false);
+    setAutoSaveStatus('');
   };
 
   const saveCandidate = async () => {
@@ -189,7 +294,9 @@ export default function CandidateInbox() {
     setSaving(false);
 
     if (response?.ok) {
+      removeCandidateRecoveryDraft(databasePath, selectedCandidate.id);
       setEditing(false);
+      setAutoSaveStatus('Saved');
       setMessage('Candidate edits saved.');
     } else {
       setMessage(response?.message || 'Candidate edits could not be saved.');
@@ -284,55 +391,147 @@ export default function CandidateInbox() {
 
       <div className="candidate-layout">
         <aside className="candidate-list-panel" aria-label="Candidate list">
-          <form className="candidate-create" onSubmit={addCandidate}>
+          <div className={`candidate-create ${createOpen ? 'open' : ''}`}>
             <div className="candidate-create-heading">
-              <strong>New Candidate</strong>
-              <span>Preserved until reviewed.</span>
+              <div>
+                <strong>New Candidate</strong>
+                {createOpen ? <span>Preserved until reviewed.</span> : null}
+              </div>
+              <button className="secondary-button" onClick={() => setCreateOpen((open) => !open)} type="button">
+                <Plus size={14} />
+                <span>{createOpen ? 'Close' : 'New'}</span>
+              </button>
             </div>
-            <input
-              aria-label="Candidate title"
-              onChange={(event) => setDraftTitle(event.target.value)}
-              placeholder="Add a candidate title"
-              ref={titleInputRef}
-              value={draftTitle}
-            />
-            <select aria-label="Candidate type" onChange={(event) => setDraftType(event.target.value)} ref={typeInputRef} value={draftType}>
-              <option>Narrative Note</option>
-              <option>Continuity Question</option>
-              <option>Character Detail</option>
-              <option>Timeline Detail</option>
-            </select>
-            <textarea
-              aria-label="Candidate content"
-              onChange={(event) => setDraftContent(event.target.value)}
-              placeholder="Candidate content or note"
-              ref={contentInputRef}
-              value={draftContent}
-            />
-            <button className="primary-button" disabled={saving || !draftTitle.trim()} onClick={addCandidate} type="submit">
-              <Plus size={15} />
-              <span>Add Candidate</span>
-            </button>
-          </form>
+            {createOpen ? (
+              <form className="candidate-create-form" onSubmit={addCandidate}>
+                <input
+                  aria-label="Candidate title"
+                  onChange={(event) => setDraftTitle(event.target.value)}
+                  placeholder="Add a candidate title"
+                  ref={titleInputRef}
+                  value={draftTitle}
+                />
+                <select aria-label="Candidate type" onChange={(event) => setDraftType(event.target.value)} ref={typeInputRef} value={draftType}>
+                  <option>Narrative Note</option>
+                  <option>Continuity Question</option>
+                  <option>Character Detail</option>
+                  <option>Timeline Detail</option>
+                </select>
+                <textarea
+                  aria-label="Candidate content"
+                  onChange={(event) => setDraftContent(event.target.value)}
+                  placeholder="Candidate content or note"
+                  ref={contentInputRef}
+                  value={draftContent}
+                />
+                <button className="primary-button" disabled={saving || !draftTitle.trim()} onClick={addCandidate} type="submit">
+                  <Plus size={15} />
+                  <span>Add Candidate</span>
+                </button>
+              </form>
+            ) : null}
+          </div>
 
-          <div className="candidate-filter">
-            <label>
-              <span>Queue</span>
-              <select aria-label="Filter candidates by status" onChange={(event) => setStatusFilter(event.target.value)} value={statusFilter}>
-                {statusFilters.map(([status, label]) => (
-                  <option key={status} value={status}>
-                    {label} ({status === 'All' ? candidates.length : queueCounts[status] || 0})
-                  </option>
-                ))}
-              </select>
-            </label>
+          <div className="candidate-filter" ref={filterRef}>
             <div className="candidate-filter-summary" aria-live="polite">
               <strong>{filteredCandidates.length}</strong>
               <span>{selectedFilterSummary}</span>
             </div>
-            <div className="candidate-queue-counts" aria-label="Candidate queue totals">
-              <span>Active {activeQueueCount}</span>
-              <span>Traceable {traceableQueueCount}</span>
+            <div className="candidate-filter-control">
+              <div className="candidate-filter-pills">
+                {statusFilter === 'All' && !tagFilter ? (
+                  <span className="candidate-filter-none">No filters applied</span>
+                ) : null}
+                {statusFilter !== 'All' ? (
+                  <button
+                    className={`candidate-filter-pill ${statusClassName(statusFilter)}`}
+                    onClick={() => setFilterOpen((open) => !open)}
+                    type="button"
+                  >
+                    {getFilterLabel(statusFilter)}
+                  </button>
+                ) : null}
+                {tagFilter ? (
+                  <button className={`candidate-filter-pill tag ${tagColorClass(tagFilter)}`} onClick={() => setTagFilter('')} type="button">
+                    <span>{formatTagLabel(tagFilter)}</span>
+                    <X size={11} />
+                  </button>
+                ) : null}
+              </div>
+              {hasActiveFilters ? (
+                <button className="candidate-filter-clear" onClick={() => {
+                  setStatusFilter('All');
+                  setTagFilter('');
+                  setFilterOpen(false);
+                }} type="button">
+                  Clear
+                </button>
+              ) : null}
+              <button
+                aria-expanded={filterOpen}
+                aria-haspopup="menu"
+                className="secondary-button candidate-filter-button"
+                onClick={() => setFilterOpen((open) => !open)}
+                type="button"
+              >
+                <SlidersHorizontal size={13} />
+                <span>Filter</span>
+              </button>
+              {filterOpen ? (
+                <div className="candidate-filter-menu" role="menu">
+                  <div className="candidate-filter-menu-section candidate-filter-menu-heading">
+                    <span>Status</span>
+                    {hasActiveFilters ? (
+                      <button onClick={() => {
+                        setStatusFilter('All');
+                        setTagFilter('');
+                        setFilterOpen(false);
+                      }} type="button">Clear all</button>
+                    ) : null}
+                  </div>
+                  {statusFilters.map(([status, label]) => (
+                    <button
+                      className={statusFilter === status ? 'selected' : ''}
+                      key={status}
+                      onClick={() => {
+                        setStatusFilter(status);
+                        setFilterOpen(false);
+                      }}
+                      role="menuitem"
+                      type="button"
+                    >
+                      <span>{status === 'All' ? label : getFilterLabel(status)}</span>
+                      <strong>{queueCounts[status] || 0}</strong>
+                    </button>
+                  ))}
+                  <div className="candidate-filter-menu-section">
+                    <span>Tags</span>
+                    {tagFilter ? (
+                      <button onClick={() => setTagFilter('')} type="button">Clear</button>
+                    ) : null}
+                  </div>
+                  {tagOptions.length ? tagOptions.map((tag) => (
+                    <button
+                      className={normalizeTagValue(tagFilter) === tag.slug ? 'selected' : ''}
+                      key={tag.slug}
+                      onClick={() => {
+                        setTagFilter(tag.slug);
+                        setFilterOpen(false);
+                      }}
+                      role="menuitem"
+                      type="button"
+                    >
+                      <span className={`candidate-tag ${tagColorClass(tag.slug)}`}>{tag.label}</span>
+                      <strong>{tag.count}</strong>
+                    </button>
+                  )) : (
+                    <div className="candidate-filter-menu-empty">No candidate tags yet.</div>
+                  )}
+                </div>
+              ) : null}
+            </div>
+            <div className="candidate-queue-summary" aria-label="Candidate queue totals">
+              {activeQueueCount} active <span aria-hidden="true">·</span> {traceableQueueCount} traceable
             </div>
           </div>
 
@@ -350,19 +549,29 @@ export default function CandidateInbox() {
                   <span>{candidate.type || 'Narrative Note'}</span>
                 </span>
                 <strong>{candidate.title}</strong>
+                {getCandidateTags(candidate).length ? (
+                  <span className="candidate-card-tags">
+                    {getCandidateTags(candidate).slice(0, 3).map((tag) => (
+                      <span className={`candidate-tag ${tagColorClass(tag.slug)}`} key={tag.slug}>{tag.label}</span>
+                    ))}
+                  </span>
+                ) : null}
                 <span className="candidate-card-state">{statusCopy[normalizeCandidateStatusLabel(candidate.status)]?.summary}</span>
                 <span>{candidate.content || 'No content yet.'}</span>
               </button>
             )) : candidates.length ? (
               <div className="candidate-empty-state">
-                <strong>No {statusFilter === 'All' ? 'candidates' : statusFilters.find(([status]) => status === statusFilter)?.[1].toLowerCase()}.</strong>
-                <span>This queue is clear for now. Change the filter to review another status.</span>
+                <strong>No matching candidates.</strong>
+                <span>{formatEmptyFilterMessage(statusFilter, tagFilter)}</span>
               </div>
             ) : (
               <div className="candidate-empty-state">
                 <strong>No candidates yet.</strong>
                 <span>Add a manual test candidate to start the review queue.</span>
-                <button className="secondary-button" onClick={() => titleInputRef.current?.focus()} type="button">
+                <button className="secondary-button" onClick={() => {
+                  setCreateOpen(true);
+                  window.requestAnimationFrame(() => titleInputRef.current?.focus());
+                }} type="button">
                   <Plus size={14} />
                   <span>New Candidate</span>
                 </button>
@@ -433,6 +642,7 @@ export default function CandidateInbox() {
                     Edit
                   </button>
                 )}
+                {autoSaveStatus ? <span className="save-state-text" role="status">{autoSaveStatus}</span> : null}
                 <button className="secondary-button" disabled={saving || selectedCandidate.status === 'In Review'} onClick={() => setStatus('In Review')} type="button">
                   In Review
                 </button>
@@ -594,6 +804,20 @@ export default function CandidateInbox() {
                   <p>{formatPromotions(selectedCandidate)}</p>
                 </div>
                 <div>
+                  <strong>Tags</strong>
+                  {getCandidateTags(selectedCandidate).length ? (
+                    <div className="candidate-detail-tags">
+                      {getCandidateTags(selectedCandidate).map((tag) => (
+                        <button className={`candidate-tag ${tagColorClass(tag.slug)}`} key={tag.slug} onClick={() => setTagFilter(tag.slug)} type="button">
+                          {tag.label}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p>No candidate tags yet.</p>
+                  )}
+                </div>
+                <div>
                   <strong>Notes</strong>
                   {editing ? (
                     <textarea
@@ -625,11 +849,182 @@ function CandidateStatusBadge({ status }) {
 }
 
 function normalizeCandidateStatusLabel(status) {
-  return statuses.includes(status) ? status : 'New';
+  if (statuses.includes(status)) return status;
+
+  const normalizedStatus = String(status || '')
+    .toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/[^a-z0-9]+/g, '');
+
+  return statusAliases[normalizedStatus] || 'New';
+}
+
+function matchesCandidateFilter(candidate, filter, tagFilter = '') {
+  const statusMatches = filter === 'All' || matchesStatusFilter(candidate, filter);
+  if (!statusMatches) return false;
+
+  const normalizedTagFilter = normalizeTagValue(tagFilter);
+  if (!normalizedTagFilter) return true;
+
+  return getCandidateTags(candidate).some((tag) => tag.slug === normalizedTagFilter);
+}
+
+function matchesStatusFilter(candidate, filter) {
+  if (filter === 'All') return true;
+
+  const status = normalizeCandidateStatusLabel(candidate?.status);
+  if (filter === 'Pending') return status === 'New' || status === 'In Review';
+  return status === filter;
+}
+
+function getFilterLabel(filter) {
+  if (filter === 'All') return 'All';
+  if (filter === 'Pending') return 'Pending';
+  return statusCopy[filter]?.label || filter;
+}
+
+function getFilterSummary(filter, tagFilter = '', count = 0) {
+  const statusSummary = filter === 'All'
+    ? 'All candidate statuses.'
+    : filter === 'Pending'
+      ? 'Pending and in-review candidates.'
+      : statusCopy[filter]?.summary || 'Filtered candidate queue.';
+  const tagSummary = tagFilter ? ` Tag: ${formatTagLabel(tagFilter)}.` : '';
+  return `${statusSummary}${tagSummary} ${count} shown.`;
 }
 
 function statusClassName(status) {
   return normalizeCandidateStatusLabel(status).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+function getTagOptions(candidates = []) {
+  const tagCounts = new Map();
+
+  candidates.forEach((candidate) => {
+    getCandidateTags(candidate).forEach((tag) => {
+      const current = tagCounts.get(tag.slug) || { ...tag, count: 0 };
+      current.count += 1;
+      tagCounts.set(tag.slug, current);
+    });
+  });
+
+  commonTagFilters.forEach((tagValue) => {
+    const normalized = normalizeTagValue(tagValue);
+    if (!tagCounts.has(normalized)) {
+      tagCounts.set(normalized, {
+        slug: normalized,
+        label: formatTagLabel(normalized),
+        count: 0,
+        synthetic: true
+      });
+    }
+  });
+
+  return [...tagCounts.values()]
+    .filter((tag) => tag.count > 0 || !tag.synthetic)
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+}
+
+function getCandidateTags(candidate = {}) {
+  const tags = new Map();
+  const addTag = (value, label = '') => {
+    const normalized = normalizeTagValue(value || label);
+    if (!normalized) return;
+    tags.set(normalized, {
+      slug: normalized,
+      label: label || formatTagLabel(normalized)
+    });
+  };
+
+  [
+    candidate.tags,
+    candidate.canon_tags,
+    candidate.matched_tags,
+    candidate.provenance_metadata?.tags,
+    candidate.provenance_metadata?.canon_tags
+  ].forEach((tagList) => {
+    if (!Array.isArray(tagList)) return;
+    tagList.forEach((tag) => {
+      if (typeof tag === 'string') {
+        addTag(tag);
+      } else if (tag) {
+        addTag(tag.slug || tag.value || tag.name || tag.label, tag.label || tag.name || '');
+      }
+    });
+  });
+
+  (Array.isArray(candidate.suggested_links) ? candidate.suggested_links : []).forEach((link) => {
+    addTag(link.entity_type || link.type);
+    if (Array.isArray(link.tags)) {
+      link.tags.forEach((tag) => addTag(tag.slug || tag.label || tag));
+    }
+  });
+
+  getCandidatePromotions(candidate).forEach((promotion) => {
+    addTag(promotion.requested_target || promotion.target_type);
+  });
+
+  const type = String(candidate.type || '').toLowerCase();
+  if (type.includes('character')) addTag('character');
+  if (type.includes('timeline')) addTag('timeline');
+  if (type.includes('question')) addTag('question');
+  if (type.includes('decision')) addTag('decision');
+  if (type.includes('location')) addTag('location');
+  if (type.includes('episode')) addTag('episode');
+
+  const content = `${candidate.title || ''} ${candidate.content || ''} ${candidate.notes || ''}`.toLowerCase();
+  commonTagFilters.forEach((tagValue) => {
+    const normalized = normalizeTagValue(tagValue);
+    const spaced = normalized.replace(/-/g, ' ');
+    if (content.includes(tagValue) || content.includes(spaced)) addTag(normalized);
+  });
+
+  if (normalizeCandidateStatusLabel(candidate.status) === acceptedStatus) addTag('developing');
+  if (normalizeCandidateStatusLabel(candidate.status) === 'Promoted') addTag('canon');
+
+  return [...tags.values()];
+}
+
+function normalizeTagValue(value = '') {
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, '-')
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]+/g, '')
+    .replace(/^-+|-+$/g, '');
+
+  if (normalized === 'contradictionrisk') return 'contradiction-risk';
+  return normalized;
+}
+
+function formatTagLabel(value = '') {
+  const normalized = normalizeTagValue(value);
+  if (!normalized) return 'Tag';
+  if (normalized === 'contradiction-risk') return 'Contradiction Risk';
+  return normalized.split('-').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+}
+
+function tagColorClass(value = '') {
+  const tag = normalizeTagValue(value);
+  if (tag.includes('contradiction') || tag.includes('risk') || tag.includes('unresolved')) return 'color-risk';
+  if (tag.includes('canon') || tag.includes('promoted')) return 'color-canon';
+  if (tag.includes('character')) return 'color-character';
+  if (tag.includes('timeline')) return 'color-timeline';
+  if (tag.includes('location')) return 'color-location';
+  if (tag.includes('episode')) return 'color-episode';
+  if (tag.includes('bible') || tag.includes('section')) return 'color-section';
+  if (tag.includes('relationship')) return 'color-relationship';
+  if (tag.includes('question')) return 'color-question';
+  if (tag.includes('decision')) return 'color-decision';
+  if (tag.includes('developing')) return 'color-developing';
+  return 'color-default';
+}
+
+function formatEmptyFilterMessage(statusFilter, tagFilter) {
+  const statusText = statusFilter === 'All' ? 'all statuses' : getFilterLabel(statusFilter).toLowerCase();
+  const tagText = tagFilter ? ` tagged ${formatTagLabel(tagFilter)}` : '';
+  return `No ${statusText}${tagText} candidates match right now. Clear or change filters to review another queue.`;
 }
 
 function formatProvenance(candidate) {
@@ -647,6 +1042,19 @@ function formatProvenanceSummary(candidate) {
 function hasSourceSession(candidate) {
   const provenance = candidate?.provenance_metadata || {};
   return provenance.source === 'AI Session' && Boolean(provenance.source_id);
+}
+
+function hasTraceableProvenance(candidate) {
+  const provenance = candidate?.provenance_metadata || {};
+  return Boolean(
+    provenance.source_id
+    || provenance.source_session_id
+    || provenance.source_passage
+    || provenance.source_range
+    || provenance.source_title
+    || getCandidatePromotions(candidate).length
+    || (Array.isArray(candidate?.suggested_links) && candidate.suggested_links.length)
+  );
 }
 
 function formatSuggestedLinks(links = []) {
@@ -695,4 +1103,64 @@ function formatDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return 'Unknown date';
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(date);
+}
+
+function getCandidateRecoveryDrafts() {
+  if (typeof localStorage === 'undefined') return {};
+
+  try {
+    return JSON.parse(localStorage.getItem(candidateRecoveryStorageKey) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function getCandidateRecoveryDraft(databasePath, candidateId) {
+  const draft = getCandidateRecoveryDrafts()[getCandidateRecoveryKey(databasePath, candidateId)];
+  if (!draft) return null;
+
+  return {
+    title: String(draft.title || ''),
+    content: String(draft.content || ''),
+    type: String(draft.type || 'Narrative Note'),
+    notes: String(draft.notes || '')
+  };
+}
+
+function persistCandidateRecoveryDraft(databasePath, candidateId, draft) {
+  if (typeof localStorage === 'undefined' || !candidateId) return;
+
+  localStorage.setItem(candidateRecoveryStorageKey, JSON.stringify({
+    ...getCandidateRecoveryDrafts(),
+    [getCandidateRecoveryKey(databasePath, candidateId)]: {
+      title: draft.title,
+      content: draft.content,
+      type: draft.type,
+      notes: draft.notes,
+      updatedAt: new Date().toISOString()
+    }
+  }));
+}
+
+function removeCandidateRecoveryDraft(databasePath, candidateId) {
+  if (typeof localStorage === 'undefined' || !candidateId) return;
+
+  const drafts = getCandidateRecoveryDrafts();
+  delete drafts[getCandidateRecoveryKey(databasePath, candidateId)];
+  localStorage.setItem(candidateRecoveryStorageKey, JSON.stringify(drafts));
+}
+
+function getCandidateRecoveryKey(databasePath, candidateId) {
+  return `${databasePath || 'local'}:${candidateId}`;
+}
+
+function hasCandidateDraftChanges(draft, candidate) {
+  return !candidateDraftsEqual(draft, candidate);
+}
+
+function candidateDraftsEqual(draft, candidate) {
+  return String(draft?.title || '') === String(candidate?.title || '')
+    && String(draft?.content || '') === String(candidate?.content || '')
+    && String(draft?.type || 'Narrative Note') === String(candidate?.type || 'Narrative Note')
+    && String(draft?.notes || '') === String(candidate?.notes || '');
 }

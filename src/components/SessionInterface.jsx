@@ -26,15 +26,18 @@ const getSavedHistoryMode = () => {
 
 const customSessionTitleStorageKey = 'revival-ai-session-titles';
 const sessionResponseScrollStorageKey = 'revival-ai-session-response-scroll';
+const sessionComposerDraftStorageKey = 'revival-ai-session-composer-draft';
 
 export default function SessionInterface() {
-  const [contextPackId, setContextPackId] = useState('');
-  const [provider, setProvider] = useState('openai');
-  const [models, setModels] = useState(defaultModels);
-  const [templateId, setTemplateId] = useState(sessionPromptTemplates[0].id);
-  const [templateInstructionsDraft, setTemplateInstructionsDraft] = useState(sessionPromptTemplates[0].instructions);
-  const [additionalInstructions, setAdditionalInstructions] = useState('');
+  const [recoveredComposerDraft] = useState(loadSessionComposerDraft);
+  const [contextPackId, setContextPackId] = useState(recoveredComposerDraft.contextPackId || '');
+  const [provider, setProvider] = useState(recoveredComposerDraft.provider || 'openai');
+  const [models, setModels] = useState({ ...defaultModels, ...recoveredComposerDraft.models });
+  const [templateId, setTemplateId] = useState(recoveredComposerDraft.templateId || sessionPromptTemplates[0].id);
+  const [templateInstructionsDraft, setTemplateInstructionsDraft] = useState(recoveredComposerDraft.templateInstructionsDraft || sessionPromptTemplates[0].instructions);
+  const [additionalInstructions, setAdditionalInstructions] = useState(recoveredComposerDraft.additionalInstructions || '');
   const [copyMessage, setCopyMessage] = useState('');
+  const [composerSaveStatus, setComposerSaveStatus] = useState(recoveredComposerDraft.updatedAt ? 'Recovered draft' : '');
   const [customSessionTitles, setCustomSessionTitles] = useState(loadCustomSessionTitles);
   const [editingTitle, setEditingTitle] = useState(false);
   const [hydratedSessionId, setHydratedSessionId] = useState(null);
@@ -51,7 +54,9 @@ export default function SessionInterface() {
   const [customPromptTemplates] = useState(() => loadCustomPromptTemplates());
   const responseScrollRef = useRef(null);
   const readerTextRef = useRef(null);
+  const composerSaveTimerRef = useRef(null);
   const contextPacks = useRevivalStore((state) => state.contextPacks);
+  const databasePath = useRevivalStore((state) => state.databaseInfo.path);
   const characters = useRevivalStore((state) => state.characters);
   const episodes = useRevivalStore((state) => state.episodes);
   const decisions = useRevivalStore((state) => state.decisions);
@@ -120,6 +125,7 @@ export default function SessionInterface() {
     async function loadProviderPreferences() {
       const savedSettings = await window.revival?.config.getPreferences();
       if (cancelled || !savedSettings) return;
+      if (recoveredComposerDraft.updatedAt) return;
 
       const savedProvider = normalizeProvider(savedSettings.aiProvider);
       setProvider(savedProvider);
@@ -134,7 +140,7 @@ export default function SessionInterface() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [recoveredComposerDraft.updatedAt]);
 
   useEffect(() => {
     document.querySelector('.content')?.scrollTo({ top: 0, left: 0 });
@@ -148,10 +154,56 @@ export default function SessionInterface() {
   }, [copyMessage]);
 
   useEffect(() => {
-    if (!contextPackId && contextPacks[0]?.id) {
+    if (contextPacks.length && (!contextPackId || !contextPacks.some((pack) => String(pack.id) === String(contextPackId)))) {
       setContextPackId(String(contextPacks[0].id));
     }
   }, [contextPackId, contextPacks]);
+
+  useEffect(() => {
+    if (!databasePath) return;
+
+    const workspaceDraft = loadSessionComposerDraft(databasePath);
+    if (!workspaceDraft.updatedAt || hasSessionComposerDraftChanges({
+      additionalInstructions,
+      templateId,
+      templateInstructionsDraft
+    }, templates)) return;
+
+    setContextPackId(workspaceDraft.contextPackId || contextPackId);
+    setProvider(workspaceDraft.provider || provider);
+    setModels({ ...defaultModels, ...workspaceDraft.models });
+    setTemplateId(workspaceDraft.templateId || templateId);
+    setTemplateInstructionsDraft(workspaceDraft.templateInstructionsDraft || getTemplateInstructions(workspaceDraft.templateId || templateId, templates));
+    setAdditionalInstructions(workspaceDraft.additionalInstructions || '');
+    setComposerSaveStatus('Recovered draft');
+  }, [additionalInstructions, contextPackId, databasePath, provider, templateId, templateInstructionsDraft, templates]);
+
+  useEffect(() => {
+    if (composerSaveTimerRef.current) window.clearTimeout(composerSaveTimerRef.current);
+
+    composerSaveTimerRef.current = window.setTimeout(() => {
+      const composerDraft = {
+        additionalInstructions,
+        contextPackId,
+        models,
+        provider,
+        templateId,
+        templateInstructionsDraft
+      };
+
+      if (hasSessionComposerDraftChanges(composerDraft, templates)) {
+        persistSessionComposerDraft(databasePath, composerDraft);
+        setComposerSaveStatus('Draft saved');
+      } else {
+        removeSessionComposerDraft(databasePath);
+        setComposerSaveStatus('');
+      }
+    }, 500);
+
+    return () => {
+      if (composerSaveTimerRef.current) window.clearTimeout(composerSaveTimerRef.current);
+    };
+  }, [additionalInstructions, contextPackId, databasePath, models, provider, templateId, templateInstructionsDraft, templates]);
 
   useEffect(() => {
     if (
@@ -272,7 +324,6 @@ export default function SessionInterface() {
 
     setProvider(normalizedProvider);
     setModels(nextModels);
-    setAdditionalInstructions('');
     await saveProviderPreferences(normalizedProvider, nextModels);
   };
 
@@ -283,7 +334,6 @@ export default function SessionInterface() {
     };
 
     setModels(nextModels);
-    setAdditionalInstructions('');
   };
 
   const changeHistoryMode = (nextMode) => {
@@ -315,7 +365,9 @@ export default function SessionInterface() {
         userInstructions: additionalInstructions
       });
 
-    if (response?.ok) {
+      if (response?.ok) {
+        removeSessionComposerDraft(databasePath);
+        setComposerSaveStatus('');
         setStatus('Session generated and saved');
         showToast('Session generated and saved');
       } else {
@@ -329,8 +381,19 @@ export default function SessionInterface() {
   };
 
   const clearDraft = () => {
+    if (hasSessionComposerDraftChanges({
+      additionalInstructions,
+      templateId,
+      templateInstructionsDraft
+    }, templates)) {
+      const confirmed = window.confirm('Reset this AI session draft? The saved recovery draft will be cleared.');
+      if (!confirmed) return;
+    }
+
     setTemplateInstructionsDraft(getTemplateInstructions(templateId, templates));
     setAdditionalInstructions('');
+    removeSessionComposerDraft(databasePath);
+    setComposerSaveStatus('');
     setStatus('');
   };
 
@@ -598,7 +661,10 @@ export default function SessionInterface() {
               </select>
             </div>
             <div className="field session-template-instructions-field">
-              <label htmlFor="ai-session-template-instructions">Template Instructions</label>
+              <label htmlFor="ai-session-template-instructions">
+                <span>Template Instructions</span>
+                {composerSaveStatus ? <small className="save-state-text" role="status">{composerSaveStatus}</small> : null}
+              </label>
               <textarea
                 disabled={submitting}
                 id="ai-session-template-instructions"
@@ -905,6 +971,50 @@ function loadCustomSessionTitles() {
   } catch {
     return {};
   }
+}
+
+function getSessionComposerDrafts() {
+  if (typeof localStorage === 'undefined') return {};
+
+  try {
+    const drafts = JSON.parse(localStorage.getItem(sessionComposerDraftStorageKey) || '{}');
+    return drafts.updatedAt ? { local: drafts } : drafts;
+  } catch {
+    return {};
+  }
+}
+
+function loadSessionComposerDraft(databasePath = 'local') {
+  return getSessionComposerDrafts()[getSessionComposerDraftKey(databasePath)] || {};
+}
+
+function persistSessionComposerDraft(databasePath, draft) {
+  if (typeof localStorage === 'undefined') return;
+
+  localStorage.setItem(sessionComposerDraftStorageKey, JSON.stringify({
+    ...getSessionComposerDrafts(),
+    [getSessionComposerDraftKey(databasePath)]: {
+      ...draft,
+      updatedAt: new Date().toISOString()
+    }
+  }));
+}
+
+function removeSessionComposerDraft(databasePath = 'local') {
+  if (typeof localStorage === 'undefined') return;
+
+  const drafts = getSessionComposerDrafts();
+  delete drafts[getSessionComposerDraftKey(databasePath)];
+  localStorage.setItem(sessionComposerDraftStorageKey, JSON.stringify(drafts));
+}
+
+function getSessionComposerDraftKey(databasePath) {
+  return databasePath || 'local';
+}
+
+function hasSessionComposerDraftChanges(draft, templates) {
+  return String(draft.additionalInstructions || '').trim()
+    || String(draft.templateInstructionsDraft || '') !== String(getTemplateInstructions(draft.templateId, templates) || '');
 }
 
 function persistCustomSessionTitles(titles) {
