@@ -1,4 +1,4 @@
-import { Check, Copy, Expand, List, Pencil, PanelRightClose, PanelRightOpen, Play, Plus, RotateCcw, Trash2, X } from 'lucide-react';
+import { Check, Copy, Expand, List, Pencil, PanelRightClose, PanelRightOpen, Play, Plus, RotateCcw, Send, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   assembleContextPackPrompt,
@@ -43,6 +43,9 @@ export default function SessionInterface() {
   const [titleDraft, setTitleDraft] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [deletingSessionId, setDeletingSessionId] = useState(null);
+  const [extractionDraft, setExtractionDraft] = useState(null);
+  const [extractionSelection, setExtractionSelection] = useState(null);
+  const [savingExtraction, setSavingExtraction] = useState(false);
   const [historyMode, setHistoryMode] = useState(getSavedHistoryMode);
   const [reader, setReader] = useState(null);
   const [customPromptTemplates] = useState(() => loadCustomPromptTemplates());
@@ -61,6 +64,7 @@ export default function SessionInterface() {
   const loadContextPacks = useRevivalStore((state) => state.loadContextPacks);
   const loadAiSessions = useRevivalStore((state) => state.loadAiSessions);
   const createAiSession = useRevivalStore((state) => state.createAiSession);
+  const createCandidate = useRevivalStore((state) => state.createCandidate);
   const deleteAiSession = useRevivalStore((state) => state.deleteAiSession);
   const selectAiSession = useRevivalStore((state) => state.selectAiSession);
   const showToast = useRevivalStore((state) => state.showToast);
@@ -335,6 +339,128 @@ export default function SessionInterface() {
     }
   };
 
+  const closeReader = () => {
+    setReader(null);
+    setExtractionSelection(null);
+  };
+
+  const captureResponseSelection = (responseNode) => {
+    if (!activeAiSession?.id || extractionDraft) return;
+
+    const selection = window.getSelection();
+    const selectedText = selection?.toString().trim() || '';
+
+    if (!selectedText || !responseNode || !selection?.rangeCount || !responseNode.contains(selection.anchorNode) || !responseNode.contains(selection.focusNode)) {
+      setExtractionSelection(null);
+      return;
+    }
+
+    const rect = selection.getRangeAt(0).getBoundingClientRect();
+    setExtractionSelection({
+      text: selectedText,
+      left: Math.min(rect.left + rect.width / 2, window.innerWidth - 130),
+      top: Math.max(rect.top - 44, 12)
+    });
+  };
+
+  const openExtractionDraft = () => {
+    if (!activeAiSession || !extractionSelection?.text) return;
+
+    const selectedTemplate = templates.find((template) => template.id === activeAiSession.template_id);
+    const createdAt = new Date().toISOString();
+    setExtractionDraft({
+      title: candidateTitleFromSelection(extractionSelection.text),
+      content: extractionSelection.text,
+      type: 'Narrative Note',
+      provenanceMetadata: {
+        source: 'AI Session',
+        source_id: activeAiSession.id,
+        source_title: activeSessionTitle,
+        provider: activeAiSession.provider || '',
+        model: activeAiSession.model || '',
+        template_id: activeAiSession.template_id || '',
+        template: selectedTemplate?.label || activeAiSession.template_id || '',
+        workflow: 'Manual extraction',
+        created_at: createdAt
+      }
+    });
+    setExtractionSelection(null);
+    window.getSelection()?.removeAllRanges();
+  };
+
+  const saveExtractionDraft = async (event) => {
+    event.preventDefault();
+    if (!extractionDraft?.title?.trim() || savingExtraction) return;
+
+    setSavingExtraction(true);
+    const response = await createCandidate({
+      title: extractionDraft.title,
+      content: extractionDraft.content,
+      type: extractionDraft.type,
+      provenanceMetadata: extractionDraft.provenanceMetadata
+    });
+    setSavingExtraction(false);
+
+    if (response?.ok) {
+      setExtractionDraft(null);
+      setCopyMessage('Sent to Candidates.');
+    } else {
+      setCopyMessage(response?.message || 'Candidate save failed.');
+    }
+  };
+
+  const extractionPopover = extractionSelection ? (
+    <button
+      className="session-selection-popover"
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={openExtractionDraft}
+      style={{ left: extractionSelection.left, top: extractionSelection.top }}
+      type="button"
+    >
+      <Send size={13} />
+      <span>Send to Candidates</span>
+    </button>
+  ) : null;
+
+  const extractionSheet = activeAiSession && extractionDraft ? (
+    <form className="session-extraction-sheet" onSubmit={saveExtractionDraft}>
+      <div className="session-context-header">
+        <h3>Send to Candidates</h3>
+        <button aria-label="Close extraction draft" className="icon-button" onClick={() => setExtractionDraft(null)} type="button">
+          <X size={14} />
+        </button>
+      </div>
+      <input
+        aria-label="Candidate title"
+        onChange={(event) => setExtractionDraft((draft) => ({ ...draft, title: event.target.value }))}
+        placeholder="Candidate title"
+        value={extractionDraft.title}
+      />
+      <select
+        aria-label="Candidate type"
+        onChange={(event) => setExtractionDraft((draft) => ({ ...draft, type: event.target.value }))}
+        value={extractionDraft.type}
+      >
+        <option>Narrative Note</option>
+        <option>Continuity Question</option>
+        <option>Character Detail</option>
+        <option>Timeline Detail</option>
+      </select>
+      <textarea
+        aria-label="Candidate content"
+        onChange={(event) => setExtractionDraft((draft) => ({ ...draft, content: event.target.value }))}
+        value={extractionDraft.content}
+      />
+      <div className="session-extraction-footer">
+        <span>{formatProvider(activeAiSession.provider)} / {activeAiSession.model || 'model unset'} / {formatDate(extractionDraft.provenanceMetadata.created_at)}</span>
+        <button className="primary-button" disabled={savingExtraction || !extractionDraft.title.trim()} type="submit">
+          <Send size={14} />
+          <span>{savingExtraction ? 'Saving...' : 'Save Candidate'}</span>
+        </button>
+      </div>
+    </form>
+  ) : null;
+
   const saveResponseScroll = (event) => {
     if (!activeAiSession?.id) return;
 
@@ -530,6 +656,8 @@ export default function SessionInterface() {
                   <span>{deletingSessionId ? 'Deleting...' : 'Delete'}</span>
                 </button>
               </div>
+              {!reader ? extractionPopover : null}
+              {!reader ? extractionSheet : null}
               <div className="session-response-grid">
                 <section>
                   <div className="session-context-header">
@@ -565,7 +693,13 @@ export default function SessionInterface() {
                       </button>
                     </div>
                   </div>
-                  <pre className="session-response-text" onScroll={saveResponseScroll} ref={responseScrollRef}>{activeAiSession.response}</pre>
+                  <pre
+                    className="session-response-text"
+                    onKeyUp={(event) => captureResponseSelection(event.currentTarget)}
+                    onMouseUp={(event) => captureResponseSelection(event.currentTarget)}
+                    onScroll={saveResponseScroll}
+                    ref={responseScrollRef}
+                  >{activeAiSession.response}</pre>
                 </section>
               </div>
             </>
@@ -681,7 +815,7 @@ export default function SessionInterface() {
         </aside>
       </div>
       {reader ? (
-        <div className="session-reader-backdrop" role="presentation" onMouseDown={() => setReader(null)}>
+        <div className="session-reader-backdrop" role="presentation" onMouseDown={closeReader}>
           <section
             aria-label={reader.title}
             aria-modal="true"
@@ -691,11 +825,17 @@ export default function SessionInterface() {
           >
             <div className="session-context-header">
               <h2>{reader.title}</h2>
-              <button aria-label="Close reader" className="icon-button" onClick={() => setReader(null)} title="Close reader" type="button">
+              <button aria-label="Close reader" className="icon-button" onClick={closeReader} title="Close reader" type="button">
                 <X size={15} />
               </button>
             </div>
-            <pre className={reader.tone === 'response' ? 'session-reader-response' : ''}>{reader.text}</pre>
+            {reader.tone === 'response' ? extractionPopover : null}
+            {reader.tone === 'response' ? extractionSheet : null}
+            <pre
+              className={reader.tone === 'response' ? 'session-reader-response' : ''}
+              onKeyUp={reader.tone === 'response' ? (event) => captureResponseSelection(event.currentTarget) : undefined}
+              onMouseUp={reader.tone === 'response' ? (event) => captureResponseSelection(event.currentTarget) : undefined}
+            >{reader.text}</pre>
           </section>
         </div>
       ) : null}
@@ -812,6 +952,12 @@ function cleanTitleLine(value = '') {
 function limitTitle(value = '') {
   const normalized = value.replace(/\s+/g, ' ').trim();
   return normalized.length > 54 ? `${normalized.slice(0, 51)}...` : normalized;
+}
+
+function candidateTitleFromSelection(value = '') {
+  const clean = cleanTitleLine(value);
+  if (!clean) return 'AI session excerpt';
+  return limitTitle(clean);
 }
 
 function extractTemplateInstructions(prompt = '') {

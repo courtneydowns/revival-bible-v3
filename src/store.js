@@ -783,6 +783,11 @@ function createLocalCandidate(payload = {}) {
     provenance_metadata: {
       source: payload.provenanceMetadata?.source || 'Manual editorial note',
       source_id: payload.provenanceMetadata?.source_id || '',
+      source_title: payload.provenanceMetadata?.source_title || '',
+      provider: payload.provenanceMetadata?.provider || '',
+      model: payload.provenanceMetadata?.model || '',
+      template_id: payload.provenanceMetadata?.template_id || '',
+      template: payload.provenanceMetadata?.template || '',
       workflow: payload.provenanceMetadata?.workflow || 'Candidate Inbox',
       created_at: payload.provenanceMetadata?.created_at || createdAt
     },

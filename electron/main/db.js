@@ -1494,6 +1494,11 @@ function normalizeProvenanceMetadata(value) {
   return {
     source: String(provenance.source || 'Manual editorial note').trim(),
     source_id: String(provenance.source_id || '').trim(),
+    source_title: String(provenance.source_title || '').trim(),
+    provider: String(provenance.provider || '').trim(),
+    model: String(provenance.model || '').trim(),
+    template_id: String(provenance.template_id || '').trim(),
+    template: String(provenance.template || '').trim(),
     workflow: String(provenance.workflow || 'Candidate Inbox').trim(),
     created_at: String(provenance.created_at || new Date().toISOString()).trim()
   };
