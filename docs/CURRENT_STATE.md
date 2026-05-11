@@ -210,18 +210,19 @@ Planned:
 
 ### Editorial Focus / Needs Attention
 
+Stable:
+- Dashboard Rework / Editorial Home Workspace passed manual Electron smoke.
+- Dashboard now acts as a calm editorial home workspace rather than a seeded-state metrics grid.
+- Continue Working surfaces active/recent editorial records and routes to the relevant workspace/detail.
+- Recent editorial activity, unresolved questions, candidates awaiting review/placement, recent decisions, and continuity attention are visible in lightweight readable lists.
+- Dashboard timestamps render visibly in Central Time.
+- Primary Dashboard UI avoids visible internal phase labels, including internal smoke records.
+- Dashboard surfaces are derived from editorial state rather than generic productivity metrics.
+
 Planned:
-- Dashboard Rework / Editorial Home Workspace as a future MVP phase
-- calm dashboard layer for Continue Working, Editorial Focus, Creative Memory, and Story Status
-- recent editorial activity
-- unresolved questions
-- candidates awaiting placement
-- recent decisions
-- continuity risks
-- dashboard/task systems derived from editorial state rather than generic productivity workflows
-- editorial labels such as status, source/provenance, canon state, decision history, review state, and updated timestamps
 - Accepted / Needs Placement grouping such as Future Episode, Season 1, Lore, Character Arc, Dialogue Ideas, Theme, Relationship, Twist, Canon Risk, Contradiction Risk, Maybe Later, Alternate Version, and Non-Canon Exploration
 - auto-surface unplaced accepted candidates, contradiction risks, unresolved questions, canon lacking provenance, imported sessions needing review, and timeline gaps
+- deeper dashboard personalization/rearrangement only if it remains calm and editorial
 - avoid enterprise-dashboard styling, fake productivity metrics, giant counters/charts, clutter-heavy widgets, and internal build Phase labels in the primary UI
 
 ### Long-Term Slugline Direction

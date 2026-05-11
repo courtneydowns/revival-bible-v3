@@ -1,66 +1,421 @@
+import { ArrowRight, BookOpen, History, MapPin, MessageSquareText, Sparkles, TriangleAlert } from 'lucide-react';
+import { useMemo } from 'react';
 import { useRevivalStore } from '../store.js';
+import { formatCentralTime } from '../time.js';
 import StatusBadge from './StatusBadge.jsx';
 
+const acceptedStatus = 'Accepted / Needs Placement';
+const openQuestionStatuses = new Set(['open', 'tentatively answered']);
+const unresolvedDecisionStatuses = new Set(['proposed', 'accepted']);
+const continuityRiskTags = ['contradiction-risk', 'canon-risk', 'timeline', 'continuity'];
+
 export default function Dashboard() {
-  const databaseInfo = useRevivalStore((state) => state.databaseInfo);
-  const nodeTree = useRevivalStore((state) => state.nodeTree);
-  const characters = useRevivalStore((state) => state.characters);
-  const episodes = useRevivalStore((state) => state.episodes);
+  const candidates = useRevivalStore((state) => state.candidates);
   const decisions = useRevivalStore((state) => state.decisions);
   const questions = useRevivalStore((state) => state.questions);
-  const livingDocs = useRevivalStore((state) => state.livingDocs);
-  const characterRelationshipCount = useRevivalStore((state) => state.characterRelationshipCount);
-  const livingFrameworkCount = Object.values(livingDocs).filter((entries) => entries.length > 0).length;
+  const aiSessions = useRevivalStore((state) => state.aiSessions);
+  const timelineEvents = useRevivalStore((state) => state.timelineEvents);
+  const activeCandidateId = useRevivalStore((state) => state.activeCandidateId);
+  const activeDecisionId = useRevivalStore((state) => state.activeDecisionId);
+  const activeQuestionId = useRevivalStore((state) => state.activeQuestionId);
+  const activeAiSessionId = useRevivalStore((state) => state.activeAiSessionId);
+  const selectCandidate = useRevivalStore((state) => state.selectCandidate);
+  const selectDecision = useRevivalStore((state) => state.selectDecision);
+  const selectQuestion = useRevivalStore((state) => state.selectQuestion);
+  const selectAiSession = useRevivalStore((state) => state.selectAiSession);
+  const setActiveView = useRevivalStore((state) => state.setActiveView);
+  const editorialCandidates = useMemo(() => candidates.filter((candidate) => !isInternalPhaseRecord(candidate, candidate.title)), [candidates]);
+  const editorialDecisions = useMemo(() => decisions.filter((decision) => !isInternalPhaseRecord(decision, decision.title)), [decisions]);
+  const editorialQuestions = useMemo(() => questions.filter((question) => !isInternalPhaseRecord(question, question.question)), [questions]);
+  const editorialAiSessions = useMemo(() => aiSessions.filter((session) => !isInternalPhaseRecord(session, getSessionTitle(session))), [aiSessions]);
+
+  const unresolvedQuestions = useMemo(
+    () => editorialQuestions
+      .filter((question) => openQuestionStatuses.has(normalize(question.status)))
+      .sort(compareRecent)
+      .slice(0, 5),
+    [editorialQuestions]
+  );
+  const awaitingPlacement = useMemo(
+    () => editorialCandidates
+      .filter((candidate) => normalizeCandidateStatus(candidate.status) === acceptedStatus || ['new', 'in review'].includes(normalize(candidate.status)))
+      .sort(compareRecent)
+      .slice(0, 5),
+    [editorialCandidates]
+  );
+  const recentDecisions = useMemo(
+    () => [...editorialDecisions].sort(compareRecent).slice(0, 4),
+    [editorialDecisions]
+  );
+  const continuityRisks = useMemo(
+    () => buildContinuityRisks({ candidates: editorialCandidates, questions: editorialQuestions, decisions: editorialDecisions, timelineEvents }).slice(0, 4),
+    [editorialCandidates, editorialDecisions, editorialQuestions, timelineEvents]
+  );
+  const recentActivity = useMemo(
+    () => [
+      ...editorialCandidates.map((candidate) => toActivity('Candidate', candidate, candidate.title, candidate.status, () => selectCandidate(candidate.id))),
+      ...editorialQuestions.map((question) => toActivity('Question', question, question.question, question.status, () => selectQuestion(question.id))),
+      ...editorialDecisions.map((decision) => toActivity('Decision', decision, decision.title, decision.status, () => selectDecision(decision.id))),
+      ...editorialAiSessions.map((session) => toActivity('AI Session', session, getSessionTitle(session), session.provider, () => selectAiSession(session.id)))
+    ].sort(compareActivityRecent).slice(0, 6),
+    [editorialAiSessions, editorialCandidates, editorialDecisions, editorialQuestions, selectAiSession, selectCandidate, selectDecision, selectQuestion]
+  );
+  const continueItems = useMemo(
+    () => buildContinueItems({
+      activeCandidate: editorialCandidates.find((candidate) => String(candidate.id) === String(activeCandidateId)),
+      activeDecision: editorialDecisions.find((decision) => String(decision.id) === String(activeDecisionId)),
+      activeQuestion: editorialQuestions.find((question) => String(question.id) === String(activeQuestionId)),
+      activeSession: editorialAiSessions.find((session) => String(session.id) === String(activeAiSessionId)),
+      awaitingPlacement,
+      unresolvedQuestions,
+      recentDecisions,
+      selectCandidate,
+      selectDecision,
+      selectQuestion,
+      selectAiSession
+    }),
+    [activeAiSessionId, activeCandidateId, activeDecisionId, activeQuestionId, awaitingPlacement, editorialAiSessions, editorialCandidates, editorialDecisions, editorialQuestions, recentDecisions, selectAiSession, selectCandidate, selectDecision, selectQuestion, unresolvedQuestions]
+  );
 
   return (
-    <section className="view">
-      <div className="eyebrow">Story bible state</div>
-      <h1>Revival Bible v3</h1>
+    <section className="view dashboard-home">
+      <div className="eyebrow">Editorial Home</div>
+      <h1>Continue the story work</h1>
       <p className="dashboard-lede">
-        Format: 3 seasons / 8 episodes each / 24 episodes total. This app is the local-first
-        memory system for story bible state, decisions, characters, episodes, living documents,
-        and future AI-assisted creative sessions.
+        A quiet recall space for open editorial threads, recent changes, and narrative continuity work.
+        Nothing here promotes or changes canon without an explicit user action.
       </p>
-      <div className="card-grid">
-        <article className="status-card">
-          <strong>Database</strong>
-          <StatusBadge status={databaseInfo.connected ? 'ESTABLISHED' : 'NEEDED'} />
-          <p className="muted">SQLite schema initializes on launch.</p>
-        </article>
-        <article className="status-card">
-          <strong>Story Source</strong>
-          <StatusBadge status={nodeTree.length ? 'ESTABLISHED' : 'NEEDED'} />
-          <p className="muted">{nodeTree.length} bible nodes available.</p>
-        </article>
-        <article className="status-card">
-          <strong>Characters</strong>
-          <StatusBadge status="DEVELOPING" />
-          <p className="muted">{characters.length} characters and {characterRelationshipCount} relationships seeded.</p>
-        </article>
-        <article className="status-card">
-          <strong>Episodes</strong>
-          <StatusBadge status={episodes.length === 24 ? 'ESTABLISHED' : 'NEEDED'} />
-          <p className="muted">{episodes.length} of 24 locked episode slots seeded.</p>
-        </article>
-        <article className="status-card">
-          <strong>Decisions</strong>
-          <StatusBadge status={decisions.length === 15 ? 'ESTABLISHED' : 'NEEDED'} />
-          <p className="muted">{decisions.length} of 15 pre-writing decisions seeded.</p>
-        </article>
-        <article className="status-card">
-          <strong>Questions</strong>
-          <StatusBadge status={questions.length === 49 ? 'ESTABLISHED' : 'NEEDED'} />
-          <p className="muted">{questions.length} of 49 open questions seeded.</p>
-        </article>
-        <article className="status-card">
-          <strong>Living Documents</strong>
-          <StatusBadge status={livingFrameworkCount === 4 ? 'ESTABLISHED' : 'NEEDED'} />
-          <p className="muted">{livingFrameworkCount} of 4 framework types seeded.</p>
-        </article>
+
+      <section className="dashboard-focus" aria-labelledby="continue-working-heading">
+        <div className="dashboard-section-heading">
+          <div>
+            <span className="dashboard-kicker">Continue Working</span>
+            <h2 id="continue-working-heading">Pick up where the memory is warm</h2>
+          </div>
+          <button className="secondary-button dashboard-heading-action" onClick={() => setActiveView('session')} type="button">
+            <Sparkles size={15} />
+            <span>AI Sessions</span>
+          </button>
+        </div>
+        <div className="dashboard-continue-list">
+          {continueItems.map((item) => (
+            <button className="dashboard-continue-card" key={item.key} onClick={item.onOpen} type="button">
+              <span className="dashboard-card-icon">{item.icon}</span>
+              <span>
+                <strong>{item.title}</strong>
+                <small>{item.meta}</small>
+              </span>
+              <ArrowRight size={16} />
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <div className="dashboard-editorial-grid">
+        <DashboardPanel
+          emptyText="No unresolved questions are currently loaded."
+          icon={<MessageSquareText size={17} />}
+          items={unresolvedQuestions.map((question) => ({
+            key: `question-${question.id}`,
+            title: question.question,
+            meta: `${question.status || 'Open'} / Updated ${formatDate(question.updated_at)}`,
+            status: question.urgency,
+            onOpen: () => selectQuestion(question.id)
+          }))}
+          title="Unresolved Questions"
+        />
+        <DashboardPanel
+          emptyText="No active candidate placement work is currently loaded."
+          icon={<MapPin size={17} />}
+          items={awaitingPlacement.map((candidate) => ({
+            key: `candidate-${candidate.id}`,
+            title: candidate.title,
+            meta: `${normalizeCandidateStatus(candidate.status)} / Updated ${formatDate(candidate.updated_at || candidate.created_at)}`,
+            status: getCandidateSource(candidate),
+            onOpen: () => selectCandidate(candidate.id)
+          }))}
+          title="Candidates Awaiting Review"
+        />
+        <DashboardPanel
+          emptyText="No recent decisions are currently loaded."
+          icon={<BookOpen size={17} />}
+          items={recentDecisions.map((decision) => ({
+            key: `decision-${decision.id}`,
+            title: decision.title,
+            meta: `${decision.status || 'Proposed'} / Updated ${formatDate(decision.updated_at)}`,
+            status: decision.final_decision || decision.answer ? 'Decision text present' : 'Final decision pending',
+            onOpen: () => selectDecision(decision.id)
+          }))}
+          title="Recent Decisions"
+        />
+        <DashboardPanel
+          emptyText="No continuity risks are currently surfaced from loaded data."
+          icon={<TriangleAlert size={17} />}
+          items={continuityRisks.map((risk) => ({
+            key: risk.key,
+            title: risk.title,
+            meta: risk.meta,
+            status: risk.status,
+            onOpen: risk.onOpen || (() => setActiveView(risk.fallbackView))
+          }))}
+          title="Continuity Attention"
+        />
       </div>
-      <div className="placeholder-block">
-        Editorial workspaces track canon state, review state, provenance, blockers, and unresolved questions.
+
+      <section className="dashboard-panel dashboard-activity" aria-labelledby="recent-activity-heading">
+        <div className="dashboard-panel-title">
+          <History size={17} />
+          <h2 id="recent-activity-heading">Recent Editorial Activity</h2>
+        </div>
+        <div className="dashboard-activity-list">
+          {recentActivity.map((activity) => (
+            <button className="dashboard-row" key={activity.key} onClick={activity.onOpen} type="button">
+              <span>
+                <strong>{activity.title}</strong>
+                <small>{activity.type} / {activity.meta || 'Editorial record'} / {formatDate(activity.timestamp)}</small>
+              </span>
+              <ArrowRight size={15} />
+            </button>
+          ))}
+          {!recentActivity.length ? <p className="muted">No recent editorial activity is currently loaded.</p> : null}
+        </div>
+      </section>
+    </section>
+  );
+}
+
+function DashboardPanel({ emptyText, icon, items, title }) {
+  return (
+    <section className="dashboard-panel">
+      <div className="dashboard-panel-title">
+        {icon}
+        <h2>{title}</h2>
+      </div>
+      <div className="dashboard-panel-list">
+        {items.map((item) => (
+          <button className="dashboard-row" key={item.key} onClick={item.onOpen} type="button">
+            <span>
+              <strong>{item.title}</strong>
+              <small>{item.meta}</small>
+            </span>
+            {item.status ? <StatusBadge status={item.status} /> : <ArrowRight size={15} />}
+          </button>
+        ))}
+        {!items.length ? <p className="muted">{emptyText}</p> : null}
       </div>
     </section>
   );
+}
+
+function buildContinueItems({
+  activeCandidate,
+  activeDecision,
+  activeQuestion,
+  activeSession,
+  awaitingPlacement,
+  unresolvedQuestions,
+  recentDecisions,
+  selectCandidate,
+  selectDecision,
+  selectQuestion,
+  selectAiSession
+}) {
+  const items = [];
+
+  if (activeCandidate) {
+    items.push({
+      key: `candidate-${activeCandidate.id}`,
+      title: activeCandidate.title,
+      meta: `Candidate / ${normalizeCandidateStatus(activeCandidate.status)} / Updated ${formatDate(activeCandidate.updated_at || activeCandidate.created_at)}`,
+      icon: <MapPin size={17} />,
+      onOpen: () => selectCandidate(activeCandidate.id)
+    });
+  }
+
+  if (activeQuestion) {
+    items.push({
+      key: `question-${activeQuestion.id}`,
+      title: activeQuestion.question,
+      meta: `Question / ${activeQuestion.status || 'Open'} / Updated ${formatDate(activeQuestion.updated_at)}`,
+      icon: <MessageSquareText size={17} />,
+      onOpen: () => selectQuestion(activeQuestion.id)
+    });
+  }
+
+  if (activeDecision) {
+    items.push({
+      key: `decision-${activeDecision.id}`,
+      title: activeDecision.title,
+      meta: `Decision / ${activeDecision.status || 'Proposed'} / Updated ${formatDate(activeDecision.updated_at)}`,
+      icon: <BookOpen size={17} />,
+      onOpen: () => selectDecision(activeDecision.id)
+    });
+  }
+
+  if (activeSession) {
+    items.push({
+      key: `session-${activeSession.id}`,
+      title: getSessionTitle(activeSession),
+      meta: `AI Session / ${activeSession.provider || 'provider unset'} / Updated ${formatDate(activeSession.updated_at || activeSession.created_at)}`,
+      icon: <Sparkles size={17} />,
+      onOpen: () => selectAiSession(activeSession.id)
+    });
+  }
+
+  const fallbacks = [
+    ...awaitingPlacement.map((candidate) => ({
+      key: `candidate-${candidate.id}`,
+      title: candidate.title,
+      meta: `Candidate / ${normalizeCandidateStatus(candidate.status)} / Updated ${formatDate(candidate.updated_at || candidate.created_at)}`,
+      icon: <MapPin size={17} />,
+      onOpen: () => selectCandidate(candidate.id)
+    })),
+    ...unresolvedQuestions.map((question) => ({
+      key: `question-${question.id}`,
+      title: question.question,
+      meta: `Question / ${question.status || 'Open'} / Updated ${formatDate(question.updated_at)}`,
+      icon: <MessageSquareText size={17} />,
+      onOpen: () => selectQuestion(question.id)
+    })),
+    ...recentDecisions.map((decision) => ({
+      key: `decision-${decision.id}`,
+      title: decision.title,
+      meta: `Decision / ${decision.status || 'Proposed'} / Updated ${formatDate(decision.updated_at)}`,
+      icon: <BookOpen size={17} />,
+      onOpen: () => selectDecision(decision.id)
+    }))
+  ];
+
+  return dedupeByKey([...items, ...fallbacks]).slice(0, 4);
+}
+
+function buildContinuityRisks({ candidates, questions, decisions, timelineEvents }) {
+  const candidateRisks = candidates
+    .filter((candidate) => getCandidateTags(candidate).some((tag) => continuityRiskTags.some((risk) => tag.includes(risk))))
+    .sort(compareRecent)
+    .map((candidate) => ({
+      key: `risk-candidate-${candidate.id}`,
+      title: candidate.title,
+      meta: `Candidate tag review / Updated ${formatDate(candidate.updated_at || candidate.created_at)}`,
+      status: getCandidateTags(candidate).find((tag) => continuityRiskTags.some((risk) => tag.includes(risk))) || 'Continuity',
+      onOpen: () => useRevivalStore.getState().selectCandidate(candidate.id)
+    }));
+
+  const blockedQuestions = questions
+    .filter((question) => question.blocked_by || question.blocks)
+    .sort(compareRecent)
+    .map((question) => ({
+      key: `risk-question-${question.id}`,
+      title: question.question,
+      meta: `Dependency review / Updated ${formatDate(question.updated_at)}`,
+      status: question.status || 'Open',
+      onOpen: () => useRevivalStore.getState().selectQuestion(question.id)
+    }));
+
+  const blockedDecisions = decisions
+    .filter((decision) => unresolvedDecisionStatuses.has(normalize(decision.status)) && (decision.blocked_by || decision.blocks))
+    .sort(compareRecent)
+    .map((decision) => ({
+      key: `risk-decision-${decision.id}`,
+      title: decision.title,
+      meta: `Decision dependency / Updated ${formatDate(decision.updated_at)}`,
+      status: decision.status || 'Proposed',
+      onOpen: () => useRevivalStore.getState().selectDecision(decision.id)
+    }));
+
+  const timelineGaps = timelineEvents
+    .filter((event) => normalize(event.status).includes('tentative') || normalize(event.status).includes('review'))
+    .sort(compareRecent)
+    .map((event) => ({
+      key: `risk-timeline-${event.id}`,
+      title: event.title || event.event || 'Timeline item',
+      meta: `Timeline review / Updated ${formatDate(event.updated_at || event.created_at)}`,
+      status: event.status || 'Timeline',
+      onOpen: () => useRevivalStore.getState().selectTimelineEvent(event.id)
+    }));
+
+  return [...candidateRisks, ...blockedQuestions, ...blockedDecisions, ...timelineGaps];
+}
+
+function toActivity(type, record, title, meta, onOpen) {
+  return {
+    key: `${type}-${record.id}`,
+    type,
+    title,
+    meta,
+    timestamp: record.updated_at || record.created_at,
+    onOpen
+  };
+}
+
+function compareRecent(a, b) {
+  return getTime(b) - getTime(a);
+}
+
+function compareActivityRecent(a, b) {
+  return new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime();
+}
+
+function getTime(record) {
+  return new Date(record?.updated_at || record?.created_at || 0).getTime();
+}
+
+function formatDate(value) {
+  return formatCentralTime(value, {
+    fallback: 'No timestamp',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short'
+  });
+}
+
+function normalize(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function normalizeCandidateStatus(status) {
+  const normalized = normalize(status).replace(/[_-]+/g, ' ');
+  if (normalized === 'accepted' || normalized === 'needs placement' || normalized === 'accepted needs placement') {
+    return acceptedStatus;
+  }
+  if (normalized === 'in review') return 'In Review';
+  if (normalized === 'promoted') return 'Promoted';
+  if (normalized === 'rejected') return 'Rejected';
+  return status || 'New';
+}
+
+function getCandidateTags(candidate) {
+  const tags = candidate?.provenance_metadata?.tags;
+  return Array.isArray(tags) ? tags.map((tag) => String(tag).toLowerCase()) : [];
+}
+
+function getCandidateSource(candidate) {
+  const source = candidate?.provenance_metadata?.source || 'Manual';
+  return `${source} source`;
+}
+
+function getSessionTitle(session) {
+  return session.template_id || session.context_type || session.user_instructions?.slice(0, 48) || `Session ${session.id}`;
+}
+
+function isInternalPhaseRecord(record, title) {
+  const haystack = [
+    title,
+    record?.template_id,
+    record?.user_instructions,
+    record?.prompt
+  ].filter(Boolean).join(' ');
+  return /\bphase[-\s]*\d+[a-z]?\b/i.test(haystack);
+}
+
+function dedupeByKey(items) {
+  const seen = new Set();
+  return items.filter((item) => {
+    if (seen.has(item.key)) return false;
+    seen.add(item.key);
+    return true;
+  });
 }

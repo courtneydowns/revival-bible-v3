@@ -48,7 +48,8 @@ Completed / passed:
 - Phase 31 passed final manual Electron smoke after adding Candidate Inbox editorial metadata controls, manual candidate tag add/remove, duplicate tag prevention, candidate metadata persistence/filtering/search updates, Questions metadata layout accessibility improvements, and a reliable Candidate delete modal that distinguishes protected/promoted candidates from deletable non-promoted candidates.
 
 Current / next:
-- Next MVP direction — Dashboard Rework / Editorial Home Workspace
+- Dashboard Rework / Editorial Home Workspace passed.
+- Next MVP direction — continue calm editorial workflow hardening without turning the app into generic productivity software.
 
 ## Remaining Roadmap Arc
 
@@ -245,11 +246,19 @@ Future additions:
 Goal:
 Help the user see how settled, sourced, and risky material is while preserving manual authority.
 
+Completed foundation:
+- Dashboard now acts as a calm editorial home workspace.
+- Continue Working surfaces active/recent editorial records.
+- Dashboard surfaces unresolved questions, candidates awaiting review/placement, recent decisions, continuity attention, and recent editorial activity.
+- Dashboard timestamps render in Central Time.
+- Dashboard records route to existing workspaces/details.
+- Primary Dashboard UI avoids internal phase labels and fake productivity metrics.
+
 Include:
 - canon confidence levels: Confirmed Canon, Working Canon, Tentative, Exploratory, Rejected, Alternate, Unknown
 - Accepted / Needs Placement organizational groups such as Future Episode, Season 1, Lore, Character Arc, Dialogue Ideas, Theme, Relationship, Twist, Canon Risk, Contradiction Risk, Maybe Later, Alternate Version, and Non-Canon Exploration
-- Editorial Focus / Needs Attention dashboard layer
-- auto-surfaced attention examples: unplaced accepted candidates, contradiction risks, unresolved questions, canon lacking provenance, imported sessions needing review, and timeline gaps
+- deeper Editorial Focus / Needs Attention refinement
+- auto-surfaced attention examples: canon lacking provenance, imported sessions needing review, and timeline gaps
 - task/dashboard surfaces derived from editorial state, not generic productivity workflows
 
 ### Future Phase — Continuity / Timeline Assistance

@@ -128,3 +128,16 @@ Future MVP direction:
 - Prioritize Continue Working, recent editorial activity, unresolved questions, candidates awaiting placement, recent decisions, and continuity risks.
 - Avoid enterprise-dashboard styling, fake productivity metrics, giant counters/charts, clutter-heavy widgets, and internal build Phase labels in primary UI.
 - Use editorial labels like status, source/provenance, canon state, decision history, review state, and updated timestamps.
+
+## Dashboard Rework — Editorial Home Workspace
+Status: Passed manual Electron smoke.
+
+Summary:
+- Dashboard was reworked from a seeded-state/count surface into a calm editorial home workspace.
+- Continue Working now surfaces active/recent editorial records and routes into existing workspaces.
+- Unresolved questions, candidates awaiting review/placement, recent decisions, continuity attention, and recent editorial activity are surfaced as lightweight editorial lists.
+- Dashboard timestamps render visibly in Central Time.
+- Primary Dashboard UI avoids internal phase labels, including internal smoke records.
+- No automatic canon mutation was added.
+- npm run build passed.
+- Manual Electron smoke passed for Dashboard rendering, Central Time timestamps, absence of internal phase labels, and routing into Candidates, Questions, Decisions, and continuity attention.

@@ -4,11 +4,11 @@
 
 ## Current Phase
 
-Post Phase 31 — Project-Control Docs Update
+Dashboard Rework / Editorial Home Workspace — Passed
 
 ## Goal
 
-Record Phase 31 as passed after final manual Electron smoke and keep the next MVP direction aligned around a calm editorial home workspace.
+Record the Dashboard rework as passed and keep the MVP direction aligned around a calm editorial home workspace.
 
 ## Current Stable Status
 
@@ -41,6 +41,25 @@ Record Phase 31 as passed after final manual Electron smoke and keep the next MV
 - Accepted remains non-canon until explicit promotion.
 - Existing promotion/source traceability and AI Sessions remain stable.
 - npm run build passes.
+- Dashboard now opens as an editorial home workspace rather than a seeded-state metrics grid.
+- Continue Working surfaces recent/open editorial records and routes into their workspaces.
+- Dashboard surfaces unresolved questions, candidates awaiting review/placement, recent decisions, continuity attention, and recent editorial activity.
+- Dashboard timestamps render visibly in Central Time.
+- Primary Dashboard UI avoids visible internal phase labels.
+- Dashboard routing into Candidates, Questions, Decisions, Continuity attention, and AI Sessions passed manual Electron smoke.
+
+## Dashboard Rework Final Status
+
+Passed:
+- Calm editorial home layout replaced the prior database/source/count dashboard.
+- Continue Working prioritizes active/recent editorial records without promoting or mutating canon.
+- Unresolved questions, candidate review/placement work, recent decisions, continuity attention, and recent editorial activity are surfaced as lightweight readable lists.
+- Dashboard records route into the appropriate existing workspaces/detail surfaces.
+- Visible Dashboard timestamps use Central Time.
+- Internal phase-labeled smoke records are not surfaced in the primary Dashboard UI.
+- No automatic canon mutation.
+- npm run build passed.
+- Manual Electron smoke passed.
 
 ## Phase 31 Final Status
 
