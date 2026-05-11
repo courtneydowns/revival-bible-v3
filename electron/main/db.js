@@ -747,7 +747,8 @@ export function createCandidate({
 
   return {
     ok: true,
-    candidate: getCandidate(result.lastInsertRowid)
+    candidate: getCandidate(result.lastInsertRowid),
+    search: rebuildSearchIndex()
   };
 }
 
@@ -767,7 +768,8 @@ export function updateCandidateStatus(id, status) {
 
   return {
     ok: true,
-    candidate: getCandidate(id)
+    candidate: getCandidate(id),
+    search: rebuildSearchIndex()
   };
 }
 
@@ -775,12 +777,18 @@ export function updateCandidate(id, {
   title = '',
   content = '',
   type = 'Narrative Note',
-  notes = ''
+  notes = '',
+  tags = null
 } = {}) {
   const normalizedTitle = String(title || '').trim();
   if (!normalizedTitle) {
     return { ok: false, message: 'Candidate title is required.' };
   }
+  const existing = getCandidate(id);
+  if (!existing) {
+    return { ok: false, message: 'Candidate not found.' };
+  }
+  const provenanceMetadata = normalizeCandidateTags(existing.provenance_metadata, tags);
 
   const result = connection
     .prepare(`
@@ -788,6 +796,7 @@ export function updateCandidate(id, {
       SET title = @title,
           content = @content,
           type = @type,
+          provenance_metadata = @provenanceMetadata,
           notes = @notes
       WHERE id = @id
     `)
@@ -796,6 +805,7 @@ export function updateCandidate(id, {
       title: normalizedTitle,
       content: String(content || '').trim(),
       type: String(type || 'Narrative Note').trim() || 'Narrative Note',
+      provenanceMetadata: JSON.stringify(provenanceMetadata),
       notes: String(notes || '').trim()
     });
 
@@ -805,7 +815,8 @@ export function updateCandidate(id, {
 
   return {
     ok: true,
-    candidate: getCandidate(id)
+    candidate: getCandidate(id),
+    search: rebuildSearchIndex()
   };
 }
 
@@ -822,7 +833,8 @@ export function deleteCandidate(id) {
   return {
     ok: result.changes > 0,
     deletedId: existing.id,
-    message: result.changes ? undefined : 'Candidate delete did not change the database.'
+    message: result.changes ? undefined : 'Candidate delete did not change the database.',
+    search: result.changes ? rebuildSearchIndex() : null
   };
 }
 
@@ -1176,6 +1188,23 @@ export function rebuildSearchIndex() {
         formatTagsForSearch(tagLookup, 'timeline_event', event.id)
       ]),
       section_path: formatTimelineLocation(event)
+    });
+  }
+
+  for (const candidate of getCandidates()) {
+    rows.push({
+      entity_type: 'candidate',
+      entity_id: String(candidate.id),
+      title: candidate.title,
+      content: compactText([
+        candidate.title,
+        candidate.type,
+        candidate.status,
+        candidate.content,
+        candidate.notes,
+        formatCandidateTagsForSearch(candidate)
+      ]),
+      section_path: 'Candidates Inbox'
     });
   }
 
@@ -1615,6 +1644,23 @@ function getTagLookup() {
     lookup.get(key).push(tag);
   }
 
+  for (const candidate of getCandidates()) {
+    const candidateTags = Array.isArray(candidate?.provenance_metadata?.tags) ? candidate.provenance_metadata.tags : [];
+    if (!candidateTags.length) continue;
+    const key = `candidate:${candidate.id}`;
+    if (!lookup.has(key)) lookup.set(key, []);
+    candidateTags.forEach((tag) => {
+      const slug = normalizeTagSlug(typeof tag === 'string' ? tag : tag?.slug || tag?.label);
+      if (!slug) return;
+      lookup.get(key).push({
+        slug,
+        label: typeof tag === 'object' && tag?.label ? tag.label : formatLabel(slug.replace(/-/g, ' ')),
+        color: 'default',
+        note: ''
+      });
+    });
+  }
+
   return lookup;
 }
 
@@ -1659,6 +1705,7 @@ function getSearchStatusLookup() {
   addRows('question', connection.prepare('SELECT id, status FROM questions').all());
   addRows('living_document', connection.prepare('SELECT id, status FROM living_documents').all());
   addRows('timeline_event', connection.prepare('SELECT id, status FROM timeline_events').all());
+  addRows('candidate', connection.prepare('SELECT id, status FROM candidates').all());
 
   return lookup;
 }
@@ -1666,6 +1713,19 @@ function getSearchStatusLookup() {
 function formatTagsForSearch(tagLookup, entityType, entityId) {
   return (tagLookup.get(`${entityType}:${entityId}`) || [])
     .map((tag) => `${tag.label} ${tag.slug} ${tag.slug.replace(/-/g, ' ')} ${tag.note || ''}`)
+    .join('\n');
+}
+
+function formatCandidateTagsForSearch(candidate) {
+  const tags = Array.isArray(candidate?.provenance_metadata?.tags) ? candidate.provenance_metadata.tags : [];
+  return tags
+    .map((tag) => {
+      const slug = normalizeTagSlug(typeof tag === 'string' ? tag : tag?.slug || tag?.label);
+      if (!slug) return '';
+      const label = typeof tag === 'object' && tag?.label ? tag.label : formatLabel(slug.replace(/-/g, ' '));
+      return `${label} ${slug} ${slug.replace(/-/g, ' ')}`;
+    })
+    .filter(Boolean)
     .join('\n');
 }
 
@@ -1815,6 +1875,7 @@ function normalizePromotionTarget(value) {
 function normalizeProvenanceMetadata(value) {
   const provenance = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   return {
+    ...provenance,
     source: String(provenance.source || 'Manual editorial note').trim(),
     source_id: String(provenance.source_id || '').trim(),
     source_title: String(provenance.source_title || '').trim(),
@@ -1824,6 +1885,28 @@ function normalizeProvenanceMetadata(value) {
     template: String(provenance.template || '').trim(),
     workflow: String(provenance.workflow || 'Candidate Inbox').trim(),
     created_at: String(provenance.created_at || new Date().toISOString()).trim()
+  };
+}
+
+function normalizeCandidateTags(provenanceMetadata = {}, tags = null) {
+  const metadata = normalizeProvenanceMetadata(provenanceMetadata);
+  if (!Array.isArray(tags)) return metadata;
+
+  const normalizedTags = [];
+  const seen = new Set();
+  for (const tag of tags) {
+    const slug = normalizeTagSlug(typeof tag === 'string' ? tag : tag?.slug || tag?.label || tag?.name);
+    if (!slug || seen.has(slug)) continue;
+    seen.add(slug);
+    normalizedTags.push({
+      slug,
+      label: typeof tag === 'object' && tag?.label ? String(tag.label).trim() : formatLabel(slug.replace(/-/g, ' '))
+    });
+  }
+
+  return {
+    ...metadata,
+    tags: normalizedTags.slice(0, 24)
   };
 }
 
@@ -2134,6 +2217,7 @@ function formatEntityType(entityType) {
     bible_section: 'Story Bible',
     episode: 'Episode',
     character: 'Character',
+    candidate: 'Candidate',
     decision: 'Decision',
     question: 'Question',
     timeline_event: 'Timeline',
@@ -2199,7 +2283,8 @@ function getSearchSourceCount() {
     'decisions',
     'questions',
     'living_documents',
-    'timeline_events'
+    'timeline_events',
+    'candidates'
   ].reduce((total, tableName) => total + connection.prepare(`SELECT COUNT(*) AS count FROM ${tableName}`).get().count, 0);
 }
 

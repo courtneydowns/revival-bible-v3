@@ -5,7 +5,7 @@ import { formatCentralTime } from '../time.js';
 const questionStates = ['open', 'tentatively-answered', 'resolved', 'deprecated'];
 const decisionStates = ['proposed', 'accepted', 'implemented', 'reversed', 'deprecated'];
 
-export default function ResolutionEditor({ record, type }) {
+export default function ResolutionEditor({ metadataSlot, record, type }) {
   const [draft, setDraft] = useState(() => getDraft(record, type));
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
@@ -14,6 +14,8 @@ export default function ResolutionEditor({ record, type }) {
   const finalField = type === 'decision' ? 'final_decision' : 'final_answer';
   const finalLabel = type === 'decision' ? 'Final Decision' : 'Final Answer';
   const contentFields = type === 'decision' ? decisionContentFields : questionContentFields;
+  const metadataFields = contentFields.filter((field) => field.type === 'select');
+  const editorialFields = contentFields.filter((field) => field.type !== 'select');
   const states = useMemo(() => {
     const options = type === 'decision' ? decisionStates : questionStates;
     return [...new Set([record?.status, ...options].filter(Boolean).map((status) => String(status).toLowerCase()))];
@@ -92,28 +94,33 @@ export default function ResolutionEditor({ record, type }) {
         </select>
       </label>
 
-      {contentFields.map((field) => (
+      {metadataFields.map((field) => (
         <label className={`resolution-field field-${field.name}`} key={field.name}>
           <span>{field.label}</span>
-          {field.type === 'select' ? (
-            <select
-              disabled={saving}
-              onChange={(event) => setDraft({ ...draft, [field.name]: event.target.value })}
-              value={draft[field.name]}
-            >
-              {field.options.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          ) : (
-            <textarea
-              disabled={saving}
-              onChange={(event) => setDraft({ ...draft, [field.name]: event.target.value })}
-              placeholder={field.placeholder}
-              rows={field.rows}
-              value={draft[field.name]}
-            />
-          )}
+          <select
+            disabled={saving}
+            onChange={(event) => setDraft({ ...draft, [field.name]: event.target.value })}
+            value={draft[field.name]}
+          >
+            {field.options.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        </label>
+      ))}
+
+      {metadataSlot ? <div className="resolution-metadata-slot">{metadataSlot}</div> : null}
+
+      {editorialFields.map((field) => (
+        <label className={`resolution-field field-${field.name}`} key={field.name}>
+          <span>{field.label}</span>
+          <textarea
+            disabled={saving}
+            onChange={(event) => setDraft({ ...draft, [field.name]: event.target.value })}
+            placeholder={field.placeholder}
+            rows={field.rows}
+            value={draft[field.name]}
+          />
         </label>
       ))}
 

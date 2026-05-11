@@ -8,11 +8,13 @@ const typeLabels = {
   episode: 'Episode',
   decision: 'Decision',
   question: 'Question',
+  candidate: 'Candidate',
   living_document: 'Living Document',
   timeline_event: 'Timeline'
 };
 
-const typeOrder = ['bible_section', 'episode', 'timeline_event', 'character', 'decision', 'question', 'living_document'];
+const typeOrder = ['bible_section', 'episode', 'timeline_event', 'character', 'candidate', 'decision', 'question', 'living_document'];
+const searchScopeText = 'Search across seeded bible sections, episodes, timeline events, characters, candidates, decisions, questions, and living documents.';
 
 export default function SearchModal() {
   const closeSearch = useRevivalStore((state) => state.closeSearch);
@@ -20,7 +22,7 @@ export default function SearchModal() {
   const navigateToSearchResult = useRevivalStore((state) => state.navigateToSearchResult);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
-  const [status, setStatus] = useState('Search across seeded bible sections, episodes, timeline events, characters, decisions, questions, and living documents.');
+  const [status, setStatus] = useState(searchScopeText);
   const [loading, setLoading] = useState(false);
 
   const groupedResults = useMemo(() => groupResults(results), [results]);
@@ -31,7 +33,7 @@ export default function SearchModal() {
 
     if (!nextQuery.trim()) {
       setResults([]);
-      setStatus('Search across seeded bible sections, episodes, timeline events, characters, decisions, questions, and living documents.');
+      setStatus(searchScopeText);
       return;
     }
 

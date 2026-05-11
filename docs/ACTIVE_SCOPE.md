@@ -4,16 +4,18 @@
 
 ## Current Phase
 
-Phase 30 — Decision / Question Resolution Tracking Foundation — Passed
+Phase 31 — Tag / Status Management + Editorial Metadata Control — Passed build and smoke
 
 ## Goal
 
-Add a lightweight editorial resolution system for Decisions and Questions so the user can track what is open, what is resolved, why choices were made, and how resolution text evolves without any automatic canon mutation.
+Give the user better control over tags, statuses, canon states, and review states without making the app feel like an admin dashboard.
 
 ## Current Stable Status
 
 - Phase 29 passed.
 - Phase 30 passed manual Electron smoke.
+- Phase 31 added lightweight tag/status metadata control for Candidate Inbox and preserved Decision/Question metadata tools.
+- Candidate metadata/search smoke passed.
 - Decisions layout passes.
 - Questions layout passes.
 - Questions and Candidate filters pass.
@@ -28,6 +30,37 @@ Add a lightweight editorial resolution system for Decisions and Questions so the
 - Candidate Inbox left column polish improved.
 - Accepted remains non-canon until explicit promotion.
 - Existing promotion/source traceability and AI Sessions remain stable.
+- npm run build passes.
+
+## Phase 31 Scope
+
+Allowed:
+- Add or improve lightweight tag/status controls for Candidate Inbox, Decisions, and Questions.
+- Allow manual candidate tag editing without promoting candidates to canon.
+- Preserve Decision and Question tag/status editing through the existing editorial detail surfaces.
+- Keep allowed tag/status meanings compact and contextual.
+- Rebuild/update search indexing after tag/status/status-like edits.
+- Preserve persistence after navigation/reload.
+- Keep UI calm, editorial, and non-dashboard-like.
+- Keep visible phase labels out of primary app UI.
+
+Do not add:
+- automatic canon mutation
+- autonomous AI classification
+- embeddings/vector search
+- relationship inference
+- enterprise dashboard surfaces
+- giant admin tables
+- broad schema rewrites
+
+Acceptance Criteria:
+- User can understand allowed tags/statuses without reading code.
+- User can add/remove candidate tags and edit Decision/Question tags where supported.
+- User can change review/status/canon-state fields where supported.
+- Tag/status edits persist after navigation/reload.
+- Search/filter behavior reflects edited metadata.
+- Accepted candidates remain non-canon until explicit promotion.
+- Existing Phase 30 layouts and fixes remain stable.
 - npm run build passes.
 
 ## Future UI Direction

@@ -247,16 +247,23 @@ export default function QuestionsLog() {
                 </div>
               </div>
               {deleteMessage ? <p className="editor-message detail-message">{deleteMessage}</p> : null}
-              <ResolutionEditor record={selectedQuestion} type="question" />
-              <TagEditor
-                entityId={selectedQuestion.id}
-                entityType="question"
-                tags={entityTagsByKey[`question:${selectedQuestion.id}`] || []}
+              <ResolutionEditor
+                metadataSlot={(
+                  <div className="question-metadata-slot">
+                    <TagEditor
+                      entityId={selectedQuestion.id}
+                      entityType="question"
+                      tags={entityTagsByKey[`question:${selectedQuestion.id}`] || []}
+                    />
+                    <div className="quiet-meta-row">
+                      <span>{formatDependencyLine('Blocked by', selectedQuestion.blocked_by)}</span>
+                      <span>{formatDependencyLine('Blocks', selectedQuestion.blocks)}</span>
+                    </div>
+                  </div>
+                )}
+                record={selectedQuestion}
+                type="question"
               />
-              <div className="quiet-meta-row">
-                <span>{formatDependencyLine('Blocked by', selectedQuestion.blocked_by)}</span>
-                <span>{formatDependencyLine('Blocks', selectedQuestion.blocks)}</span>
-              </div>
               <PromotionProvenance text={selectedQuestion.context} />
             </>
           ) : (

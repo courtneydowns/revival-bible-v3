@@ -136,19 +136,25 @@ Planned dedicated hardening:
 
 ### Search / Tags / Status Management
 
+Stable:
+- Candidate Inbox has a lightweight editorial metadata panel for manual review-state changes and manual candidate tags.
+- Candidate tags are stored with candidate provenance metadata and remain non-canon.
+- Decision and Question records retain contextual tag and resolution-state editing in their detail panels.
+- Search indexing includes candidate status/tag metadata and is rebuilt after candidate tag/status edits.
+- Allowed candidate statuses/tags are explained in compact contextual help rather than a persistent admin block.
+
 Planned:
 - clearer tag-vs-text search result distinction
 - support natural searches like “contradiction risk” for contradiction-risk tags
 - add a master tag list
-- keep tag/status management as a future phase
 - clarify status badges vs canon tags
-- add tag/status management as its own build phase
-- update search indexes after tag/status edits
+- broaden tag/status management only where it remains calm and editorial
 
 ### Editorial Workflow
 
 Stable:
 - Decision / Question resolution tracking foundation exists.
+- Tag/status management foundation exists for Candidate Inbox plus existing Decision/Question metadata surfaces.
 - Phase 30 passed manual Electron smoke after debug, polish, and editorial UX hardening passes.
 - Questions support Open, Tentatively Answered, Resolved, and Deprecated states.
 - Decisions support Proposed, Accepted, Implemented, Reversed, and Deprecated states.

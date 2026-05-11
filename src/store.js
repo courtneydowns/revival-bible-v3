@@ -428,7 +428,9 @@ export const useRevivalStore = create((set, get) => ({
     const candidates = window.revival?.candidates?.getAll
       ? await window.revival.candidates.getAll()
       : getLocalCandidates();
-    const activeCandidateId = get().activeCandidateId || candidates?.[0]?.id || null;
+    const currentActiveId = get().activeCandidateId;
+    const activeCandidate = candidates?.find((candidate) => String(candidate.id) === String(currentActiveId));
+    const activeCandidateId = activeCandidate?.id || candidates?.[0]?.id || null;
     set({ candidates: candidates || [], activeCandidateId });
     return candidates || [];
   },
@@ -507,7 +509,10 @@ export const useRevivalStore = create((set, get) => ({
     if (!response?.ok) return response;
 
     const candidates = await get().loadCandidates();
-    const nextCandidate = candidates.find((candidate) => String(candidate.id) !== String(candidateId)) || null;
+    const activeCandidateStillExists = candidates.some((candidate) => String(candidate.id) === String(get().activeCandidateId));
+    const nextCandidate = activeCandidateStillExists
+      ? candidates.find((candidate) => String(candidate.id) === String(get().activeCandidateId))
+      : candidates.find((candidate) => String(candidate.id) !== String(candidateId)) || null;
     set({
       activeCandidateId: nextCandidate?.id || null
     });
@@ -756,6 +761,9 @@ export const useRevivalStore = create((set, get) => ({
       case 'question':
         await get().selectQuestion(result.entity_id);
         break;
+      case 'candidate':
+        await get().selectCandidate(result.entity_id);
+        break;
       case 'living_document':
         await get().selectLivingDocEntry(result.entity_id);
         break;
@@ -955,7 +963,7 @@ function updateLocalCandidateStatus({ id, status }) {
   return { ok: true, candidate: updatedCandidate };
 }
 
-function updateLocalCandidate({ id, title = '', content = '', type = 'Narrative Note', notes = '' } = {}) {
+function updateLocalCandidate({ id, title = '', content = '', type = 'Narrative Note', notes = '', tags = null } = {}) {
   const normalizedTitle = String(title || '').trim();
   if (!normalizedTitle) return { ok: false, message: 'Candidate title is required.' };
 
@@ -967,6 +975,7 @@ function updateLocalCandidate({ id, title = '', content = '', type = 'Narrative 
       title: normalizedTitle,
       content: String(content || '').trim(),
       type: String(type || 'Narrative Note').trim() || 'Narrative Note',
+      provenance_metadata: normalizeLocalCandidateTags(candidate.provenance_metadata, tags),
       notes: String(notes || '').trim(),
       updated_at: new Date().toISOString()
     };
@@ -976,6 +985,44 @@ function updateLocalCandidate({ id, title = '', content = '', type = 'Narrative 
   if (!updatedCandidate) return { ok: false, message: 'Candidate not found.' };
   persistLocalCandidates(candidates);
   return { ok: true, candidate: updatedCandidate };
+}
+
+function normalizeLocalCandidateTags(provenanceMetadata = {}, tags = null) {
+  const metadata = provenanceMetadata && typeof provenanceMetadata === 'object' && !Array.isArray(provenanceMetadata)
+    ? provenanceMetadata
+    : {};
+  if (!Array.isArray(tags)) return metadata;
+
+  const seen = new Set();
+  return {
+    ...metadata,
+    tags: tags.map((tag) => {
+      const slug = normalizeTagValue(typeof tag === 'string' ? tag : tag?.slug || tag?.label || tag?.name);
+      if (!slug || seen.has(slug)) return null;
+      seen.add(slug);
+      return {
+        slug,
+        label: typeof tag === 'object' && tag?.label ? String(tag.label).trim() : formatTagLabel(slug)
+      };
+    }).filter(Boolean).slice(0, 24)
+  };
+}
+
+function normalizeTagValue(value = '') {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/['"]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function formatTagLabel(value = '') {
+  return normalizeTagValue(value)
+    .split('-')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 }
 
 function deleteLocalCandidate(candidateId) {

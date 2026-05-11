@@ -84,6 +84,9 @@ export default function CandidateInbox() {
   const [promotionOpen, setPromotionOpen] = useState(false);
   const [promotionTarget, setPromotionTarget] = useState('character');
   const [promotionDraft, setPromotionDraft] = useState(createPromotionDraft(null, 'character'));
+  const [candidateTagDraft, setCandidateTagDraft] = useState('');
+  const [metadataMessage, setMetadataMessage] = useState('');
+  const [deleteCandidateTarget, setDeleteCandidateTarget] = useState(null);
   const titleInputRef = useRef(null);
   const contentInputRef = useRef(null);
   const typeInputRef = useRef(null);
@@ -137,6 +140,11 @@ export default function CandidateInbox() {
     [candidates]
   );
   const selectedFilterSummary = getFilterSummary(statusFilter, tagFilter, filteredCandidates.length);
+  const selectedManualTags = useMemo(() => getExplicitCandidateTags(selectedCandidate), [selectedCandidate]);
+  const candidateTagDraftSlug = normalizeTagValue(candidateTagDraft);
+  const candidateTagIsDuplicate = Boolean(
+    candidateTagDraftSlug && selectedManualTags.some((tag) => tag.slug === candidateTagDraftSlug)
+  );
 
   useEffect(() => {
     loadCandidates();
@@ -194,6 +202,8 @@ export default function CandidateInbox() {
     setPromotionOpen(false);
     setPromotionTarget('character');
     setPromotionDraft(createPromotionDraft(selectedCandidate, 'character'));
+    setCandidateTagDraft('');
+    setMetadataMessage('');
   }, [databasePath, selectedCandidate?.id]);
 
   useEffect(() => {
@@ -292,7 +302,8 @@ export default function CandidateInbox() {
       title: editDraft.title,
       content: editDraft.content,
       type: editDraft.type,
-      notes: editDraft.notes
+      notes: editDraft.notes,
+      tags: getExplicitCandidateTags(selectedCandidate)
     });
     setSaving(false);
 
@@ -313,6 +324,44 @@ export default function CandidateInbox() {
     const response = await updateCandidateStatus({ id: selectedCandidate.id, status });
     setSaving(false);
     setMessage(response?.ok ? `Marked ${status}.` : response?.message || 'Status update failed.');
+  };
+
+  const updateCandidateTags = async (nextTags) => {
+    if (!selectedCandidate || saving) return;
+
+    setSaving(true);
+    setMetadataMessage('');
+    const response = await updateCandidate({
+      id: selectedCandidate.id,
+      title: selectedCandidate.title,
+      content: selectedCandidate.content,
+      type: selectedCandidate.type,
+      notes: selectedCandidate.notes,
+      tags: nextTags
+    });
+    setSaving(false);
+    setMetadataMessage(response?.ok ? 'Tags saved.' : response?.message || 'Tag update failed.');
+  };
+
+  const addCandidateTag = async (event) => {
+    event.preventDefault();
+    const slug = normalizeTagValue(candidateTagDraft);
+    if (!slug || !selectedCandidate || saving) return;
+
+    const currentTags = getExplicitCandidateTags(selectedCandidate);
+    if (currentTags.some((tag) => tag.slug === slug)) {
+      setMetadataMessage('Tag is already assigned.');
+      return;
+    }
+
+    await updateCandidateTags([...currentTags, { slug, label: formatTagLabel(slug) }]);
+    setCandidateTagDraft('');
+  };
+
+  const removeCandidateTag = async (tagSlug) => {
+    if (!selectedCandidate || saving) return;
+    const slug = normalizeTagValue(tagSlug);
+    await updateCandidateTags(getExplicitCandidateTags(selectedCandidate).filter((tag) => tag.slug !== slug));
   };
 
   const openPromotionReview = () => {
@@ -361,15 +410,33 @@ export default function CandidateInbox() {
     if (entityType === 'bible_section') await loadNodeTree();
   };
 
-  const removeCandidate = async () => {
+  const requestCandidateDelete = () => {
     if (!selectedCandidate || saving) return;
+    setDeleteCandidateTarget({
+      id: selectedCandidate.id,
+      status: normalizeCandidateStatusLabel(selectedCandidate.status),
+      title: selectedCandidate.title
+    });
+  };
 
-    const confirmed = window.confirm(`Permanently delete "${selectedCandidate.title}"? Rejected candidates are preserved; deletion removes only this candidate.`);
-    if (!confirmed) return;
+  const cancelCandidateDelete = () => {
+    if (saving) return;
+    setDeleteCandidateTarget(null);
+  };
 
+  const confirmCandidateDelete = async () => {
+    if (!deleteCandidateTarget || saving) return;
+
+    const candidateId = deleteCandidateTarget.id;
     setSaving(true);
-    const response = await deleteCandidate(selectedCandidate.id);
+    removeCandidateRecoveryDraft(databasePath, candidateId);
+    setEditing(false);
+    setPromotionOpen(false);
+    setMetadataMessage('');
+    setCandidateTagDraft('');
+    const response = await deleteCandidate(candidateId);
     setSaving(false);
+    setDeleteCandidateTarget(null);
     setMessage(response?.ok ? 'Candidate permanently deleted.' : response?.message || 'Candidate delete failed.');
   };
 
@@ -478,12 +545,16 @@ export default function CandidateInbox() {
                 type="button"
               >
                 <SlidersHorizontal size={13} />
-                <span>Filter</span>
+                <span>Metadata</span>
               </button>
               {filterOpen ? (
                 <div className="candidate-filter-menu" role="menu">
+                  <div className="candidate-filter-title">
+                    <strong>Metadata Filters</strong>
+                    <span>Status and manual tags</span>
+                  </div>
                   <div className="candidate-filter-menu-section candidate-filter-menu-heading">
-                    <span>Status</span>
+                    <span>Review State</span>
                     {hasActiveFilters ? (
                       <button onClick={() => {
                         setStatusFilter('All');
@@ -508,7 +579,7 @@ export default function CandidateInbox() {
                     </button>
                   ))}
                   <div className="candidate-filter-menu-section">
-                    <span>Tags</span>
+                    <span>Manual Tags</span>
                     {tagFilter ? (
                       <button onClick={() => setTagFilter('')} type="button">Clear</button>
                     ) : null}
@@ -649,21 +720,27 @@ export default function CandidateInbox() {
                 <button className="secondary-button" disabled={saving || selectedCandidate.status === 'In Review'} onClick={() => setStatus('In Review')} type="button">
                   In Review
                 </button>
-                <button className="secondary-button" disabled={saving || selectedCandidate.status === acceptedStatus} onClick={() => setStatus(acceptedStatus)} type="button">
-                  <Check size={14} />
-                  <span>Accepted / Needs Placement</span>
-                </button>
-                <button className="secondary-button" disabled={saving || editing} onClick={openPromotionReview} type="button">
-                  <Send size={14} />
-                  <span>Promote to...</span>
-                </button>
+                  <button className="secondary-button" disabled={saving || selectedCandidate.status === acceptedStatus} onClick={() => setStatus(acceptedStatus)} type="button">
+                    <Check size={14} />
+                    <span>Accept</span>
+                  </button>
+                  <button className="secondary-button" disabled={saving || editing} onClick={openPromotionReview} type="button">
+                    <Send size={14} />
+                    <span>Promote</span>
+                  </button>
                 <button className="secondary-button" disabled={saving || selectedCandidate.status === 'Rejected'} onClick={() => setStatus('Rejected')} type="button">
                   <X size={14} />
                   <span>Reject</span>
                 </button>
-                <button className="secondary-button danger-button candidate-delete-button" disabled={saving || selectedCandidate.status === 'Promoted'} onClick={removeCandidate} type="button">
+                <button
+                  className="secondary-button danger-button candidate-delete-button"
+                  disabled={saving}
+                  onClick={requestCandidateDelete}
+                  title={normalizeCandidateStatusLabel(selectedCandidate.status) === 'Promoted' ? 'Promoted candidates are protected' : 'Delete candidate'}
+                  type="button"
+                >
                   <Trash2 size={14} />
-                  <span>Delete</span>
+                  <span>{normalizeCandidateStatusLabel(selectedCandidate.status) === 'Promoted' ? 'Protected' : 'Delete'}</span>
                 </button>
               </div>
 
@@ -673,6 +750,64 @@ export default function CandidateInbox() {
                   <span>Needs a placement decision later; not canon until explicitly promoted.</span>
                 </div>
               ) : null}
+
+              <section className="candidate-metadata-editor" aria-label="Candidate metadata editor">
+                <div className="candidate-metadata-heading">
+                  <div>
+                    <strong>Editorial Metadata</strong>
+                    <span>Tags and review state stay manual. Canon changes require promotion.</span>
+                  </div>
+                  <details>
+                    <summary>Allowed values</summary>
+                    <p><strong>Status:</strong> Pending, In Review, Needs Placement, Promoted, Rejected.</p>
+                    <p><strong>Tags:</strong> Short editorial labels such as contradiction-risk, character, timeline, episode, decision, question, location, or maybe-later.</p>
+                  </details>
+                </div>
+                <label className="candidate-status-select">
+                  <span>Review State</span>
+                  <select disabled={saving} onChange={(event) => setStatus(event.target.value)} value={normalizeCandidateStatusLabel(selectedCandidate.status)}>
+                    {statuses.map((status) => (
+                      <option key={status} value={status}>{statusCopy[status]?.label || status}</option>
+                    ))}
+                  </select>
+                </label>
+                <div className="candidate-tag-editor">
+                  <span>Manual Tags</span>
+                  <div className="editable-tag-row">
+                    {selectedManualTags.length ? selectedManualTags.map((tag) => (
+                      <span className={`candidate-tag editable ${tagColorClass(tag.slug)}`} key={tag.slug}>
+                        {tag.label}
+                        <button aria-label={`Remove ${tag.label}`} disabled={saving} onClick={() => removeCandidateTag(tag.slug)} title={`Remove ${tag.label}`} type="button">
+                          <X size={12} />
+                        </button>
+                      </span>
+                    )) : <span className="muted small-note">No manual tags assigned.</span>}
+                  </div>
+                  <form className="candidate-tag-add-row" onSubmit={addCandidateTag}>
+                    <input
+                      disabled={saving}
+                      list={`candidate-tag-options-${selectedCandidate.id}`}
+                      onChange={(event) => {
+                        setCandidateTagDraft(event.target.value);
+                        setMetadataMessage('');
+                      }}
+                      placeholder="Add manual tag"
+                      value={candidateTagDraft}
+                    />
+                    <datalist id={`candidate-tag-options-${selectedCandidate.id}`}>
+                      {getCandidateTagSuggestions(selectedCandidate).map((tag) => (
+                        <option key={tag} value={tag}>{formatTagLabel(tag)}</option>
+                      ))}
+                    </datalist>
+                    <button className="secondary-button" disabled={saving || !candidateTagDraftSlug || candidateTagIsDuplicate} title={candidateTagIsDuplicate ? 'Tag already assigned' : 'Add tag'} type="submit">
+                      <Plus size={15} />
+                      <span>Add Tag</span>
+                    </button>
+                  </form>
+                  {candidateTagIsDuplicate ? <p className="candidate-inline-note">Already assigned.</p> : null}
+                </div>
+                {metadataMessage ? <p className="editor-message">{metadataMessage}</p> : null}
+              </section>
 
               <div className="candidate-provenance">
                 <span>Provenance</span>
@@ -842,6 +977,45 @@ export default function CandidateInbox() {
           {message ? <div className="candidate-message">{message}</div> : null}
         </section>
       </div>
+
+      {deleteCandidateTarget ? (
+        <div className="modal-backdrop">
+          <section aria-labelledby="candidate-delete-title" aria-modal="true" className="modal candidate-delete-modal" role="dialog">
+            <div className="candidate-delete-modal-header">
+              <div>
+                <div className="eyebrow">Delete Candidate</div>
+                <h2 id="candidate-delete-title">Remove this candidate?</h2>
+              </div>
+              <button className="icon-button" disabled={saving} onClick={cancelCandidateDelete} title="Cancel delete" type="button">
+                <X size={16} />
+              </button>
+            </div>
+            <p>
+              {deleteCandidateTarget.status === 'Promoted' ? (
+                <>
+                  <strong>{deleteCandidateTarget.title}</strong> has already been promoted, so it is preserved as provenance for the canon record.
+                </>
+              ) : (
+                <>
+                  This permanently deletes <strong>{deleteCandidateTarget.title}</strong> from the candidate queue.
+                  Rejected candidates can stay preserved instead; promoted candidates remain protected.
+                </>
+              )}
+            </p>
+            <div className="modal-actions">
+              <button className="secondary-button" disabled={saving} onClick={cancelCandidateDelete} type="button">
+                {deleteCandidateTarget.status === 'Promoted' ? 'Close' : 'Cancel'}
+              </button>
+              {deleteCandidateTarget.status === 'Promoted' ? null : (
+                <button className="secondary-button danger-button" disabled={saving} onClick={confirmCandidateDelete} type="button">
+                  <Trash2 size={14} />
+                  <span>{saving ? 'Deleting...' : 'Delete Candidate'}</span>
+                </button>
+              )}
+            </div>
+          </section>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -986,6 +1160,30 @@ function getCandidateTags(candidate = {}) {
   if (normalizeCandidateStatusLabel(candidate.status) === 'Promoted') addTag('canon');
 
   return [...tags.values()];
+}
+
+function getExplicitCandidateTags(candidate = {}) {
+  const tags = candidate?.provenance_metadata?.tags;
+  if (!Array.isArray(tags)) return [];
+
+  const seen = new Set();
+  return tags.map((tag) => {
+    const slug = normalizeTagValue(typeof tag === 'string' ? tag : tag?.slug || tag?.label || tag?.name);
+    if (!slug || seen.has(slug)) return null;
+    seen.add(slug);
+    return {
+      slug,
+      label: typeof tag === 'object' && tag?.label ? tag.label : formatTagLabel(slug)
+    };
+  }).filter(Boolean);
+}
+
+function getCandidateTagSuggestions(candidate = {}) {
+  const current = new Set(getExplicitCandidateTags(candidate).map((tag) => tag.slug));
+  const derived = getCandidateTags(candidate).map((tag) => tag.slug);
+  return [...new Set([...commonTagFilters, ...derived, 'maybe-later', 'alternate-version', 'future-episode'])]
+    .filter((tag) => !current.has(tag))
+    .slice(0, 24);
 }
 
 function normalizeTagValue(value = '') {

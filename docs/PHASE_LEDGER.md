@@ -98,3 +98,19 @@ Future UI direction:
 - Visible "Phase" labels/listings should be removed or reconsidered in the app UI.
 - Phases are internal build/project-control metadata unless there is clear editorial value.
 - Prefer editorial labels: status, canon state, review state, source/provenance, decision history, blockers/dependencies, updated timestamp.
+
+## Phase 31 — Tag / Status Management + Editorial Metadata Control
+Status: Passed build and smoke.
+
+Summary:
+- Candidate Inbox gained a compact editorial metadata panel.
+- Candidate review-state changes are explicit user actions.
+- Manual candidate tags can be added and removed without promoting candidates to canon.
+- Candidate tags are stored in candidate provenance metadata and remain non-canon.
+- Search indexing now includes candidate status/tag metadata and rebuilds after candidate tag/status edits.
+- Decision and Question tag/status controls remain contextual detail-panel tools.
+- Allowed candidate statuses/tags are explained in compact contextual help.
+- The UI avoids admin-table/dashboard styling and visible internal phase labels.
+- npm run build passed.
+- Electron app launch/search-index smoke passed.
+- Temp Electron-node candidate metadata/search smoke passed.

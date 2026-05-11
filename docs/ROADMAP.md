@@ -45,6 +45,7 @@ Completed / passed:
 - Phase 30 UI polish added guarded delete actions and reduced the admin/dashboard feel of Decision and Question resolution editing.
 - Phase 30 editorial UX hardening added tier filtering/definitions, tooltip cleanup, Candidate Inbox regression repair, and Central Time autosave/timestamp polish.
 - Phase 30 passed manual Electron smoke.
+- Phase 31 passed build and smoke after adding a lightweight Candidate Inbox editorial metadata panel for manual review-state and tag edits, preserving Decision/Question metadata controls, and expanding search indexing to candidate metadata.
 
 Current / next:
 - Next — continue surgical implementation from remaining roadmap priorities
@@ -144,17 +145,27 @@ Acceptance:
 
 ### Future Phase — Tag / Status Management
 
+Status:
+Foundation implemented in Phase 31; future passes may broaden it.
+
 Goal:
 Make tags and statuses understandable, editable, searchable, and trustworthy.
 
-Include:
+Completed foundation:
+- Candidate Inbox manual tag editing via compact editorial metadata panel
+- Candidate review-state changes exposed as explicit user actions
+- compact allowed status/tag guidance
+- candidate status/tag metadata included in search indexing
+- Decision and Question tag/status controls preserved in contextual detail surfaces
+
+Future additions:
 - master tag list
 - tag metadata/editing if appropriate
-- allowed tag/status validation
-- tag-vs-text search result distinction
+- broader allowed tag/status validation
+- clearer tag-vs-text search result distinction
 - support natural tag search variants
-- clarify status badges vs canon tags
-- update search indexes after tag/status edits
+- clarify status badges vs canon tags across more surfaces
+- further compact Candidate detail action buttons and prevent action rows from wrapping or cluttering the right detail column
 
 ### Future Phase — Manual Merge / Review Tooling
 
