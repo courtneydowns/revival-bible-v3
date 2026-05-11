@@ -61,6 +61,7 @@ export const useRevivalStore = create((set, get) => ({
   candidates: [],
   activeAiSessionId: getSavedActiveAiSessionId(),
   activeAiSession: null,
+  sourceSessionJump: null,
   timelineEvents: [],
   canonTags: [],
   entityTagsByKey: {},
@@ -115,6 +116,7 @@ export const useRevivalStore = create((set, get) => ({
     persistActiveAiSessionId(activeAiSessionId);
     set({ activeAiSessionId });
   },
+  clearSourceSessionJump: () => set({ sourceSessionJump: null }),
   setContextPackSessionContext: (contextPackId, sessionContext) => set((state) => ({
     contextPackSessionContexts: {
       ...state.contextPackSessionContexts,
@@ -366,6 +368,26 @@ export const useRevivalStore = create((set, get) => ({
       activeCandidateId: candidate?.id || candidateId
     });
     return candidate || null;
+  },
+  openCandidateSourceSession: async (candidate) => {
+    const provenance = candidate?.provenance_metadata || {};
+    const sourceId = provenance.source_id;
+    if (!sourceId || provenance.source !== 'AI Session') {
+      return { ok: false, message: 'No source AI session is linked.' };
+    }
+
+    set((state) => ({
+      sourceSessionJump: {
+        sessionId: sourceId,
+        text: String(candidate.content || '').trim(),
+        requestedAt: Date.now()
+      },
+      navigationHistory: [createNavigationSnapshot(state), ...state.navigationHistory].slice(0, 20)
+    }));
+    const session = await get().selectAiSession(sourceId);
+    return session
+      ? { ok: true, session }
+      : { ok: false, message: 'Source AI session could not be opened.' };
   },
   createCandidate: async (payload) => {
     const response = window.revival?.candidates?.create

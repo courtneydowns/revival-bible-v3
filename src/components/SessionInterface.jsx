@@ -50,6 +50,7 @@ export default function SessionInterface() {
   const [reader, setReader] = useState(null);
   const [customPromptTemplates] = useState(() => loadCustomPromptTemplates());
   const responseScrollRef = useRef(null);
+  const readerTextRef = useRef(null);
   const contextPacks = useRevivalStore((state) => state.contextPacks);
   const characters = useRevivalStore((state) => state.characters);
   const episodes = useRevivalStore((state) => state.episodes);
@@ -61,12 +62,14 @@ export default function SessionInterface() {
   const entityLinksByKey = useRevivalStore((state) => state.entityLinksByKey);
   const aiSessions = useRevivalStore((state) => state.aiSessions);
   const activeAiSession = useRevivalStore((state) => state.activeAiSession);
+  const sourceSessionJump = useRevivalStore((state) => state.sourceSessionJump);
   const loadContextPacks = useRevivalStore((state) => state.loadContextPacks);
   const loadAiSessions = useRevivalStore((state) => state.loadAiSessions);
   const createAiSession = useRevivalStore((state) => state.createAiSession);
   const createCandidate = useRevivalStore((state) => state.createCandidate);
   const deleteAiSession = useRevivalStore((state) => state.deleteAiSession);
   const selectAiSession = useRevivalStore((state) => state.selectAiSession);
+  const clearSourceSessionJump = useRevivalStore((state) => state.clearSourceSessionJump);
   const showToast = useRevivalStore((state) => state.showToast);
   const templates = useMemo(() => [...sessionPromptTemplates, ...customPromptTemplates], [customPromptTemplates]);
   const activePromptTemplates = useMemo(() => templates.map((template) => (
@@ -196,6 +199,37 @@ export default function SessionInterface() {
 
     return () => window.cancelAnimationFrame(frameId);
   }, [activeAiSession?.created_at, activeAiSession?.id, activeAiSession?.response, activeAiSession?.updated_at]);
+
+  useEffect(() => {
+    if (!sourceSessionJump || !activeAiSession?.id || String(sourceSessionJump.sessionId) !== String(activeAiSession.id)) return;
+
+    const responseText = String(activeAiSession.response || '');
+    const sourceText = String(sourceSessionJump.text || '').trim();
+    setReader({
+      title: 'Response',
+      text: responseText,
+      tone: 'response',
+      highlightText: sourceText,
+      sourceJumpRequest: sourceSessionJump.requestedAt
+    });
+
+    const frameId = window.requestAnimationFrame(() => {
+      scrollTextContainerNearMatch(responseScrollRef.current, responseText, sourceText);
+      clearSourceSessionJump();
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [activeAiSession?.id, activeAiSession?.response, clearSourceSessionJump, sourceSessionJump]);
+
+  useEffect(() => {
+    if (!reader?.sourceJumpRequest) return undefined;
+
+    const frameId = window.requestAnimationFrame(() => {
+      scrollTextContainerNearMatch(readerTextRef.current, reader.text, reader.highlightText);
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [reader?.highlightText, reader?.sourceJumpRequest, reader?.text]);
 
   const openSavedSession = (sessionId) => {
     setCopyMessage('');
@@ -835,7 +869,8 @@ export default function SessionInterface() {
               className={reader.tone === 'response' ? 'session-reader-response' : ''}
               onKeyUp={reader.tone === 'response' ? (event) => captureResponseSelection(event.currentTarget) : undefined}
               onMouseUp={reader.tone === 'response' ? (event) => captureResponseSelection(event.currentTarget) : undefined}
-            >{reader.text}</pre>
+              ref={readerTextRef}
+            >{renderHighlightedText(reader.text, reader.highlightText)}</pre>
           </section>
         </div>
       ) : null}
@@ -973,6 +1008,52 @@ function extractTemplateInstructions(prompt = '') {
   const endIndex = endCandidates.length ? Math.min(...endCandidates) : withoutTemplateName.length;
 
   return withoutTemplateName.slice(0, endIndex).trim();
+}
+
+function getTextMatchIndex(text = '', sourceText = '') {
+  return getTextMatch(text, sourceText).index;
+}
+
+function getTextMatch(text = '', sourceText = '') {
+  const haystack = String(text || '');
+  const needle = String(sourceText || '').trim();
+  if (!haystack || !needle) return { index: -1, length: 0 };
+
+  const directIndex = haystack.indexOf(needle);
+  if (directIndex >= 0) return { index: directIndex, length: needle.length };
+
+  const excerpt = needle.slice(0, 180).trim();
+  const excerptIndex = excerpt ? haystack.indexOf(excerpt) : -1;
+  return excerptIndex >= 0 ? { index: excerptIndex, length: excerpt.length } : { index: -1, length: 0 };
+}
+
+function scrollTextContainerNearMatch(node, text = '', sourceText = '') {
+  if (!node) return;
+
+  const matchIndex = getTextMatchIndex(text, sourceText);
+  if (matchIndex < 0) {
+    node.scrollTop = 0;
+    return;
+  }
+
+  const maxTop = Math.max(0, node.scrollHeight - node.clientHeight);
+  const ratio = matchIndex / Math.max(1, String(text || '').length);
+  node.scrollTop = Math.max(0, Math.min(maxTop, Math.floor(maxTop * ratio) - 32));
+}
+
+function renderHighlightedText(text = '', highlightText = '') {
+  const value = String(text || '');
+  const match = getTextMatch(value, highlightText);
+  if (match.index < 0) return value;
+
+  const matchedText = value.slice(match.index, match.index + match.length);
+  return (
+    <>
+      {value.slice(0, match.index)}
+      <mark className="session-source-highlight">{matchedText}</mark>
+      {value.slice(match.index + matchedText.length)}
+    </>
+  );
 }
 
 async function copyText(text) {

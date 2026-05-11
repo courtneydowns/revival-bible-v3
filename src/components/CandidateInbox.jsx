@@ -1,4 +1,4 @@
-import { Check, Info, Plus, Trash2, X } from 'lucide-react';
+import { Check, ExternalLink, Info, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRevivalStore } from '../store.js';
 
@@ -23,6 +23,7 @@ export default function CandidateInbox() {
   const updateCandidate = useRevivalStore((state) => state.updateCandidate);
   const updateCandidateStatus = useRevivalStore((state) => state.updateCandidateStatus);
   const deleteCandidate = useRevivalStore((state) => state.deleteCandidate);
+  const openCandidateSourceSession = useRevivalStore((state) => state.openCandidateSourceSession);
   const selectedCandidate = useMemo(
     () => candidates.find((candidate) => String(candidate.id) === String(activeCandidateId)) || candidates[0] || null,
     [activeCandidateId, candidates]
@@ -141,6 +142,15 @@ export default function CandidateInbox() {
     const response = await deleteCandidate(selectedCandidate.id);
     setSaving(false);
     setMessage(response?.ok ? 'Candidate permanently deleted.' : response?.message || 'Candidate delete failed.');
+  };
+
+  const openSourceSession = async () => {
+    if (!selectedCandidate || saving) return;
+
+    const response = await openCandidateSourceSession(selectedCandidate);
+    if (!response?.ok) {
+      setMessage(response?.message || 'Source AI session could not be opened.');
+    }
   };
 
   return (
@@ -297,6 +307,12 @@ export default function CandidateInbox() {
                 <span>Provenance</span>
                 <Info size={14} title={formatProvenance(selectedCandidate)} />
                 <small>{formatProvenanceSummary(selectedCandidate)}</small>
+                {hasSourceSession(selectedCandidate) ? (
+                  <button className="candidate-source-link" disabled={saving} onClick={openSourceSession} type="button">
+                    <ExternalLink size={13} />
+                    <span>Open Source Session</span>
+                  </button>
+                ) : null}
               </div>
 
               <div className="candidate-meta-grid">
@@ -345,6 +361,11 @@ function formatProvenance(candidate) {
 function formatProvenanceSummary(candidate) {
   const provenance = candidate.provenance_metadata || {};
   return `${provenance.source || 'Manual'} / ${formatDate(candidate.created_at)}`;
+}
+
+function hasSourceSession(candidate) {
+  const provenance = candidate?.provenance_metadata || {};
+  return provenance.source === 'AI Session' && Boolean(provenance.source_id);
 }
 
 function formatSuggestedLinks(links = []) {
