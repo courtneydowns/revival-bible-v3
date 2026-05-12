@@ -1,4 +1,4 @@
-import { ArrowLeft, FilePlus2, FileText, Flag, GitCompareArrows, Layers3, Paperclip, Plus, ShieldCheck, X } from 'lucide-react';
+import { ArrowLeft, CheckSquare, FilePlus2, FileText, Flag, GitCompareArrows, Layers3, Paperclip, Plus, ShieldCheck, Square, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRevivalStore } from '../store.js';
 import { formatCentralTime } from '../time.js';
@@ -24,7 +24,7 @@ const initialCandidateDraft = {
   content: '',
   classification: 'candidate',
   confidenceState: 'weak',
-  reviewStatus: 'unresolved',
+  reviewStatus: 'unreviewed',
   trustReason: '',
   flagDuplicate: false,
   duplicateReason: '',
@@ -54,14 +54,24 @@ export default function EditorialIngestion() {
   const [sourceDraft, setSourceDraft] = useState(initialSourceDraft);
   const [candidateDraft, setCandidateDraft] = useState(initialCandidateDraft);
   const [message, setMessage] = useState('');
+  const [sourceAttachmentMessage, setSourceAttachmentMessage] = useState('');
+  const [lastAttachedSourceId, setLastAttachedSourceId] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [selectingSourceFile, setSelectingSourceFile] = useState(false);
   const [selectedReviewKey, setSelectedReviewKey] = useState(null);
+  const [reviewStateFilter, setReviewStateFilter] = useState('all');
+  const [riskFilter, setRiskFilter] = useState('all');
+  const [selectedExtractionIds, setSelectedExtractionIds] = useState([]);
+  const [batchNote, setBatchNote] = useState('');
+  const [expandedSourceIds, setExpandedSourceIds] = useState(['unassigned']);
   const sessionTitleRef = useRef(null);
   const sessionSelectRef = useRef(null);
+  const sourceFileInputRef = useRef(null);
   const ingestionReviewSummary = useRevivalStore((state) => state.ingestionReviewSummary);
   const createImportSession = useRevivalStore((state) => state.createImportSession);
   const createStagedSource = useRevivalStore((state) => state.createStagedSource);
   const createManualExtractionCandidate = useRevivalStore((state) => state.createManualExtractionCandidate);
+  const updateExtractionReviewTriage = useRevivalStore((state) => state.updateExtractionReviewTriage);
   const sessions = ingestionReviewSummary.sessions || [];
   const sourceRecords = ingestionReviewSummary.sourceRecords || [];
   const selectedSourceDraftSources = sourceRecords.filter((source) => String(source.import_session_id || '') === String(sourceDraft.importSessionId || ''));
@@ -72,6 +82,7 @@ export default function EditorialIngestion() {
   const stagedItems = useMemo(() => [
     ...(ingestionReviewSummary.sourceRecords || []).map((item) => ({
       key: `source-${item.id}`,
+      id: item.id,
       kind: 'Staged Source',
       title: item.source_label,
       meta: `${formatSourceType(item.source_type, item.provenance_metadata?.custom_source_label)} / ${item.session_title || 'Session linked'}`,
@@ -86,10 +97,14 @@ export default function EditorialIngestion() {
     })),
     ...(ingestionReviewSummary.unresolvedExtractions || []).map((item) => ({
       key: `extraction-${item.id}`,
+      id: item.id,
+      sourceRecordId: item.source_record_id,
       kind: 'Extraction Candidate',
       title: item.title,
       meta: `${formatReviewType(item.classification)} / ${item.source_label || 'Source preserved'}`,
-      status: item.confidence_state || item.status,
+      status: normalizeExtractionTriageState(item.status),
+      confidence: item.confidence_state,
+      classification: item.classification,
       timestamp: item.updated_at || item.created_at,
       sourceLabel: item.source_label,
       sourceType: item.source_type,
@@ -97,6 +112,7 @@ export default function EditorialIngestion() {
       excerpt: item.raw_content,
       content: item.content,
       trustReason: item.trust_reason,
+      triageNote: item.provenance_metadata?.triage_note,
       provenance: item.provenance_metadata
     })),
     ...(ingestionReviewSummary.narrativeFragments || []).map((item) => ({
@@ -135,8 +151,44 @@ export default function EditorialIngestion() {
       conflict: item.claim_a,
       provenance: item.provenance_metadata
     }))
-  ].sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime()).slice(0, 10), [ingestionReviewSummary]);
+  ].sort(compareReviewPriority), [ingestionReviewSummary]);
+  const extractionItems = useMemo(() => stagedItems.filter((item) => item.kind === 'Extraction Candidate'), [stagedItems]);
+  const triageCounts = useMemo(() => extractionItems.reduce((counts, item) => {
+    counts[item.status] = (counts[item.status] || 0) + 1;
+    return counts;
+  }, {}), [extractionItems]);
+  const sourceClusters = useMemo(() => {
+    const sourceLookup = new Map((ingestionReviewSummary.sourceRecords || []).map((source) => [String(source.id), source]));
+    const grouped = new Map();
+    for (const item of extractionItems) {
+      const source = sourceLookup.get(String(item.sourceRecordId));
+      const key = String(item.sourceRecordId || 'unassigned');
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          key,
+          source,
+          title: source?.source_label || item.sourceLabel || 'Unassigned source',
+          meta: source ? formatSourceType(source.source_type, source.provenance_metadata?.custom_source_label) : 'Source metadata pending',
+          items: []
+        });
+      }
+      grouped.get(key).items.push(item);
+    }
+    return [...grouped.values()]
+      .map((cluster) => ({
+        ...cluster,
+        items: cluster.items.filter((item) => matchesReviewFilters(item, reviewStateFilter, riskFilter))
+      }))
+      .filter((cluster) => cluster.items.length)
+      .sort((a, b) => compareReviewPriority(a.items[0], b.items[0]));
+  }, [extractionItems, ingestionReviewSummary.sourceRecords, reviewStateFilter, riskFilter]);
   const selectedReviewItem = stagedItems.find((item) => item.key === selectedReviewKey) || null;
+  const selectedExtractionSet = useMemo(() => new Set(selectedExtractionIds.map(String)), [selectedExtractionIds]);
+  const selectedExtractionCount = selectedExtractionIds.length;
+  const acceptedCount = triageCounts['accepted-for-placement'] || 0;
+  const unresolvedCount = extractionItems.filter((item) => !['resolved', 'deferred'].includes(item.status)).length;
+  const contradictionCount = triageCounts['contradiction-risk'] || 0;
+  const duplicateCount = triageCounts['duplicate-risk'] || 0;
 
   useEffect(() => {
     if (selectedReviewKey && !stagedItems.some((item) => item.key === selectedReviewKey)) {
@@ -145,11 +197,29 @@ export default function EditorialIngestion() {
   }, [selectedReviewKey, stagedItems]);
 
   useEffect(() => {
+    setExpandedSourceIds((ids) => {
+      const visibleKeys = sourceClusters.slice(0, 4).map((cluster) => cluster.key);
+      return [...new Set([...ids, ...visibleKeys])];
+    });
+  }, [sourceClusters]);
+
+  useEffect(() => {
     const closeOnEscape = (event) => {
       if (event.key === 'Escape') setSelectedReviewKey(null);
     };
     window.addEventListener('keydown', closeOnEscape);
     return () => window.removeEventListener('keydown', closeOnEscape);
+  }, []);
+
+  useEffect(() => {
+    const sourceInput = sourceFileInputRef.current;
+    if (!sourceInput) return undefined;
+    const cancelSelection = () => {
+      setSelectingSourceFile(false);
+      setSourceAttachmentMessage('Source selection cancelled.');
+    };
+    sourceInput.addEventListener('cancel', cancelSelection);
+    return () => sourceInput.removeEventListener('cancel', cancelSelection);
   }, []);
 
   const updateSessionDraft = (field, value) => setSessionDraft((draft) => ({ ...draft, [field]: value }));
@@ -167,6 +237,36 @@ export default function EditorialIngestion() {
       provenanceNote: source?.provenance_metadata?.source_note || '',
       rawContent: source?.raw_content || ''
     }));
+  };
+  const toggleCluster = (clusterKey) => {
+    setExpandedSourceIds((ids) => ids.includes(clusterKey)
+      ? ids.filter((id) => id !== clusterKey)
+      : [...ids, clusterKey]);
+  };
+  const toggleExtractionSelection = (itemId) => {
+    setSelectedExtractionIds((ids) => ids.some((id) => String(id) === String(itemId))
+      ? ids.filter((id) => String(id) !== String(itemId))
+      : [...ids, itemId]);
+  };
+  const toggleClusterSelection = (items) => {
+    const ids = items.map((item) => item.id);
+    const allSelected = ids.every((id) => selectedExtractionSet.has(String(id)));
+    setSelectedExtractionIds((selectedIds) => allSelected
+      ? selectedIds.filter((id) => !ids.some((itemId) => String(itemId) === String(id)))
+      : [...new Set([...selectedIds, ...ids])]);
+  };
+  const applyBatchTriage = async (status) => {
+    if (!selectedExtractionIds.length) return;
+    setSaving(true);
+    const response = await updateExtractionReviewTriage({ ids: selectedExtractionIds, status, note: batchNote });
+    setSaving(false);
+    if (!response?.ok) {
+      setMessage(response?.message || 'Review triage could not be saved.');
+      return;
+    }
+    setSelectedExtractionIds([]);
+    setBatchNote('');
+    setMessage(`${formatReviewType(status)} saved for selected review items.`);
   };
 
   const openNewSessionDraft = () => {
@@ -212,14 +312,65 @@ export default function EditorialIngestion() {
     setMessage('Import session saved. Staged material remains non-canon.');
   };
 
-  const selectSourceFile = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const getSourceProvenanceNote = (draft = sourceDraft) => {
+    const session = sessions.find((item) => String(item.id) === String(draft.importSessionId || ''));
+    return String(
+      draft.provenanceNote
+      || session?.provenance_metadata?.source_note
+      || session?.provenance_metadata?.source_label
+      || session?.notes
+      || ''
+    ).trim();
+  };
 
-    const extension = getFileExtension(file.name);
+  const persistSourceDraft = async (draftToSave, { automatic = false } = {}) => {
+    const provenanceNote = getSourceProvenanceNote(draftToSave);
+    if (!draftToSave.importSessionId || !draftToSave.sourceLabel.trim() || !provenanceNote || !draftToSave.rawContent.trim()) {
+      if (automatic) {
+        setSourceAttachmentMessage('Source ready. Choose a session and provenance note to attach it.');
+        return { ok: false };
+      }
+      setMessage('Session, source file, source label, and provenance note are required.');
+      return { ok: false };
+    }
+
+    setSaving(true);
+    const response = await createStagedSource({
+      ...draftToSave,
+      provenanceNote
+    });
+    setSaving(false);
+
+    if (!response?.ok) {
+      setMessage(response?.message || 'Staged source could not be saved.');
+      setSourceAttachmentMessage(response?.message || 'Source could not be attached.');
+      return response;
+    }
+
+    setSourceDraft((draft) => ({
+      ...initialSourceDraft,
+      importSessionId: draftToSave.importSessionId || draft.importSessionId,
+      sourceType: draftToSave.sourceType || draft.sourceType,
+      sourceTypeLabel: draftToSave.sourceTypeLabel || draft.sourceTypeLabel
+    }));
+    setLastAttachedSourceId(response.source.id);
+    setSourceAttachmentMessage(`Source attached: ${response.source.source_label}.`);
+    setMessage('Source attached to session. It remains staged and non-canon.');
+    return response;
+  };
+
+  const applySelectedSourceFile = async (file) => {
+    if (!file) {
+      setSelectingSourceFile(false);
+      setSourceAttachmentMessage('Source file could not be read.');
+      return;
+    }
+
+    const extension = file.extension || getFileExtension(file.name);
     const detectedType = detectSourceType(extension);
     const readable = isReadablePreview(extension);
     const baseDraft = {
+      ...sourceDraft,
       sourceLabel: sourceDraft.sourceLabel || file.name,
       sourceType: detectedType,
       originalFilename: file.name,
@@ -229,59 +380,96 @@ export default function EditorialIngestion() {
     };
 
     if (!readable) {
-      setSourceDraft((draft) => ({
-        ...draft,
+      const nextDraft = {
         ...baseDraft,
         rawContent: buildPlaceholderPreview(file, extension),
         previewState: 'placeholder',
         previewNote: 'Binary or unsupported source preserved as a staged record. Full extraction remains future work.'
-      }));
+      };
+      setSourceDraft(nextDraft);
+      setSelectingSourceFile(false);
+      setSourceAttachmentMessage('Source ready to attach.');
+      await persistSourceDraft(nextDraft, { automatic: true });
       return;
     }
 
     try {
-      const text = await file.text();
-      setSourceDraft((draft) => ({
-        ...draft,
+      const text = typeof file.text === 'function' ? await file.text() : file.text || '';
+      const nextDraft = {
         ...baseDraft,
         rawContent: buildTextPreview(text),
         previewState: text.length > SOURCE_PREVIEW_LIMIT ? 'truncated-preview' : 'readable-preview',
         previewNote: text.length > SOURCE_PREVIEW_LIMIT ? `Readable preview truncated at ${SOURCE_PREVIEW_LIMIT} characters.` : 'Readable preview preserved.'
-      }));
+      };
+      setSourceDraft(nextDraft);
+      setSelectingSourceFile(false);
+      setSourceAttachmentMessage('Source ready to attach.');
+      await persistSourceDraft(nextDraft, { automatic: true });
     } catch (error) {
-      setSourceDraft((draft) => ({
-        ...draft,
+      const nextDraft = {
         ...baseDraft,
         rawContent: buildPlaceholderPreview(file, extension),
         previewState: 'preview-failed',
         previewNote: 'Preview failed safely; source metadata remains staged.'
-      }));
+      };
+      setSourceDraft(nextDraft);
+      setSelectingSourceFile(false);
+      setSourceAttachmentMessage('Source ready to attach.');
+      await persistSourceDraft(nextDraft, { automatic: true });
     }
+  };
+
+  const markNativeSourcePickerOpening = () => {
+    setSelectingSourceFile(true);
+    setSourceAttachmentMessage('Opening file picker...');
+  };
+
+  const openSourceFilePicker = async () => {
+    if (selectingSourceFile) return;
+    setSelectingSourceFile(true);
+    setSourceAttachmentMessage('Opening file picker...');
+
+    const selectFile = window.revival?.ingestion?.selectSourceFile;
+    if (selectFile) {
+      try {
+        const response = await selectFile();
+        if (response?.canceled) {
+          setSelectingSourceFile(false);
+          setSourceAttachmentMessage('No file selected.');
+          return;
+        }
+        if (!response?.ok || !response.file) {
+          setSelectingSourceFile(false);
+          setSourceAttachmentMessage(response?.message || 'File picker unavailable.');
+          return;
+        }
+        await applySelectedSourceFile(response.file);
+      } catch (error) {
+        setSelectingSourceFile(false);
+        setSourceAttachmentMessage('File picker unavailable.');
+      }
+      return;
+    }
+
+    if (sourceFileInputRef.current) {
+      sourceFileInputRef.current.value = '';
+      sourceFileInputRef.current.click();
+      return;
+    }
+
+    setSelectingSourceFile(false);
+    setSourceAttachmentMessage('File picker unavailable.');
+  };
+
+  const selectBrowserSourceFile = async (event) => {
+    const file = event.target.files?.[0];
+    await applySelectedSourceFile(file);
+    event.target.value = '';
   };
 
   const saveSource = async (event) => {
     event.preventDefault();
-    if (!sourceDraft.importSessionId || !sourceDraft.sourceLabel.trim() || !sourceDraft.provenanceNote.trim() || !sourceDraft.rawContent.trim()) {
-      setMessage('Session, source file, source label, and provenance note are required.');
-      return;
-    }
-
-    setSaving(true);
-    const response = await createStagedSource(sourceDraft);
-    setSaving(false);
-
-    if (!response?.ok) {
-      setMessage(response?.message || 'Staged source could not be saved.');
-      return;
-    }
-
-    setSourceDraft((draft) => ({
-      ...initialSourceDraft,
-      importSessionId: draft.importSessionId,
-      sourceType: draft.sourceType,
-      sourceTypeLabel: draft.sourceTypeLabel
-    }));
-    setMessage('Source attached to session. It remains staged and non-canon.');
+    await persistSourceDraft(sourceDraft);
   };
 
   const saveCandidate = async (event) => {
@@ -397,7 +585,18 @@ export default function EditorialIngestion() {
                 </label>
                 <label>
                   <span>Source file</span>
-                  <input accept=".txt,.md,.pdf,.doc,.docx,text/plain,text/markdown" onChange={selectSourceFile} type="file" />
+                  <span className={`secondary-button source-file-picker-button ${selectingSourceFile ? 'selecting' : ''}`}>
+                    <Paperclip size={14} />
+                    <span>{sourceDraft.originalFilename || (selectingSourceFile ? 'Choosing source...' : 'Choose Source File')}</span>
+                    <input
+                      ref={sourceFileInputRef}
+                      accept=".txt,.md,.pdf,.doc,.docx,text/plain,text/markdown"
+                      className="source-file-native-input"
+                      onChange={selectBrowserSourceFile}
+                      onClick={markNativeSourcePickerOpening}
+                      type="file"
+                    />
+                  </span>
                 </label>
               </div>
               <div className="editorial-ingestion-grid">
@@ -426,10 +625,11 @@ export default function EditorialIngestion() {
                 </div>
                 <p>{sourceDraft.rawContent || 'Select a local source to stage it inside the current intake session.'}</p>
               </div>
-              <button className="primary-button" disabled={saving || !sourceDraft.importSessionId || !sourceDraft.rawContent.trim() || !sourceDraft.provenanceNote.trim()} type="submit">
+              <button className="primary-button" disabled={saving || selectingSourceFile} onClick={openSourceFilePicker} type="button">
                 <ShieldCheck size={14} />
                 <span>Attach Source</span>
               </button>
+              {sourceAttachmentMessage ? <p className="candidate-message source-attachment-message" role="status">{sourceAttachmentMessage}</p> : null}
             </form>
 
             {selectedSourceDraftSources.length ? (
@@ -439,7 +639,7 @@ export default function EditorialIngestion() {
                   <small>{selectedSourceDraftSources.length} staged</small>
                 </div>
                 {selectedSourceDraftSources.slice(0, 4).map((source) => (
-                  <article className="session-source-row" key={source.id}>
+                  <article className={`session-source-row ${String(lastAttachedSourceId) === String(source.id) ? 'just-attached' : ''}`} key={source.id}>
                     <span className="source-type-badge">{formatSourceType(source.source_type, source.provenance_metadata?.custom_source_label)}</span>
                     <strong>{source.source_label}</strong>
                     <small>{formatDate(source.created_at)} / {source.provenance_metadata?.file_preview_state || 'staged'}</small>
@@ -606,34 +806,95 @@ export default function EditorialIngestion() {
           <div className="editorial-state-legend" aria-label="Editorial state legend">
             <StateBadge state="staged-source" label="Staged Source" />
             <StateBadge state="extracted-candidate" label="Extracted Candidate" />
+            <StateBadge state="contradiction-risk" label="Contradiction Risk" />
+            <StateBadge state="duplicate-risk" label="Duplicate Risk" />
             <StateBadge state="accepted-placement" label="Accepted for Placement" />
             <StateBadge state="promoted-canon" label="Promoted Canon" />
+          </div>
+          <div className="editorial-triage-overview" aria-label="Extraction review overview">
+            <ReviewFact label="Unresolved" value={unresolvedCount} />
+            <ReviewFact label="Contradiction" value={contradictionCount} />
+            <ReviewFact label="Duplicate" value={duplicateCount} />
+            <ReviewFact label="Placement ready" value={acceptedCount} />
+          </div>
+          <div className="editorial-review-controls" aria-label="Review filters and batch actions">
+            <label>
+              <span>Review state</span>
+              <select onChange={(event) => setReviewStateFilter(event.target.value)} value={reviewStateFilter}>
+                <option value="all">All states</option>
+                {extractionReviewStates.map((state) => (
+                  <option key={state.value} value={state.value}>{state.label}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Risk</span>
+              <select onChange={(event) => setRiskFilter(event.target.value)} value={riskFilter}>
+                <option value="all">All review items</option>
+                <option value="contradiction-risk">Contradiction risk</option>
+                <option value="duplicate-risk">Duplicate risk</option>
+                <option value="accepted-for-placement">Accepted for placement</option>
+              </select>
+            </label>
+            <label className="editorial-batch-note">
+              <span>Batch note</span>
+              <input onChange={(event) => setBatchNote(event.target.value)} placeholder="Optional editorial note" value={batchNote} />
+            </label>
+            <div className="editorial-batch-actions">
+              <small>{selectedExtractionCount} selected</small>
+              <button className="secondary-button editorial-ingestion-header-button quiet" disabled={!selectedExtractionCount || saving} onClick={() => applyBatchTriage('deferred')} type="button">Defer</button>
+              <button className="secondary-button editorial-ingestion-header-button quiet" disabled={!selectedExtractionCount || saving} onClick={() => applyBatchTriage('resolved')} type="button">Resolve</button>
+              <button className="secondary-button editorial-ingestion-header-button quiet" disabled={!selectedExtractionCount || saving} onClick={() => applyBatchTriage('accepted-for-placement')} type="button">Accept</button>
+            </div>
           </div>
 
           <div className="editorial-review-split">
             <nav className="editorial-review-queue" aria-label="Review queue">
               <div className="editorial-review-queue-heading">
-                <strong>Queue</strong>
-                <small>{stagedItems.length} waiting</small>
+                <strong>Source Intakes</strong>
+                <small>{sourceClusters.length} grouped</small>
               </div>
               <div className="editorial-ingestion-list">
-                {stagedItems.map((item) => (
-                  <button
-                    aria-current={selectedReviewKey === item.key ? 'true' : undefined}
-                    className={`editorial-ingestion-item ${selectedReviewKey === item.key ? 'selected' : ''}`}
-                    key={item.key}
-                    onClick={() => setSelectedReviewKey(item.key)}
-                    type="button"
-                  >
-                    <span>
-                      <StateBadge state={getReviewStateKey(item)} label={getReviewStateLabel(item)} />
-                      <strong>{item.title}</strong>
-                      <small>{item.kind} / {formatDate(item.timestamp)}</small>
-                    </span>
-                    <StatusBadge status={item.status} />
-                  </button>
-                ))}
-                {!stagedItems.length ? <p className="muted">No staged review items yet.</p> : null}
+                {sourceClusters.map((cluster) => {
+                  const open = expandedSourceIds.includes(cluster.key);
+                  const sourceUnresolved = cluster.items.filter((item) => !['resolved', 'deferred'].includes(item.status)).length;
+                  const sourceAccepted = cluster.items.filter((item) => item.status === 'accepted-for-placement').length;
+                  const allSelected = cluster.items.every((item) => selectedExtractionSet.has(String(item.id)));
+                  return (
+                    <section className="editorial-source-cluster" key={cluster.key}>
+                      <div className="editorial-source-cluster-heading">
+                        <button className="editorial-source-toggle" onClick={() => toggleCluster(cluster.key)} type="button">
+                          <strong>{cluster.title}</strong>
+                          <small>{cluster.meta} / {sourceUnresolved} unresolved / {sourceAccepted} placement ready</small>
+                        </button>
+                        <button aria-label="Select source cluster" className="icon-button" onClick={() => toggleClusterSelection(cluster.items)} title="Select source cluster" type="button">
+                          {allSelected ? <CheckSquare size={15} /> : <Square size={15} />}
+                        </button>
+                      </div>
+                      {open ? cluster.items.map((item) => (
+                        <div className="editorial-triage-row" key={item.key}>
+                          <button aria-label="Select extraction review item" className="icon-button" onClick={() => toggleExtractionSelection(item.id)} title="Select review item" type="button">
+                            {selectedExtractionSet.has(String(item.id)) ? <CheckSquare size={15} /> : <Square size={15} />}
+                          </button>
+                          <button
+                            aria-current={selectedReviewKey === item.key ? 'true' : undefined}
+                            className={`editorial-ingestion-item ${selectedReviewKey === item.key ? 'selected' : ''}`}
+                            onClick={() => setSelectedReviewKey(item.key)}
+                            type="button"
+                          >
+                            <span>
+                              <StateBadge state={getReviewStateKey(item)} label={getReviewStateLabel(item)} />
+                              <strong>{item.title}</strong>
+                              <small>{item.kind} / {formatDate(item.timestamp)}</small>
+                            </span>
+                            <StatusBadge status={formatReviewType(item.status)} />
+                          </button>
+                        </div>
+                      )) : null}
+                    </section>
+                  );
+                })}
+                {!sourceClusters.length ? <p className="muted">No extraction review items match these filters.</p> : null}
               </div>
             </nav>
 
@@ -659,7 +920,8 @@ export default function EditorialIngestion() {
                   <div className="editorial-review-meta-grid">
                     <ReviewFact label="Source" value={selectedReviewItem.sourceLabel || selectedReviewItem.provenance?.source_label || 'Source preserved'} />
                     <ReviewFact label="Type" value={formatSourceType(selectedReviewItem.sourceType, selectedReviewItem.sourceTypeLabel || selectedReviewItem.provenance?.custom_source_label)} />
-                    <ReviewFact label="Confidence" value={formatConfidence(selectedReviewItem.status)} />
+                    <ReviewFact label="Triage" value={formatReviewType(selectedReviewItem.status)} />
+                    <ReviewFact label="Confidence" value={formatConfidence(selectedReviewItem.confidence)} />
                     <ReviewFact label="Updated" value={formatDate(selectedReviewItem.timestamp)} />
                   </div>
                   <div className="editorial-review-meta-grid source-provenance-grid">
@@ -671,9 +933,15 @@ export default function EditorialIngestion() {
                   {selectedReviewItem.conflict ? (
                     <ReviewBlock label="Continuity context" value={selectedReviewItem.conflict} />
                   ) : null}
+                  {selectedReviewItem.status === 'accepted-for-placement' ? (
+                    <ReviewBlock label="Promotion readiness" value="Accepted for placement, still non-canon. Manual placement remains required before any canon record changes." />
+                  ) : null}
+                  {selectedReviewItem.status === 'contradiction-risk' ? (
+                    <ReviewBlock label="Placement blocker" value="Contradiction risk is surfaced for review only. Resolve the continuity question before future canon placement." />
+                  ) : null}
                   <ReviewBlock label="Review material" value={selectedReviewItem.content || selectedReviewItem.meta} />
                   <ReviewBlock label="Raw source excerpt" value={selectedReviewItem.excerpt || selectedReviewItem.provenance?.source_note || 'No raw excerpt is attached to this review item.'} />
-                  <ReviewBlock label="Editorial note" value={selectedReviewItem.trustReason || selectedReviewItem.provenance?.source_note || 'No editorial note recorded.'} />
+                  <ReviewBlock label="Editorial note" value={selectedReviewItem.triageNote || selectedReviewItem.trustReason || selectedReviewItem.provenance?.source_note || 'No editorial note recorded.'} />
                 </>
               ) : (
                 <div className="editorial-review-empty">
@@ -714,9 +982,13 @@ const confidencePresets = [
 ];
 
 const extractionReviewStates = [
-  { value: 'unresolved', label: 'Extracted Candidate' },
-  { value: 'in-review', label: 'In Review' },
-  { value: 'pending-placement', label: 'Accepted for Placement' }
+  { value: 'unreviewed', label: 'Unreviewed' },
+  { value: 'needs-review', label: 'Needs Review' },
+  { value: 'contradiction-risk', label: 'Contradiction Risk' },
+  { value: 'duplicate-risk', label: 'Duplicate Risk' },
+  { value: 'accepted-for-placement', label: 'Accepted for Placement' },
+  { value: 'deferred', label: 'Deferred' },
+  { value: 'resolved', label: 'Resolved' }
 ];
 
 function StateBadge({ state, label }) {
@@ -775,16 +1047,56 @@ function formatConfidence(value) {
 function getReviewStateKey(item = {}) {
   if (item.provenance?.promotions?.length || item.status === 'Promoted') return 'promoted-canon';
   if (item.kind === 'Staged Source') return 'staged-source';
-  if (item.status === 'pending-placement') return 'accepted-placement';
+  if (item.status === 'accepted-for-placement' || item.status === 'pending-placement') return 'accepted-placement';
+  if (item.status === 'contradiction-risk') return 'contradiction-risk';
+  if (item.status === 'duplicate-risk') return 'duplicate-risk';
   if (item.kind === 'Extraction Candidate' || item.kind === 'Narrative Fragment') return 'extracted-candidate';
   return 'extracted-candidate';
 }
 
 function getReviewStateLabel(item = {}) {
   if (item.kind === 'Staged Source') return 'Staged Source';
-  if (item.status === 'pending-placement') return 'Accepted for Placement';
+  if (item.status === 'accepted-for-placement' || item.status === 'pending-placement') return 'Accepted for Placement';
+  if (item.status === 'contradiction-risk') return 'Contradiction Risk';
+  if (item.status === 'duplicate-risk') return 'Duplicate Risk';
   if (item.provenance?.promotions?.length || item.status === 'Promoted') return 'Promoted Canon';
   return item.kind === 'Narrative Fragment' ? 'Extracted Fragment' : 'Extracted Candidate';
+}
+
+function normalizeExtractionTriageState(value) {
+  const normalized = String(value || '').trim().toLowerCase().replace(/[_\s/]+/g, '-');
+  const aliases = {
+    unresolved: 'unreviewed',
+    'in-review': 'needs-review',
+    'pending-placement': 'accepted-for-placement',
+    accepted: 'accepted-for-placement',
+    reviewed: 'resolved',
+    rejected: 'deferred'
+  };
+  const canonical = aliases[normalized] || normalized || 'unreviewed';
+  return extractionReviewStates.some((state) => state.value === canonical) ? canonical : 'unreviewed';
+}
+
+function matchesReviewFilters(item, reviewStateFilter, riskFilter) {
+  if (reviewStateFilter !== 'all' && item.status !== reviewStateFilter) return false;
+  if (riskFilter !== 'all' && item.status !== riskFilter) return false;
+  return true;
+}
+
+function compareReviewPriority(a = {}, b = {}) {
+  const priority = {
+    'contradiction-risk': 0,
+    'duplicate-risk': 1,
+    'needs-review': 2,
+    unreviewed: 3,
+    'accepted-for-placement': 4,
+    deferred: 5,
+    resolved: 6
+  };
+  const aPriority = priority[normalizeExtractionTriageState(a.status)] ?? 3;
+  const bPriority = priority[normalizeExtractionTriageState(b.status)] ?? 3;
+  if (aPriority !== bPriority) return aPriority - bPriority;
+  return new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime();
 }
 
 function getConfidenceDefinition(value) {

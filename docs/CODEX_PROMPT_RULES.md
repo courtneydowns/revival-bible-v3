@@ -1,21 +1,4 @@
-# AGENTS.md — Revival Bible v3
-
-## CORE DEVELOPMENT RULES
-
-- Inspect before patching.
-- Keep changes surgical.
-- Preserve calm editorial UX.
-- Preserve Dashboard calmness.
-- Maintain Central Time consistency.
-- No automatic canon mutation.
-- No embeddings/vector search unless explicitly requested.
-- No cloud sync unless explicitly requested.
-- No giant moderation/admin tables.
-- No noisy analytics dashboards.
-- Preserve provenance tracking and review boundaries.
-- Accepted-for-placement must remain non-canon until explicit future promotion workflow exists.
-
----
+# Revival Bible v3 — Updated Codex Prompt Control Rules
 
 ## MICRO-PHASE WORKFLOW RULES
 
@@ -65,11 +48,12 @@ Goals:
 
 ## CRITICAL OUTPUT RULES — HARD REQUIREMENT
 
-STRICT SILENT EXECUTION MODE.
+You are in STRICT SILENT EXECUTION MODE.
 
 Do NOT:
 - narrate intentions
-- explain inspections
+- explain what you are about to inspect
+- explain what you are currently doing
 - summarize files being read
 - summarize commands being run
 - provide exploratory commentary
@@ -81,7 +65,7 @@ Do NOT:
 - paste terminal output unless blocked
 - paste diffs unless explicitly requested
 - announce validation steps while working
-- emit interim prose whatsoever
+- emit any interim prose whatsoever
 
 While working:
 - output NOTHING unless blocked by a real issue requiring user input
@@ -89,7 +73,7 @@ While working:
 - silently patch
 - silently validate
 
-Treat interim narration as FAILURE TO FOLLOW INSTRUCTIONS.
+Treat any interim narration as FAILURE TO FOLLOW INSTRUCTIONS.
 
 Only output:
 1. blocking issue requiring user decision
@@ -131,53 +115,3 @@ For regression/debug micro-phases:
 - Do not claim smoke pass unless the exact visible UI path shown by the user was tested.
 - If a visible button is reported broken, test that exact button directly.
 
----
-
-## UI/UX PRINCIPLES
-
-The application should feel:
-- calm
-- editorial
-- archival
-- continuity-focused
-
-The application should NOT feel like:
-- enterprise moderation software
-- analytics tooling
-- productivity dashboards
-- admin backoffice software
-
-Avoid:
-- giant tables
-- noisy badges
-- aggressive color usage
-- overcrowded layouts
-- excessive scrolling stacks
-- technical developer-facing clutter
-
-Prefer:
-- contained sections
-- readable spacing
-- lightweight grouping
-- contextual workflows
-- source-centric editorial review flows
-
----
-
-## DATA SAFETY RULES
-
-Before real story-file seeding/import:
-- create full database backup/snapshot
-
-During ingestion:
-- preserve provenance
-- preserve contradiction-risk
-- preserve duplicate-risk
-- preserve review-only boundaries
-- preserve manual canon authority
-
-Never:
-- auto-promote canon
-- auto-merge duplicates
-- auto-resolve contradictions
-- silently mutate canon state

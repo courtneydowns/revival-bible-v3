@@ -3274,6 +3274,7 @@ button.candidate-filter-pill {
 .editorial-ingestion-header-button {
   display: inline-flex;
   min-height: 32px;
+  min-width: max-content;
   align-items: center;
   justify-content: center;
   gap: 6px;
@@ -3281,6 +3282,8 @@ button.candidate-filter-pill {
   color: var(--text-muted);
   font-size: 12px;
   font-weight: 650;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .editorial-ingestion-header-button:hover {
@@ -3295,22 +3298,24 @@ button.candidate-filter-pill {
 
 .editorial-ingestion-layout {
   display: grid;
-  grid-template-columns: minmax(330px, 0.78fr) minmax(620px, 1.45fr);
+  grid-template-columns: minmax(300px, 0.72fr) minmax(520px, 1.28fr);
   gap: 16px;
   min-height: 0;
   overflow: hidden;
 }
 
 .editorial-ingestion-intake {
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 14px;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
+  overflow-y: auto;
+  padding-right: 2px;
 }
 
 .editorial-ingestion-panel {
+  flex: 0 0 auto;
   min-width: 0;
   min-height: 0;
   border: 1px solid var(--line);
@@ -3356,6 +3361,7 @@ button.candidate-filter-pill {
 .editorial-ingestion-form label {
   display: grid;
   gap: 6px;
+  min-width: 0;
 }
 
 .editorial-ingestion-form label > span,
@@ -3371,11 +3377,26 @@ button.candidate-filter-pill {
 .editorial-ingestion-form textarea,
 .editorial-routing-options > input {
   width: 100%;
+  min-width: 0;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: #11110f;
   color: var(--text);
   padding: 9px 10px;
+  font-size: 13px;
+}
+
+.editorial-ingestion-form input,
+.editorial-ingestion-form select,
+.editorial-review-controls select,
+.editorial-review-controls input {
+  min-height: 38px;
+  line-height: 1.25;
+}
+
+.editorial-ingestion-form select,
+.editorial-review-controls select {
+  padding-right: 30px;
 }
 
 .editorial-ingestion-form textarea {
@@ -3386,9 +3407,47 @@ button.candidate-filter-pill {
 
 .editorial-ingestion-form .primary-button {
   display: inline-flex;
+  min-height: 38px;
   align-items: center;
   justify-content: center;
   gap: 7px;
+  line-height: 1.2;
+}
+
+.source-file-picker-button {
+  display: inline-flex;
+  position: relative;
+  width: 100%;
+  min-height: 38px;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 7px;
+  padding: 8px 10px;
+  cursor: pointer;
+  line-height: 1.2;
+  overflow: hidden;
+}
+
+.source-file-picker-button span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-file-picker-button.selecting {
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+
+.source-file-native-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  opacity: 0;
 }
 
 .source-preview-card,
@@ -3453,9 +3512,13 @@ button.candidate-filter-pill {
   padding-top: 9px;
 }
 
+.session-source-row.just-attached {
+  border-color: rgb(139 174 139 / 45%);
+}
+
 .source-type-badge {
   width: fit-content;
-  max-width: 160px;
+  max-width: min(260px, 100%);
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -3470,7 +3533,7 @@ button.candidate-filter-pill {
 
 .editorial-ingestion-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
   gap: 10px;
 }
 
@@ -3558,10 +3621,90 @@ button.candidate-filter-pill {
   color: #acd0a9;
 }
 
+.editorial-state-badge.contradiction-risk {
+  border-color: rgb(194 111 111 / 48%);
+  background: rgb(194 111 111 / 13%);
+  color: #dda2a2;
+}
+
+.editorial-state-badge.duplicate-risk {
+  border-color: rgb(189 167 122 / 50%);
+  background: rgb(189 167 122 / 14%);
+  color: #d9c28b;
+}
+
 .editorial-state-badge.promoted-canon {
   border-color: rgb(179 141 109 / 48%);
   background: rgb(179 141 109 / 14%);
   color: #d6ad8a;
+}
+
+.editorial-triage-overview {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: -2px 0 12px;
+}
+
+.editorial-triage-overview > div {
+  display: grid;
+  gap: 3px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #151514;
+  padding: 9px;
+}
+
+.editorial-triage-overview span,
+.editorial-review-controls label > span {
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.editorial-triage-overview strong {
+  color: var(--text);
+  font-size: 18px;
+}
+
+.editorial-review-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
+  gap: 9px;
+  align-items: end;
+  margin-bottom: 14px;
+}
+
+.editorial-review-controls label {
+  display: grid;
+  gap: 5px;
+}
+
+.editorial-review-controls select,
+.editorial-review-controls input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #11110f;
+  color: var(--text);
+  padding: 8px 9px;
+}
+
+.editorial-batch-actions {
+  display: inline-flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.editorial-batch-actions small {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
 }
 
 .editorial-ingestion-list {
@@ -3638,6 +3781,63 @@ button.editorial-ingestion-item.selected {
 .editorial-review-queue .editorial-ingestion-list {
   overflow-y: auto;
   padding-right: 2px;
+}
+
+.editorial-source-cluster {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #151514;
+  padding: 9px;
+}
+
+.editorial-source-cluster-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.editorial-source-toggle {
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+}
+
+.editorial-source-toggle strong,
+.editorial-source-toggle small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editorial-source-toggle strong {
+  font-size: 13px;
+}
+
+.editorial-source-toggle small {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.editorial-triage-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 7px;
+  align-items: start;
+}
+
+.editorial-triage-row > .icon-button {
+  margin-top: 8px;
 }
 
 .editorial-review-queue-heading {
@@ -5025,7 +5225,9 @@ button.candidate-tag {
   }
 
   .editorial-ingestion-grid,
+  .editorial-review-controls,
   .editorial-review-split,
+  .editorial-triage-overview,
   .editorial-review-meta-grid {
     grid-template-columns: minmax(0, 1fr);
   }
