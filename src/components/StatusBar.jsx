@@ -4,13 +4,13 @@ import { formatCentralTime } from '../time.js';
 export default function StatusBar() {
   const databaseInfo = useRevivalStore((state) => state.databaseInfo);
   const saveState = useRevivalStore((state) => state.saveState);
-  const path = databaseInfo.path || 'initializing';
   const saveText = getSaveText(saveState);
+  const databaseText = databaseInfo.connected ? 'Local archive connected' : 'Local archive pending';
 
   return (
     <footer className="status-bar">
       <span>{saveText}</span>
-      <span>Database {databaseInfo.connected ? 'connected' : 'pending'}: {path}</span>
+      <span title={databaseInfo.path || undefined}>{databaseText}</span>
     </footer>
   );
 }
