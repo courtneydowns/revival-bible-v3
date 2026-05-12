@@ -1,5 +1,78 @@
 # Revival Bible v3 — Phase Ledger
 
+## Phase 38 — Editorial Review Workspace Refactor + Provenance Normalization
+
+Status: Passed
+
+Completion summary:
+Phase 38 refactored Editorial Ingestion into a scalable split-pane editorial review workspace and normalized provenance/confidence controls for archival review.
+
+Files changed:
+- electron/main/db.js
+- src/components/EditorialIngestion.jsx
+- src/store.js
+- src/index.css
+- docs/ACTIVE_SCOPE.md
+- docs/CURRENT_STATE.md
+- docs/ROADMAP.md
+- docs/PHASE_LEDGER.md
+
+Root cause:
+The ingestion review surface had outgrown a compact rail/card layout and source/confidence inputs were too freeform for long-term editorial review.
+
+One sentence fix:
+Added a queue/detail review workspace with explicit exit controls, readable provenance inspection, normalized source presets, optional custom labels, and controlled confidence definitions while preserving review-only routing.
+
+Build result:
+npm run build passed.
+
+Smoke result:
+Electron smoke passed; Editorial Ingestion opened, split-pane review selection and detail inspection worked, close/back/Escape cleared selection, source presets and custom labels worked, confidence presets worked, Dashboard queues remained visible, autosave stayed stable, and canon counts remained unchanged.
+
+Unresolved blockers:
+None.
+
+## Phase 37 — Manual Ingestion Retest + ZIP/Document Import Planning Gate
+
+Status: Passed
+
+Completion summary:
+Phase 37 re-smoked and hardened the real Editorial Ingestion workflow before any ZIP/document extraction work begins.
+
+Files changed:
+- electron/main/db.js
+- src/components/EditorialIngestion.jsx
+- src/store.js
+- docs/ACTIVE_SCOPE.md
+- docs/CURRENT_STATE.md
+- docs/ROADMAP.md
+- docs/PHASE_LEDGER.md
+
+Root cause:
+The manual ingestion UI worked, but provenance-required behavior and source metadata persistence needed backend hardening before real document import planning could proceed.
+
+One sentence fix:
+Required provenance at the persistence boundary, captured explicit source provenance notes for staged material, preserved review-only routing, and documented the ZIP/document import safety gate.
+
+Build result:
+npm run build passed.
+
+Smoke result:
+Real Electron smoke passed; manual import session creation, provenance enforcement, source metadata persistence, extraction candidate persistence, duplicate routing, contradiction routing, weak-confidence review, narrative fragment preservation, Dashboard queue updates, navigation/reload persistence, autosave/status stability, Central Time timestamps, and unchanged canon counts at 8/25/16/49 were verified.
+
+Unresolved blockers:
+None.
+
+ZIP/document import gate:
+- Raw source memory must be preserved before extraction.
+- Provenance is mandatory and permanent across sessions, sources, extractions, duplicate reviews, continuity reviews, and fragments.
+- Duplicate uncertainty remains soft-merge review only.
+- Contradictions remain manual continuity review only.
+- Weak-confidence material and narrative fragments remain non-canon review material.
+- Extraction sessions must be auditable, batchable, and recoverable.
+- Rollback/recovery must avoid canon mutation.
+- Pre-canon editorial review and explicit user promotion are required.
+
 ## Phase 36 — Minimal Safe Editorial Ingestion Surface
 
 Status: Passed
@@ -126,12 +199,12 @@ None.
 
 ## Next Planned Phase
 
-### Phase 37 — Controlled ZIP / Document Import Entry Point
+### Phase 39 — Controlled ZIP / Document Import Entry Point
 
 Status: Planned
 
 Reason:
-The ingestion safety framework, Dashboard review home, readiness smoke, and manual staging surface are now in place, so the next step should expose the smallest safe controlled ZIP/document import entry point.
+The ingestion safety framework, Dashboard review home, readiness smoke, manual staging surface, Phase 37 import safety gate, and Phase 38 review workspace are now in place, so the next step should expose the smallest safe controlled ZIP/document import entry point.
 
 Goal:
-Implement a narrow source import entry point while preserving review-first behavior, provenance, duplicate review, continuity review, and explicit canon promotion.
+Implement a narrow source import entry point while preserving review-first behavior, provenance, batching/auditability, duplicate review, continuity review, recovery expectations, and explicit canon promotion.

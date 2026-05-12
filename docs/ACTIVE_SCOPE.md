@@ -2,11 +2,76 @@
 
 ## Current Status
 
-Phase 36 passed.
+Phase 38 passed.
 
-Phase 36 exposed a minimal safe Editorial Ingestion workspace for manual staging/testing before real ZIP/document ingestion. The workflow creates manual import sessions, requires provenance, stages source memory and extraction candidates, routes duplicate uncertainty and contradictions into existing review queues, preserves narrative fragments as non-canon, and leaves canon counts unchanged.
+Phase 38 refactored Editorial Ingestion into a scalable split-pane editorial review workspace. Review items now open from a persistent queue into a roomy detail pane with provenance, raw excerpts, editorial notes, continuity context, duplicate context, explicit close/back navigation, and Escape-to-close behavior. Source typing now uses controlled archival presets with optional custom labels, and confidence now uses normalized editorial definitions: Confirmed, Strong, Moderate, Weak, and Speculative.
 
 ## Recently Completed Phase
+
+### Phase 38 — Editorial Review Workspace Refactor + Provenance Normalization
+
+Status: Passed
+
+Files changed:
+- src/components/EditorialIngestion.jsx
+- src/store.js
+- electron/main/db.js
+- src/index.css
+- docs/ACTIVE_SCOPE.md
+- docs/CURRENT_STATE.md
+- docs/ROADMAP.md
+- docs/PHASE_LEDGER.md
+
+Validated:
+- npm run build passed.
+- Editorial Ingestion now uses an intake column plus split-pane review workspace.
+- Review queue selection, detail inspection, back/close controls, and Escape-to-close behavior were added.
+- Provenance, raw source excerpts, review material, continuity context, duplicate context, and editorial notes are readable in the detail pane.
+- Source type presets are normalized while optional custom source labels remain preserved in provenance metadata.
+- Confidence presets are normalized to editorial definitions without automatic canon promotion.
+- Existing review routing, Dashboard queues, autosave behavior, and canon safety rules remain intact.
+
+No unresolved blockers.
+
+### Phase 37 — Manual Ingestion Retest + ZIP/Document Import Planning Gate
+
+Status: Passed
+
+Files changed:
+- src/components/EditorialIngestion.jsx
+- src/store.js
+- electron/main/db.js
+- docs/ACTIVE_SCOPE.md
+- docs/CURRENT_STATE.md
+- docs/ROADMAP.md
+- docs/PHASE_LEDGER.md
+
+Validated:
+- npm run build passed.
+- Real Electron smoke passed.
+- Manual import session creation persisted.
+- Provenance-required enforcement was validated and hardened.
+- Source metadata and extraction candidates persisted after navigation and reload.
+- Duplicate uncertainty routed to duplicate review.
+- Contradictions routed to continuity review.
+- Weak-confidence material surfaced in review.
+- Narrative fragments remained non-canon.
+- Dashboard queues updated.
+- Autosave/status and Central Time timestamps remained stable.
+- Canon counts remained unchanged at 8/25/16/49.
+
+Import safety gate:
+- ZIP/document extraction must preserve raw source records before any extraction.
+- Every session, source, candidate, duplicate review, continuity review, and fragment must carry permanent provenance.
+- Duplicate uncertainty must create soft-merge review only.
+- Contradictions must create manual continuity review only.
+- Weak-confidence and soft-merge material must remain reviewable before promotion.
+- Narrative fragments must remain non-canon editorial memory.
+- Extraction sessions must be auditable, batchable, and recoverable.
+- Rollback/recovery must preserve source memory and avoid partial canon mutation.
+- Pre-canon editorial review is mandatory; the user remains authoritative.
+
+No unresolved blockers.
 
 ### Phase 36 — Minimal Safe Editorial Ingestion Surface
 
@@ -131,13 +196,16 @@ Explicitly promoted material only.
 
 ## Next Recommended Phase
 
-### Phase 37 — Controlled ZIP / Document Import Entry Point
+### Phase 39 — Controlled ZIP / Document Import Entry Point
 
 Goal:
-Add the smallest safe user-facing ZIP/document import entry point using the Phase 33 protection framework, Phase 34 Dashboard home, and Phase 35 readiness validation.
+Add the smallest safe user-facing ZIP/document import entry point using the protected ingestion framework, Dashboard queues, Phase 37 import safety gate, and Phase 38 split-pane editorial review workspace.
 
 Strict scope:
 - narrow controlled import entry point only
+- source preservation and provenance capture before extraction
+- extraction-session audit trail
+- import batching with rollback/recovery expectations
 - no automatic canon mutation
 - no automatic duplicate merge
 - no automatic contradiction resolution

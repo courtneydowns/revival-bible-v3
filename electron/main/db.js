@@ -904,7 +904,7 @@ export function getIngestionReviewSummary() {
       .map(hydrateProvenanceRow),
     unresolvedExtractions: connection
       .prepare(`
-        SELECT ee.*, smr.source_label
+        SELECT ee.*, smr.source_label, smr.source_type, smr.raw_content
         FROM editorial_extractions ee
         LEFT JOIN source_memory_records smr ON smr.id = ee.source_record_id
         WHERE ee.status IN ('unresolved', 'in-review', 'pending-placement')
@@ -935,7 +935,7 @@ export function getIngestionReviewSummary() {
       .map(hydrateProvenanceRow),
     narrativeFragments: connection
       .prepare(`
-        SELECT nf.*, smr.source_label
+        SELECT nf.*, smr.source_label, smr.source_type, smr.raw_content
         FROM narrative_fragments nf
         LEFT JOIN source_memory_records smr ON smr.id = nf.source_record_id
         WHERE nf.status IN ('unplaced', 'review-later')
@@ -948,7 +948,20 @@ export function getIngestionReviewSummary() {
 }
 
 export function createImportSession(payload = {}) {
-  const title = normalizeNullableText(payload.title) || 'Untitled import session';
+  const title = normalizeNullableText(payload.title);
+  const provenanceMetadata = normalizeFrameworkProvenance(payload.provenanceMetadata);
+  const provenanceNote = normalizeNullableText(
+    provenanceMetadata.source_note || provenanceMetadata.source_label || provenanceMetadata.source_title || provenanceMetadata.source
+  );
+
+  if (!title) {
+    return { ok: false, message: 'Import session title is required.' };
+  }
+
+  if (!provenanceNote) {
+    return { ok: false, message: 'Import session provenance is required.' };
+  }
+
   const result = connection
     .prepare(`
       INSERT INTO import_sessions (title, source_type, status, notes, provenance_metadata)
@@ -959,7 +972,7 @@ export function createImportSession(payload = {}) {
       sourceType: normalizeReviewToken(payload.sourceType, 'manual'),
       status: normalizeReviewToken(payload.status, 'active'),
       notes: String(payload.notes || '').trim(),
-      provenanceMetadata: JSON.stringify(normalizeFrameworkProvenance(payload.provenanceMetadata))
+      provenanceMetadata: JSON.stringify(provenanceMetadata)
     });
 
   return {
@@ -970,11 +983,29 @@ export function createImportSession(payload = {}) {
 
 export function createSourceMemoryRecord(payload = {}) {
   const rawContent = String(payload.rawContent || payload.raw_content || '').trim();
+  const sourceLabel = normalizeNullableText(payload.sourceLabel || payload.source_label);
+  const provenanceMetadata = normalizeFrameworkProvenance(payload.provenanceMetadata);
+  const provenanceNote = normalizeNullableText(
+    provenanceMetadata.source_note || provenanceMetadata.source_label || provenanceMetadata.source_title || provenanceMetadata.source
+  );
+
   if (!rawContent) {
     return { ok: false, message: 'Source content is required.' };
   }
 
+  if (!sourceLabel) {
+    return { ok: false, message: 'Source label is required.' };
+  }
+
+  if (!provenanceNote) {
+    return { ok: false, message: 'Source provenance is required.' };
+  }
+
   const sessionId = normalizeExistingImportSessionId(payload.importSessionId || payload.import_session_id);
+  if (!sessionId) {
+    return { ok: false, message: 'A valid import session is required.' };
+  }
+
   const result = connection
     .prepare(`
       INSERT INTO source_memory_records (
@@ -986,11 +1017,15 @@ export function createSourceMemoryRecord(payload = {}) {
     `)
     .run({
       importSessionId: sessionId,
-      sourceLabel: normalizeNullableText(payload.sourceLabel || payload.source_label) || 'Untitled source',
+      sourceLabel,
       sourceType: normalizeReviewToken(payload.sourceType || payload.source_type, 'note'),
       rawContent,
       checksum: String(payload.checksum || '').trim() || null,
-      provenanceMetadata: JSON.stringify(normalizeFrameworkProvenance(payload.provenanceMetadata))
+      provenanceMetadata: JSON.stringify({
+        ...provenanceMetadata,
+        source_label: sourceLabel,
+        import_session_id: sessionId
+      })
     });
 
   touchImportSession(sessionId);
@@ -1001,10 +1036,21 @@ export function createSourceMemoryRecord(payload = {}) {
 }
 
 export function createEditorialExtraction(payload = {}) {
-  const title = normalizeNullableText(payload.title) || 'Untitled extraction';
+  const title = normalizeNullableText(payload.title);
+  const content = String(payload.content || '').trim();
+  const trustReason = String(payload.trustReason || payload.trust_reason || '').trim();
   const sourceRecordId = normalizeExistingSourceRecordId(payload.sourceRecordId || payload.source_record_id);
   const importSessionId = normalizeExistingImportSessionId(payload.importSessionId || payload.import_session_id)
     || getImportSessionIdForSource(sourceRecordId);
+
+  if (!sourceRecordId || !importSessionId) {
+    return { ok: false, message: 'Source provenance is required before staging an extraction.' };
+  }
+
+  if (!title || !content || !trustReason) {
+    return { ok: false, message: 'Extraction title, content, and trust note are required.' };
+  }
+
   const result = connection
     .prepare(`
       INSERT INTO editorial_extractions (
@@ -1020,10 +1066,10 @@ export function createEditorialExtraction(payload = {}) {
       importSessionId,
       sourceRecordId,
       title,
-      content: String(payload.content || '').trim(),
+      content,
       classification: normalizeExtractionClassification(payload.classification),
       confidenceState: normalizeConfidenceState(payload.confidenceState || payload.confidence_state, 'weak'),
-      trustReason: String(payload.trustReason || payload.trust_reason || '').trim(),
+      trustReason,
       status: normalizeReviewToken(payload.status, 'unresolved'),
       provenanceMetadata: JSON.stringify(normalizeFrameworkProvenance({
         ...payload.provenanceMetadata,
@@ -1158,6 +1204,17 @@ export function updateContinuityReviewItem(payload = {}) {
 
 export function createNarrativeFragment(payload = {}) {
   const sourceRecordId = normalizeExistingSourceRecordId(payload.sourceRecordId || payload.source_record_id);
+  const title = normalizeNullableText(payload.title);
+  const content = String(payload.content || '').trim();
+
+  if (!sourceRecordId) {
+    return { ok: false, message: 'Source provenance is required before staging a narrative fragment.' };
+  }
+
+  if (!title || !content) {
+    return { ok: false, message: 'Narrative fragment title and content are required.' };
+  }
+
   const result = connection
     .prepare(`
       INSERT INTO narrative_fragments (
@@ -1169,8 +1226,8 @@ export function createNarrativeFragment(payload = {}) {
     `)
     .run({
       sourceRecordId,
-      title: normalizeNullableText(payload.title) || 'Untitled narrative fragment',
-      content: String(payload.content || '').trim(),
+      title,
+      content,
       fragmentType: normalizeReviewToken(payload.fragmentType || payload.fragment_type, 'story-material'),
       confidenceState: normalizeConfidenceState(payload.confidenceState || payload.confidence_state, 'speculative'),
       status: normalizeReviewToken(payload.status, 'unplaced'),
@@ -2226,7 +2283,7 @@ function hydrateProvenanceRow(row) {
 
 function normalizeConfidenceState(value, fallback = 'weak') {
   const normalized = normalizeReviewToken(value, fallback);
-  const allowed = new Set(['explicit', 'strong', 'weak', 'inferred', 'contradictory', 'deprecated', 'speculative']);
+  const allowed = new Set(['confirmed', 'strong', 'moderate', 'weak', 'speculative', 'explicit', 'inferred', 'contradictory', 'deprecated']);
   return allowed.has(normalized) ? normalized : fallback;
 }
 

@@ -37,6 +37,61 @@ Editorial Memory contains reviewable, unresolved, or in-progress material. This 
 
 Canon Memory contains explicitly promoted material only. Repetition across sources does not make a claim canon.
 
+## Completed Phase 38 State
+
+Phase 38 passed and turned Editorial Ingestion from a cramped staging/review surface into an archival split-pane editorial review workspace.
+
+Confirmed capabilities:
+- Editorial Ingestion uses a left intake column and a split review workspace with queue and detail panes
+- review selection is persistent until explicitly changed or cleared
+- selected items show readable provenance, source type, confidence, timestamps, raw source excerpts, review material, continuity context, duplicate context, and editorial notes
+- visible Back to Queue and close controls clear selection
+- Escape clears review selection
+- source taxonomy uses controlled presets: Draft Notes, Outline, Character Notes, Episode Notes, Timeline Notes, Voice Memo, AI Session, Previous Bible, Imported Document, Research / Interview, Fragment, and Unknown
+- optional custom source labels remain preserved in provenance metadata
+- confidence uses controlled editorial levels: Confirmed, Strong, Moderate, Weak, and Speculative
+- older stored source and confidence values remain displayable
+- duplicate uncertainty, contradiction routing, weak-confidence review, narrative fragment preservation, Dashboard queues, autosave behavior, and canon safety rules remain review-first
+
+Validation:
+- npm run build passed
+- Electron smoke verified the split-pane review workspace, queue/detail selection, explicit close/back navigation, Escape-to-close behavior, source presets, optional custom labels, confidence presets, Dashboard queue visibility, autosave stability, and unchanged canon counts
+
+## Completed Phase 37 State
+
+Phase 37 passed and hardened the real Editorial Ingestion workflow before any ZIP/document extraction entry point is enabled.
+
+Confirmed capabilities:
+- manual import sessions persist from the real Electron UI
+- provenance is required for sessions and staged source material
+- source labels, source provenance notes, raw source excerpts, and extraction candidates persist
+- duplicate uncertainty routes into soft-merge review without merging
+- contradictions route into continuity review without resolving or mutating canon
+- weak-confidence material remains reviewable
+- narrative fragments remain preserved and non-canon
+- Dashboard source, continuity, and confidence queues update after staging
+- navigation away/back and app reload preserve staged review material
+- autosave/status display remains stable
+- Central Time timestamps remain visible
+- canon counts remain unchanged at 8/25/16/49
+
+ZIP/document import gate requirements:
+- preserve raw source memory before extraction
+- require permanent provenance on sessions, sources, extractions, duplicate reviews, continuity reviews, and fragments
+- batch imports into auditable extraction sessions
+- keep duplicate uncertainty in soft-merge review until the user chooses an outcome
+- route contradictions into manual continuity review with source-by-source claims
+- keep weak-confidence material in review queues
+- preserve narrative fragments as non-canon editorial memory
+- support rollback/recovery without canon mutation
+- require pre-canon editorial review and explicit user promotion
+
+The user remains authoritative. Nothing becomes canon automatically.
+
+Validation:
+- npm run build passed
+- real Electron UI smoke passed for manual session creation, provenance enforcement, source/extraction persistence, duplicate routing, contradiction routing, weak-confidence review, narrative fragment preservation, Dashboard queue updates, navigation/reload persistence, unchanged canon counts, autosave/status stability, and Central Time timestamps
+
 ## Completed Phase 36 State
 
 Phase 36 passed and exposed a minimal safe Editorial Ingestion surface for manual import/extraction testing through the real UI.
@@ -152,6 +207,6 @@ Revival Bible remains responsible for:
 
 ## Immediate Next Direction
 
-The next recommended phase is a narrow controlled ZIP/document import entry point now that the ingestion safeguards, Dashboard review home, Phase 35 readiness smoke, and Phase 36 manual staging surface are in place.
+The next recommended phase is a narrow controlled ZIP/document import entry point now that the ingestion safeguards, Dashboard review home, readiness smoke, manual staging surface, Phase 37 safety gate, and Phase 38 review workspace are in place.
 
-Any next import work must remain review-first: preserve source memory, route uncertain duplicates and contradictions to manual review, keep provenance permanent, and require explicit user promotion for canon.
+Any next import work must remain review-first: preserve source memory, batch and audit extraction sessions, route uncertain duplicates and contradictions to manual review, keep provenance permanent, support recovery, and require explicit user promotion for canon.

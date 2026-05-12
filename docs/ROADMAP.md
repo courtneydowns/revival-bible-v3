@@ -15,6 +15,46 @@ The system should help the user remember, compare, review, and intentionally pro
 
 ## Completed Recent Phases
 
+### Phase 38 — Editorial Review Workspace Refactor + Provenance Normalization
+
+Status: Passed
+
+Summary:
+Refactored Editorial Ingestion into a calmer split-pane editorial review workspace and normalized provenance/confidence controls before true extraction/import work.
+
+Delivered:
+- scalable intake plus split-pane review workspace
+- persistent review queue selection with readable detail inspection
+- explicit Back to Queue, close, and Escape-to-close behavior
+- provenance, source excerpt, continuity/conflict, duplicate, and editorial-note visibility in the detail pane
+- controlled source taxonomy presets with optional custom labels preserved in provenance metadata
+- controlled confidence levels: Confirmed, Strong, Moderate, Weak, and Speculative
+- compatibility with older stored source/confidence values
+- unchanged review-first routing and no automatic canon mutation
+
+Validation:
+- npm run build passed
+- Electron smoke passed for split-pane review inspection, review navigation/exit behavior, source taxonomy presets, custom labels, confidence definitions, Dashboard queues, autosave stability, and unchanged canon counts
+
+### Phase 37 — Manual Ingestion Retest + ZIP/Document Import Planning Gate
+
+Status: Passed
+
+Summary:
+Re-smoked and hardened the real Editorial Ingestion workflow before enabling any real ZIP/document extraction work.
+
+Delivered:
+- backend provenance enforcement for import sessions and staged source material
+- explicit source provenance note capture for manual extraction candidates
+- source metadata and extraction persistence hardening
+- autosave/status failure hardening when ingestion APIs are unavailable
+- planning gate for future ZIP/document extraction safety
+- manual canon authority clarification
+
+Validation:
+- npm run build passed
+- real Electron UI smoke passed for manual import session creation, provenance enforcement, source metadata persistence, extraction candidate persistence, duplicate routing, contradiction routing, weak-confidence review, narrative fragment preservation, Dashboard queue updates, navigation/reload persistence, Central Time timestamps, autosave/status stability, and unchanged canon counts at 8/25/16/49
+
 ### Phase 36 — Minimal Safe Editorial Ingestion Surface
 
 Status: Passed
@@ -111,16 +151,20 @@ Validation:
 
 ## Next Priority Phase
 
-### Phase 37 — Controlled ZIP / Document Import Entry Point
+### Phase 39 — Controlled ZIP / Document Import Entry Point
 
 Goal:
-Add the smallest safe user-facing ZIP/document import entry point now that protected ingestion structures, a review-oriented Dashboard home, readiness smoke validation, and a manual staging surface exist.
+Add the smallest safe user-facing ZIP/document import entry point now that protected ingestion structures, a review-oriented Dashboard home, readiness smoke validation, a manual staging surface, a formal import safety gate, and a scalable review workspace exist.
 
 Why now:
-Phase 33 created the safety framework, Phase 34 made review surfaces usable, and Phase 35 verified the workflow can preserve provenance and route risks without canon mutation. The next phase should expose a narrow controlled import path without bypassing duplicate review, continuity review, or explicit canon promotion.
+Phase 33 created the safety framework, Phase 34 made review surfaces usable, Phase 35 verified protected import behavior, Phase 36 exposed manual staging, Phase 37 confirmed persistence plus safety requirements, and Phase 38 made review inspection scalable. The next phase should expose a narrow controlled import path without bypassing duplicate review, continuity review, or explicit canon promotion.
 
 Primary objectives:
 - implement the narrowest ZIP/document import entry point
+- preserve raw source memory before extraction
+- require provenance before staging extracted material
+- create auditable extraction sessions
+- support import batching with recovery expectations
 - keep source memory preserved
 - keep extracted material reviewable before any canon promotion
 - route uncertain duplicates into review
@@ -133,6 +177,14 @@ Strict non-goals:
 - no automatic contradiction resolution
 - no bulk uncontrolled import
 - no screenplay-authoring systems
+
+Required safety behavior:
+- duplicate uncertainty creates soft-merge review only
+- contradictions create manual continuity review only
+- weak-confidence material routes into review queues
+- narrative fragments remain non-canon editorial memory
+- rollback/recovery must never require canon edits
+- the user must explicitly promote any canon change
 
 ## Future Priorities
 

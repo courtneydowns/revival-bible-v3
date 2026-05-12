@@ -461,6 +461,7 @@ export const useRevivalStore = create((set, get) => ({
   createManualExtractionCandidate: async (payload = {}) => {
     const api = window.revival?.ingestion;
     if (!api?.createSourceRecord || !api?.createExtraction) {
+      get().markSaveFailed('Ingestion API unavailable');
       return { ok: false, message: 'Ingestion API is unavailable. Restart the app and try again.' };
     }
 
@@ -469,6 +470,7 @@ export const useRevivalStore = create((set, get) => ({
       workflow: 'Editorial Ingestion',
       source_label: payload.sourceLabel,
       source_note: payload.provenanceNote,
+      custom_source_label: payload.sourceTypeLabel,
       import_session_id: payload.importSessionId,
       memory_layer: 'editorial',
       preserved: true
