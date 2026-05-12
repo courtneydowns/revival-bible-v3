@@ -1,23 +1,20 @@
 import Database from 'better-sqlite3';
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { initializeSchema } from './schema.js';
 
 let connection;
 let databasePath;
-let databaseDataDir;
-
-const RECOVERY_APP_VERSION = '0.1.0';
-const SNAPSHOT_RETENTION_LIMIT = 25;
 
 export function initDatabase(app) {
   const dataDir = app.isPackaged
     ? app.getPath('userData')
     : join(process.cwd(), '.data');
 
-  ensureDirectory(dataDir);
+  if (!existsSync(dataDir)) {
+    mkdirSync(dataDir, { recursive: true });
+  }
 
-  databaseDataDir = dataDir;
   databasePath = join(dataDir, 'revival-bible-v3.sqlite');
   connection = new Database(databasePath);
   initializeSchema(connection);
@@ -29,8 +26,7 @@ export function initDatabase(app) {
 export function getDatabaseInfo() {
   return {
     path: databasePath,
-    connected: Boolean(connection),
-    recoveryPath: databaseDataDir ? join(databaseDataDir, 'recovery') : ''
+    connected: Boolean(connection)
   };
 }
 
@@ -38,96 +34,6 @@ export function closeDatabase() {
   if (connection) {
     connection.close();
     connection = undefined;
-  }
-}
-
-export async function createRecoverySnapshot(payload = {}) {
-  const label = normalizeNullableText(payload.label) || 'Manual snapshot';
-  return createRecoveryPoint({
-    kind: 'snapshot',
-    label,
-    reason: normalizeNullableText(payload.reason) || label,
-    prune: true
-  });
-}
-
-export function listRecoverySnapshots() {
-  const entries = readRecoveryEntries('snapshots')
-    .filter((entry) => entry.metadata.kind === 'snapshot')
-    .sort((a, b) => String(b.metadata.createdAt || '').localeCompare(String(a.metadata.createdAt || '')));
-
-  return {
-    ok: true,
-    snapshots: entries.map(({ metadata }) => metadata)
-  };
-}
-
-export async function restoreRecoverySnapshot(payload = {}) {
-  const snapshotId = String(payload.snapshotId || '').trim();
-  const confirmation = String(payload.confirmation || '').trim();
-
-  if (confirmation !== 'RESTORE') {
-    return { ok: false, message: 'Restore confirmation is required.' };
-  }
-
-  const snapshot = findRecoveryEntry('snapshots', snapshotId);
-  if (!snapshot) {
-    return { ok: false, message: 'Snapshot not found.' };
-  }
-
-  const sourcePath = join(snapshot.path, 'revival-bible-v3.sqlite');
-  if (!existsSync(sourcePath)) {
-    return { ok: false, message: 'Snapshot database file is missing.' };
-  }
-
-  const preRestoreBackup = await createRecoveryPoint({
-    kind: 'pre-restore-backup',
-    label: 'Pre-restore safety backup',
-    reason: `Before restoring ${snapshot.metadata.label || snapshot.metadata.id}`,
-    prune: false
-  });
-
-  const backupPath = join(getRecoveryRoot(), 'backups', preRestoreBackup.id, 'revival-bible-v3.sqlite');
-
-  try {
-    if (connection) {
-      connection.pragma('wal_checkpoint(TRUNCATE)');
-      connection.close();
-      connection = undefined;
-    }
-
-    removeDatabaseSidecarFiles();
-    copyFileSync(sourcePath, databasePath);
-    connection = new Database(databasePath);
-    initializeSchema(connection);
-    rebuildSearchIndex();
-
-    return {
-      ok: true,
-      restoredSnapshot: snapshot.metadata,
-      preRestoreBackup
-    };
-  } catch (error) {
-    try {
-      if (connection) {
-        connection.close();
-        connection = undefined;
-      }
-      removeDatabaseSidecarFiles();
-      copyFileSync(backupPath, databasePath);
-      connection = new Database(databasePath);
-      initializeSchema(connection);
-      rebuildSearchIndex();
-    } catch {
-      connection = new Database(databasePath);
-      initializeSchema(connection);
-    }
-
-    return {
-      ok: false,
-      message: error?.message || 'Snapshot restore failed. Pre-restore backup was preserved.',
-      preRestoreBackup
-    };
   }
 }
 
@@ -989,29 +895,16 @@ export function getIngestionReviewSummary() {
   return {
     sessions: connection
       .prepare(`
-        SELECT import_sessions.*,
-          COUNT(source_memory_records.id) AS source_count
+        SELECT *
         FROM import_sessions
-        LEFT JOIN source_memory_records ON source_memory_records.import_session_id = import_sessions.id
-        GROUP BY import_sessions.id
-        ORDER BY COALESCE(import_sessions.updated_at, import_sessions.created_at) DESC, import_sessions.id DESC
+        ORDER BY COALESCE(updated_at, created_at) DESC, id DESC
         LIMIT 8
-      `)
-      .all()
-      .map(hydrateProvenanceRow),
-    sourceRecords: connection
-      .prepare(`
-        SELECT smr.*, import_sessions.title AS session_title
-        FROM source_memory_records smr
-        LEFT JOIN import_sessions ON import_sessions.id = smr.import_session_id
-        ORDER BY smr.created_at DESC, smr.id DESC
-        LIMIT 30
       `)
       .all()
       .map(hydrateProvenanceRow),
     unresolvedExtractions: connection
       .prepare(`
-        SELECT ee.*, smr.source_label, smr.source_type, smr.raw_content
+        SELECT ee.*, smr.source_label
         FROM editorial_extractions ee
         LEFT JOIN source_memory_records smr ON smr.id = ee.source_record_id
         WHERE ee.status IN ('unresolved', 'in-review', 'pending-placement')
@@ -1042,7 +935,7 @@ export function getIngestionReviewSummary() {
       .map(hydrateProvenanceRow),
     narrativeFragments: connection
       .prepare(`
-        SELECT nf.*, smr.source_label, smr.source_type, smr.raw_content
+        SELECT nf.*, smr.source_label
         FROM narrative_fragments nf
         LEFT JOIN source_memory_records smr ON smr.id = nf.source_record_id
         WHERE nf.status IN ('unplaced', 'review-later')
@@ -1055,20 +948,7 @@ export function getIngestionReviewSummary() {
 }
 
 export function createImportSession(payload = {}) {
-  const title = normalizeNullableText(payload.title);
-  const provenanceMetadata = normalizeFrameworkProvenance(payload.provenanceMetadata);
-  const provenanceNote = normalizeNullableText(
-    provenanceMetadata.source_note || provenanceMetadata.source_label || provenanceMetadata.source_title || provenanceMetadata.source
-  );
-
-  if (!title) {
-    return { ok: false, message: 'Import session title is required.' };
-  }
-
-  if (!provenanceNote) {
-    return { ok: false, message: 'Import session provenance is required.' };
-  }
-
+  const title = normalizeNullableText(payload.title) || 'Untitled import session';
   const result = connection
     .prepare(`
       INSERT INTO import_sessions (title, source_type, status, notes, provenance_metadata)
@@ -1079,7 +959,7 @@ export function createImportSession(payload = {}) {
       sourceType: normalizeReviewToken(payload.sourceType, 'manual'),
       status: normalizeReviewToken(payload.status, 'active'),
       notes: String(payload.notes || '').trim(),
-      provenanceMetadata: JSON.stringify(provenanceMetadata)
+      provenanceMetadata: JSON.stringify(normalizeFrameworkProvenance(payload.provenanceMetadata))
     });
 
   return {
@@ -1090,29 +970,11 @@ export function createImportSession(payload = {}) {
 
 export function createSourceMemoryRecord(payload = {}) {
   const rawContent = String(payload.rawContent || payload.raw_content || '').trim();
-  const sourceLabel = normalizeNullableText(payload.sourceLabel || payload.source_label);
-  const provenanceMetadata = normalizeFrameworkProvenance(payload.provenanceMetadata);
-  const provenanceNote = normalizeNullableText(
-    provenanceMetadata.source_note || provenanceMetadata.source_label || provenanceMetadata.source_title || provenanceMetadata.source
-  );
-
   if (!rawContent) {
     return { ok: false, message: 'Source content is required.' };
   }
 
-  if (!sourceLabel) {
-    return { ok: false, message: 'Source label is required.' };
-  }
-
-  if (!provenanceNote) {
-    return { ok: false, message: 'Source provenance is required.' };
-  }
-
   const sessionId = normalizeExistingImportSessionId(payload.importSessionId || payload.import_session_id);
-  if (!sessionId) {
-    return { ok: false, message: 'A valid import session is required.' };
-  }
-
   const result = connection
     .prepare(`
       INSERT INTO source_memory_records (
@@ -1124,15 +986,11 @@ export function createSourceMemoryRecord(payload = {}) {
     `)
     .run({
       importSessionId: sessionId,
-      sourceLabel,
+      sourceLabel: normalizeNullableText(payload.sourceLabel || payload.source_label) || 'Untitled source',
       sourceType: normalizeReviewToken(payload.sourceType || payload.source_type, 'note'),
       rawContent,
       checksum: String(payload.checksum || '').trim() || null,
-      provenanceMetadata: JSON.stringify({
-        ...provenanceMetadata,
-        source_label: sourceLabel,
-        import_session_id: sessionId
-      })
+      provenanceMetadata: JSON.stringify(normalizeFrameworkProvenance(payload.provenanceMetadata))
     });
 
   touchImportSession(sessionId);
@@ -1143,21 +1001,10 @@ export function createSourceMemoryRecord(payload = {}) {
 }
 
 export function createEditorialExtraction(payload = {}) {
-  const title = normalizeNullableText(payload.title);
-  const content = String(payload.content || '').trim();
-  const trustReason = String(payload.trustReason || payload.trust_reason || '').trim();
+  const title = normalizeNullableText(payload.title) || 'Untitled extraction';
   const sourceRecordId = normalizeExistingSourceRecordId(payload.sourceRecordId || payload.source_record_id);
   const importSessionId = normalizeExistingImportSessionId(payload.importSessionId || payload.import_session_id)
     || getImportSessionIdForSource(sourceRecordId);
-
-  if (!sourceRecordId || !importSessionId) {
-    return { ok: false, message: 'Source provenance is required before staging an extraction.' };
-  }
-
-  if (!title || !content || !trustReason) {
-    return { ok: false, message: 'Extraction title, content, and trust note are required.' };
-  }
-
   const result = connection
     .prepare(`
       INSERT INTO editorial_extractions (
@@ -1173,10 +1020,10 @@ export function createEditorialExtraction(payload = {}) {
       importSessionId,
       sourceRecordId,
       title,
-      content,
+      content: String(payload.content || '').trim(),
       classification: normalizeExtractionClassification(payload.classification),
       confidenceState: normalizeConfidenceState(payload.confidenceState || payload.confidence_state, 'weak'),
-      trustReason,
+      trustReason: String(payload.trustReason || payload.trust_reason || '').trim(),
       status: normalizeReviewToken(payload.status, 'unresolved'),
       provenanceMetadata: JSON.stringify(normalizeFrameworkProvenance({
         ...payload.provenanceMetadata,
@@ -1311,17 +1158,6 @@ export function updateContinuityReviewItem(payload = {}) {
 
 export function createNarrativeFragment(payload = {}) {
   const sourceRecordId = normalizeExistingSourceRecordId(payload.sourceRecordId || payload.source_record_id);
-  const title = normalizeNullableText(payload.title);
-  const content = String(payload.content || '').trim();
-
-  if (!sourceRecordId) {
-    return { ok: false, message: 'Source provenance is required before staging a narrative fragment.' };
-  }
-
-  if (!title || !content) {
-    return { ok: false, message: 'Narrative fragment title and content are required.' };
-  }
-
   const result = connection
     .prepare(`
       INSERT INTO narrative_fragments (
@@ -1333,8 +1169,8 @@ export function createNarrativeFragment(payload = {}) {
     `)
     .run({
       sourceRecordId,
-      title,
-      content,
+      title: normalizeNullableText(payload.title) || 'Untitled narrative fragment',
+      content: String(payload.content || '').trim(),
       fragmentType: normalizeReviewToken(payload.fragmentType || payload.fragment_type, 'story-material'),
       confidenceState: normalizeConfidenceState(payload.confidenceState || payload.confidence_state, 'speculative'),
       status: normalizeReviewToken(payload.status, 'unplaced'),
@@ -2273,153 +2109,6 @@ function normalizeStatusValue(value) {
     .slice(0, 64);
 }
 
-async function createRecoveryPoint({ kind, label, reason, prune = false } = {}) {
-  if (!connection || !databasePath || !databaseDataDir) {
-    return { ok: false, message: 'Database is not connected.' };
-  }
-
-  const idPrefix = kind === 'snapshot' ? 'snapshot' : 'backup';
-  const category = kind === 'snapshot' ? 'snapshots' : 'backups';
-  const createdAt = new Date();
-  const id = `${idPrefix}-${formatRecoveryFileTimestamp(createdAt)}-${Math.random().toString(16).slice(2, 8)}`;
-  const targetDir = join(getRecoveryRoot(), category, id);
-  ensureDirectory(targetDir);
-
-  connection.pragma('wal_checkpoint(TRUNCATE)');
-  const targetPath = join(targetDir, 'revival-bible-v3.sqlite');
-  await connection.backup(targetPath);
-
-  const metadata = {
-    id,
-    kind,
-    label: normalizeNullableText(label) || (kind === 'snapshot' ? 'Manual snapshot' : 'Safety backup'),
-    reason: normalizeNullableText(reason) || '',
-    appVersion: RECOVERY_APP_VERSION,
-    dataVersion: 'sqlite-local',
-    createdAt: createdAt.toISOString(),
-    createdAtCentral: formatCentralTime(createdAt),
-    recordCounts: getRecoveryRecordCounts(),
-    path: targetDir
-  };
-
-  writeFileSync(join(targetDir, 'metadata.json'), `${JSON.stringify(metadata, null, 2)}\n`, 'utf8');
-
-  if (prune) {
-    pruneRecoveryEntries(category, SNAPSHOT_RETENTION_LIMIT);
-  }
-
-  return { ok: true, ...metadata };
-}
-
-function getRecoveryRoot() {
-  const root = join(databaseDataDir, 'recovery');
-  ensureDirectory(join(root, 'snapshots'));
-  ensureDirectory(join(root, 'backups'));
-  return root;
-}
-
-function ensureDirectory(path) {
-  if (!existsSync(path)) {
-    mkdirSync(path, { recursive: true });
-  }
-}
-
-function readRecoveryEntries(category) {
-  const root = join(getRecoveryRoot(), category);
-  if (!existsSync(root)) return [];
-
-  return readdirSync(root, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => {
-      const path = join(root, entry.name);
-      const metadataPath = join(path, 'metadata.json');
-      if (!existsSync(metadataPath)) return null;
-
-      try {
-        const metadata = JSON.parse(readFileSync(metadataPath, 'utf8'));
-        return { path, metadata };
-      } catch {
-        return null;
-      }
-    })
-    .filter(Boolean);
-}
-
-function findRecoveryEntry(category, id) {
-  if (!id) return null;
-  return readRecoveryEntries(category).find((entry) => entry.metadata.id === id) || null;
-}
-
-function pruneRecoveryEntries(category, limit) {
-  const entries = readRecoveryEntries(category)
-    .sort((a, b) => String(b.metadata.createdAt || '').localeCompare(String(a.metadata.createdAt || '')));
-
-  for (const entry of entries.slice(limit)) {
-    rmSync(entry.path, { recursive: true, force: true });
-  }
-}
-
-function removeDatabaseSidecarFiles() {
-  for (const suffix of ['', '-wal', '-shm']) {
-    const path = `${databasePath}${suffix}`;
-    if (existsSync(path)) {
-      unlinkSync(path);
-    }
-  }
-}
-
-function getRecoveryRecordCounts() {
-  const tables = [
-    'nodes',
-    'node_content',
-    'episodes',
-    'characters',
-    'decisions',
-    'questions',
-    'living_documents',
-    'timeline_events',
-    'candidates',
-    'import_sessions',
-    'source_memory_records',
-    'editorial_extractions',
-    'possible_duplicate_links',
-    'continuity_review_items',
-    'narrative_fragments'
-  ];
-
-  return tables.reduce((counts, table) => {
-    counts[table] = connection.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get().count;
-    return counts;
-  }, {});
-}
-
-function formatRecoveryFileTimestamp(date) {
-  const centralParts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Chicago',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
-  }).formatToParts(date);
-  const getPart = (type) => centralParts.find((part) => part.type === type)?.value || '00';
-  return `${getPart('year')}${getPart('month')}${getPart('day')}-${getPart('hour')}${getPart('minute')}${getPart('second')}-ct`;
-}
-
-function formatCentralTime(date) {
-  return new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Chicago',
-    year: 'numeric',
-    month: 'short',
-    day: '2-digit',
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZoneName: 'short'
-  }).format(date);
-}
-
 function normalizeResolutionStatus(value, allowed, fallback) {
   const status = normalizeStatusValue(value);
   const normalizedAllowed = allowed.map((item) => normalizeStatusValue(item)).filter(Boolean);
@@ -2518,15 +2207,12 @@ function normalizeCandidateTags(provenanceMetadata = {}, tags = null) {
 
 function normalizeFrameworkProvenance(value = {}) {
   const provenance = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
-  const createdAt = String(provenance.created_at || new Date().toISOString()).trim();
   return {
     ...provenance,
     memory_layer: String(provenance.memory_layer || 'editorial').trim(),
     preserved: provenance.preserved === false ? false : true,
     canon_mutation: false,
-    created_at: createdAt,
-    imported_at: String(provenance.imported_at || createdAt).trim(),
-    imported_at_central: String(provenance.imported_at_central || formatCentralTime(new Date(createdAt))).trim()
+    created_at: String(provenance.created_at || new Date().toISOString()).trim()
   };
 }
 
@@ -2540,7 +2226,7 @@ function hydrateProvenanceRow(row) {
 
 function normalizeConfidenceState(value, fallback = 'weak') {
   const normalized = normalizeReviewToken(value, fallback);
-  const allowed = new Set(['confirmed', 'strong', 'moderate', 'weak', 'speculative', 'explicit', 'inferred', 'contradictory', 'deprecated']);
+  const allowed = new Set(['explicit', 'strong', 'weak', 'inferred', 'contradictory', 'deprecated', 'speculative']);
   return allowed.has(normalized) ? normalized : fallback;
 }
 

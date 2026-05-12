@@ -15,6 +15,26 @@ The system should help the user remember, compare, review, and intentionally pro
 
 ## Completed Recent Phases
 
+### Phase 40 — Safe Editorial Ingestion Staging Foundations
+
+Status: Passed
+
+Summary:
+Added safe staged-source registration inside Editorial Ingestion without extraction or canon mutation.
+
+Delivered:
+- attached staged sources inside import sessions
+- session source counts and compact attached-source browsing
+- preserved original filename, source type, file size, preview state, provenance notes, and Central Time import metadata
+- lightweight TXT/MD previews with safe truncation
+- placeholder preservation for PDF/DOC/DOCX/unsupported files
+- visible boundary between staged source, extraction candidate, review item, and canon
+- snapshot-compatible persistence through existing SQLite source memory records
+
+Validation:
+- npm run build passed
+- real Electron smoke passed for session creation, TXT source attachment, preview/provenance visibility, reload persistence, snapshot creation/restore, Dashboard load, autosave stability, unchanged canon counts, and no automatic canon mutation
+
 ### Phase 39 — Recovery / Snapshot / Rollback Foundations
 
 Status: Passed
@@ -172,22 +192,19 @@ Validation:
 
 ## Next Priority Phase
 
-### Phase 40 — Controlled ZIP / Document Import Entry Point
+### Phase 41 — Controlled Extraction Boundary
 
 Goal:
-Add the smallest safe user-facing ZIP/document import entry point now that protected ingestion structures, a review-oriented Dashboard home, readiness smoke validation, a manual staging surface, a formal import safety gate, a scalable review workspace, and local snapshots exist.
+Add the smallest safe extraction boundary from preserved staged sources into reviewable editorial candidates.
 
 Why now:
-Phase 33 created the safety framework, Phase 34 made review surfaces usable, Phase 35 verified protected import behavior, Phase 36 exposed manual staging, Phase 37 confirmed persistence plus safety requirements, Phase 38 made review inspection scalable, and Phase 39 added rollback foundations. The next phase should expose a narrow controlled import path without bypassing duplicate review, continuity review, recovery safeguards, or explicit canon promotion.
+Phase 40 now preserves source attachments, provenance, previews, and recovery-compatible staged source records. The next phase can begin controlled extraction from those staged records without bypassing duplicate review, continuity review, recovery safeguards, or explicit canon promotion.
 
 Primary objectives:
-- implement the narrowest ZIP/document import entry point
-- preserve raw source memory before extraction
-- require provenance before staging extracted material
-- create auditable extraction sessions
-- support import batching with snapshot/recovery expectations
-- keep source memory preserved
-- keep extracted material reviewable before any canon promotion
+- use staged source records as the only extraction input
+- carry source provenance forward to every extracted candidate
+- keep extracted material reviewable before canon promotion
+- show staged source, extracted candidate, and accepted canon as separate states
 - route uncertain duplicates into review
 - route contradictions into continuity review
 - keep Dashboard review surfaces useful
@@ -196,8 +213,8 @@ Strict non-goals:
 - no automatic canon mutation
 - no automatic duplicate merge
 - no automatic contradiction resolution
-- no bulk uncontrolled import
-- no screenplay-authoring systems
+- no autonomous extraction
+- no embeddings or vector search
 
 Required safety behavior:
 - duplicate uncertainty creates soft-merge review only

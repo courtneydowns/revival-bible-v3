@@ -37,6 +37,25 @@ Editorial Memory contains reviewable, unresolved, or in-progress material. This 
 
 Canon Memory contains explicitly promoted material only. Repetition across sources does not make a claim canon.
 
+## Completed Phase 40 State
+
+Phase 40 passed and added a safe staged-source layer before extraction work begins.
+
+Confirmed capabilities:
+- Editorial Ingestion sessions show attached source counts
+- local TXT/MD files can be attached to sessions as staged source memory
+- original filename, source type, file size, preview state, provenance note, and Central Time import metadata are preserved
+- TXT/MD sources get lightweight readable previews, truncated safely when needed
+- PDF/DOC/DOCX/unsupported files are preserved as safe placeholder source records without destructive failure
+- sessions show compact attached-source lists with staged/unreviewed state
+- Review Workspace visibly separates staged sources from extraction candidates, duplicate reviews, continuity reviews, fragments, and canon
+- source records remain non-canon and do not auto-create entities, candidates, embeddings, or promotions
+- snapshots include staged ingestion state because staged sources live in SQLite source memory
+
+Validation:
+- npm run build passed
+- real Electron smoke passed for session creation, TXT source attachment, preview/provenance visibility, reload persistence, snapshot creation, snapshot restore, Dashboard load, autosave stability, unchanged canon counts, and no automatic canon mutation
+
 ## Completed Phase 39 State
 
 Phase 39 passed and added a minimum viable local recovery/snapshot safety layer before real import/extraction work.
@@ -232,6 +251,6 @@ Revival Bible remains responsible for:
 
 ## Immediate Next Direction
 
-The next recommended phase is a narrow controlled ZIP/document import entry point now that the ingestion safeguards, Dashboard review home, readiness smoke, manual staging surface, Phase 37 safety gate, Phase 38 review workspace, and Phase 39 recovery foundation are in place.
+The next recommended phase is a narrow controlled extraction boundary from staged sources into reviewable editorial candidates now that Phase 40 preserves source attachments safely.
 
-Any next import work must remain review-first: preserve source memory, batch and audit extraction sessions, create snapshots before risky extraction passes, route uncertain duplicates and contradictions to manual review, keep provenance permanent, support recovery, and require explicit user promotion for canon.
+Any next extraction work must remain review-first: staged source, extracted candidate, and accepted canon must stay visibly distinct; provenance must carry forward; uncertain duplicates and contradictions must route to manual review; and explicit user promotion remains required for canon.

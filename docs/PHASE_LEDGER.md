@@ -1,5 +1,37 @@
 # Revival Bible v3 — Phase Ledger
 
+## Phase 40 — Safe Editorial Ingestion Staging Foundations
+
+Status: Passed
+
+Completion summary:
+Phase 40 added a safe staged-source layer inside Editorial Ingestion before real extraction work begins.
+
+Files changed:
+- electron/main/db.js
+- src/store.js
+- src/components/EditorialIngestion.jsx
+- src/index.css
+- docs/ACTIVE_SCOPE.md
+- docs/CURRENT_STATE.md
+- docs/ROADMAP.md
+- docs/PHASE_LEDGER.md
+
+Root cause:
+The ingestion workspace needed recoverable, provenance-aware source attachment before any extraction pipeline could safely begin.
+
+One sentence fix:
+Added session-attached staged sources with original filename metadata, source-type labels, Central Time import provenance, lightweight TXT/MD previews, binary placeholders, compact session source lists, and clear non-canon boundaries.
+
+Build result:
+npm run build passed.
+
+Smoke result:
+Real Electron smoke passed; ingestion session creation, TXT source attachment, preview/provenance visibility, reload persistence, snapshot creation, snapshot restore, Dashboard load, autosave stability, unchanged canon counts, and no automatic canon mutation were verified.
+
+Unresolved blockers:
+None.
+
 ## Phase 39 — Recovery / Snapshot / Rollback Foundations
 
 Status: Passed
@@ -233,12 +265,12 @@ None.
 
 ## Next Planned Phase
 
-### Phase 40 — Controlled ZIP / Document Import Entry Point
+### Phase 41 — Controlled Extraction Boundary
 
 Status: Planned
 
 Reason:
-The ingestion safety framework, Dashboard review home, readiness smoke, manual staging surface, Phase 37 import safety gate, Phase 38 review workspace, and Phase 39 recovery foundation are now in place, so the next step should expose the smallest safe controlled ZIP/document import entry point.
+Staged sources are now preserved safely with provenance and recovery compatibility, so the next step can introduce a narrow extraction boundary into reviewable editorial candidates.
 
 Goal:
-Implement a narrow source import entry point while preserving review-first behavior, provenance, batching/auditability, duplicate review, continuity review, recovery expectations, and explicit canon promotion.
+Extract only from staged sources into reviewable, provenance-linked candidates while preserving duplicate review, continuity review, recovery expectations, and explicit canon promotion.

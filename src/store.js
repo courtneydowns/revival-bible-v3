@@ -61,6 +61,7 @@ export const useRevivalStore = create((set, get) => ({
   candidates: [],
   ingestionReviewSummary: {
     sessions: [],
+    sourceRecords: [],
     unresolvedExtractions: [],
     duplicateReviews: [],
     continuityReviews: [],
@@ -593,6 +594,46 @@ export const useRevivalStore = create((set, get) => ({
     get().markSaved('Staged material saved');
     return { ok: true, source: sourceResponse.source, review: reviewRecord };
   },
+  createStagedSource: async (payload = {}) => {
+    const api = window.revival?.ingestion;
+    if (!api?.createSourceRecord) {
+      get().markSaveFailed('Ingestion API unavailable');
+      return { ok: false, message: 'Ingestion API is unavailable. Restart the app and try again.' };
+    }
+
+    get().markSaving('Saving staged source');
+    const provenanceMetadata = {
+      workflow: 'Editorial Ingestion',
+      source_label: payload.sourceLabel,
+      source_note: payload.provenanceNote,
+      custom_source_label: payload.sourceTypeLabel,
+      import_session_id: payload.importSessionId,
+      original_filename: payload.originalFilename,
+      file_extension: payload.fileExtension,
+      file_size: payload.fileSize,
+      file_preview_state: payload.previewState,
+      file_preview_note: payload.previewNote,
+      memory_layer: 'source',
+      preserved: true
+    };
+    const response = await api.createSourceRecord({
+      importSessionId: payload.importSessionId,
+      sourceLabel: payload.sourceLabel,
+      sourceType: payload.sourceType,
+      rawContent: payload.rawContent,
+      checksum: payload.checksum,
+      provenanceMetadata
+    });
+
+    if (!response?.ok || !response.source) {
+      get().markSaveFailed(response?.message || 'Staged source save failed');
+      return response;
+    }
+
+    await get().loadIngestionReviewSummary();
+    get().markSaved('Staged source saved');
+    return response;
+  },
   selectCandidate: async (candidateId) => {
     const api = window.revival;
     if (!candidateId) return null;
@@ -1029,6 +1070,7 @@ function groupEntityTags(rows) {
 function normalizeIngestionReviewSummary(summary = {}) {
   return {
     sessions: Array.isArray(summary?.sessions) ? summary.sessions : [],
+    sourceRecords: Array.isArray(summary?.sourceRecords) ? summary.sourceRecords : [],
     unresolvedExtractions: Array.isArray(summary?.unresolvedExtractions) ? summary.unresolvedExtractions : [],
     duplicateReviews: Array.isArray(summary?.duplicateReviews) ? summary.duplicateReviews : [],
     continuityReviews: Array.isArray(summary?.continuityReviews) ? summary.continuityReviews : [],

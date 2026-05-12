@@ -2,22 +2,20 @@
 
 ## Current Status
 
-Phase 39 passed.
+Phase 40 passed.
 
-Phase 39 added a local recovery foundation before real import/extraction begins. Settings now includes a calm Recovery maintenance area for manual SQLite snapshots, snapshot listing, and confirmed restores. Restores create a pre-restore safety backup first, preserve readable Central Time metadata, include lightweight record counts, and keep canon/editorial authority unchanged unless the user intentionally restores a prior state.
+Phase 40 added safe editorial ingestion staging foundations. Import sessions now support attached staged sources, source counts, provenance metadata, Central Time import timestamps, lightweight TXT/MD previews, placeholder preservation for binary/unsupported sources, and calm source/session browsing without canon mutation.
 
 ## Recently Completed Phase
 
-### Phase 39 — Recovery / Snapshot / Rollback Foundations
+### Phase 40 — Safe Editorial Ingestion Staging Foundations
 
 Status: Passed
 
 Files changed:
 - electron/main/db.js
-- electron/main/index.js
-- electron/preload/index.js
-- src/components/SettingsModal.jsx
 - src/store.js
+- src/components/EditorialIngestion.jsx
 - src/index.css
 - docs/ACTIVE_SCOPE.md
 - docs/CURRENT_STATE.md
@@ -26,13 +24,16 @@ Files changed:
 
 Validated:
 - npm run build passed.
-- Real Electron smoke passed for creating a manual snapshot, listing it in Settings recovery UI, Central Time timestamp display, harmless edit, confirmed restore, pre-restore backup creation, Dashboard load, autosave/status stability, and unchanged canon counts.
-- Snapshot metadata includes label/reason, app/data version, Central Time timestamp, filesystem path, and lightweight record counts.
-- Restore requires explicit confirmation, creates a pre-restore backup, replaces the live SQLite database safely, rebuilds search, and rehydrates app state.
-- Backup retention is capped for manual snapshots while restore-time backups are preserved.
-- Deleted-record recovery remains a future dedicated phase; Phase 39 documents the roadmap hook without destabilizing canon/editorial flows.
+- Real Electron smoke passed for creating an ingestion session, attaching a TXT source, verifying source preview/provenance, reloading persistence, creating/restoring a snapshot, Dashboard load, autosave stability, unchanged canon counts, and no automatic canon mutation.
+- Source records preserve original filename, source type, file size, preview state, provenance note, and Central Time imported metadata.
+- TXT/MD files get lightweight persisted previews; PDF/DOC/DOCX/unsupported sources are safely preserved with placeholder metadata.
+- Attached sources remain staged/unreviewed source memory only; extraction candidates and canon remain visibly distinct.
 
 No unresolved blockers.
+
+### Phase 39 — Recovery / Snapshot / Rollback Foundations
+
+Status: Passed
 
 ### Phase 38 — Editorial Review Workspace Refactor + Provenance Normalization
 
@@ -204,21 +205,20 @@ Explicitly promoted material only.
 
 ## Next Recommended Phase
 
-### Phase 40 — Controlled ZIP / Document Import Entry Point
+### Phase 41 — Controlled Extraction Boundary
 
 Goal:
-Add the smallest safe user-facing ZIP/document import entry point using the protected ingestion framework, Dashboard queues, Phase 37 import safety gate, and Phase 38 split-pane editorial review workspace.
+Begin the smallest review-first extraction boundary from staged sources into editorial candidates, using Phase 40 source staging as the preserved source layer.
 
 Strict scope:
-- narrow controlled import entry point only
-- source preservation and provenance capture before extraction
-- extraction-session audit trail
-- import batching with rollback/recovery expectations
-- use Phase 39 snapshots before destructive or unstable import/extraction passes
+- staged source remains distinct from extracted candidate and accepted canon
+- extraction remains manual/reviewable unless explicitly authorized
+- source provenance must carry forward to every candidate/review item
+- use snapshots before unstable import/extraction passes
 - no automatic canon mutation
 - no automatic duplicate merge
 - no automatic contradiction resolution
-- no screenplay authoring features
+- no embeddings, vector search, or autonomous organization
 
 ## Workflow Reminder
 
