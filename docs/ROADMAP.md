@@ -15,6 +15,27 @@ The system should help the user remember, compare, review, and intentionally pro
 
 ## Completed Recent Phases
 
+### Phase 41 — Controlled Extraction Boundary
+
+Status: Passed
+
+Summary:
+Added the smallest review-first extraction boundary from staged source memory into provenance-linked editorial candidates.
+
+Delivered:
+- existing staged source records are the only valid extraction input
+- source provenance carries forward to candidates and narrative fragments
+- extraction review states distinguish unresolved, in-review, and accepted-for-placement material
+- staged sources, extracted candidates, accepted-for-placement records, and promoted canon are visually distinct
+- duplicate uncertainty remains review-only and does not overwrite existing review records
+- contradictions continue to route into continuity review without resolving canon
+- direct status mutation to Promoted is blocked; canon still requires explicit promotion
+- future AI assistance is bounded to reviewable suggestions only, with no canonization, merging, overwriting, or contradiction resolution authority
+
+Validation:
+- npm run build passed
+- real Electron smoke passed against the app database through the renderer IPC bridge, with unchanged canon counts
+
 ### Phase 40 — Safe Editorial Ingestion Staging Foundations
 
 Status: Passed
@@ -192,20 +213,19 @@ Validation:
 
 ## Next Priority Phase
 
-### Phase 41 — Controlled Extraction Boundary
+### Phase 42 — AI-Assisted Review-Only Extraction Boundary
 
 Goal:
-Add the smallest safe extraction boundary from preserved staged sources into reviewable editorial candidates.
+Allow AI-assisted extraction suggestions from staged sources while preserving the Phase 41 review boundary.
 
 Why now:
-Phase 40 now preserves source attachments, provenance, previews, and recovery-compatible staged source records. The next phase can begin controlled extraction from those staged records without bypassing duplicate review, continuity review, recovery safeguards, or explicit canon promotion.
+Phase 41 now enforces staged-source-only extraction and review-state separation, so AI can be introduced only as a suggestion layer on top of preserved source memory.
 
 Primary objectives:
-- use staged source records as the only extraction input
-- carry source provenance forward to every extracted candidate
-- keep extracted material reviewable before canon promotion
-- show staged source, extracted candidate, and accepted canon as separate states
-- route uncertain duplicates into review
+- suggest extracted candidates from staged source previews
+- carry source provenance into every AI-suggested candidate
+- keep AI suggestions reviewable before acceptance or placement
+- route uncertain duplicates into duplicate review
 - route contradictions into continuity review
 - keep Dashboard review surfaces useful
 
@@ -213,7 +233,7 @@ Strict non-goals:
 - no automatic canon mutation
 - no automatic duplicate merge
 - no automatic contradiction resolution
-- no autonomous extraction
+- no autonomous extraction-to-canon
 - no embeddings or vector search
 
 Required safety behavior:

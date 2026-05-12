@@ -5,6 +5,7 @@ import { formatCentralTime } from '../time.js';
 
 const acceptedStatus = 'Accepted / Needs Placement';
 const statuses = ['New', 'In Review', acceptedStatus, 'Promoted', 'Rejected'];
+const reviewStateOptions = ['New', 'In Review', acceptedStatus, 'Rejected'];
 const statusAliases = {
   accepted: acceptedStatus,
   acceptedandneedsplacement: acceptedStatus,
@@ -759,14 +760,14 @@ export default function CandidateInbox() {
                   </div>
                   <details>
                     <summary>Allowed values</summary>
-                    <p><strong>Status:</strong> Pending, In Review, Needs Placement, Promoted, Rejected.</p>
+                    <p><strong>Status:</strong> Pending, In Review, Needs Placement, Rejected. Promotion uses the explicit promotion action.</p>
                     <p><strong>Tags:</strong> Short editorial labels such as contradiction-risk, character, timeline, episode, decision, question, location, or maybe-later.</p>
                   </details>
                 </div>
                 <label className="candidate-status-select">
                   <span>Review State</span>
-                  <select disabled={saving} onChange={(event) => setStatus(event.target.value)} value={normalizeCandidateStatusLabel(selectedCandidate.status)}>
-                    {statuses.map((status) => (
+                  <select disabled={saving || normalizeCandidateStatusLabel(selectedCandidate.status) === 'Promoted'} onChange={(event) => setStatus(event.target.value)} value={normalizeCandidateStatusLabel(selectedCandidate.status)}>
+                    {(normalizeCandidateStatusLabel(selectedCandidate.status) === 'Promoted' ? statuses : reviewStateOptions).map((status) => (
                       <option key={status} value={status}>{statusCopy[status]?.label || status}</option>
                     ))}
                   </select>

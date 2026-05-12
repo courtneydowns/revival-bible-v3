@@ -2159,6 +2159,9 @@ h1 {
 .status-badge.reversed,
 .status-badge.deprecated { color: var(--provisional); }
 .status-badge.canon { color: var(--accent-strong); }
+.status-badge.pending-placement,
+.status-badge.accepted-for-placement { color: var(--locked); }
+.status-badge.promoted { color: var(--accent-strong); }
 .status-badge.unresolved,
 .status-badge.contradiction-risk { color: var(--danger); }
 
@@ -3514,6 +3517,53 @@ button.candidate-filter-pill {
   text-transform: uppercase;
 }
 
+.editorial-state-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: -4px 0 14px;
+}
+
+.editorial-state-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 3%);
+  padding: 5px 8px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.editorial-state-badge.staged-source {
+  border-color: rgb(128 165 181 / 42%);
+  background: rgb(128 165 181 / 12%);
+  color: #a9c4cf;
+}
+
+.editorial-state-badge.extracted-candidate {
+  border-color: rgb(189 167 122 / 45%);
+  background: rgb(189 167 122 / 13%);
+  color: #d4bd86;
+}
+
+.editorial-state-badge.accepted-placement {
+  border-color: rgb(139 174 139 / 45%);
+  background: rgb(139 174 139 / 13%);
+  color: #acd0a9;
+}
+
+.editorial-state-badge.promoted-canon {
+  border-color: rgb(179 141 109 / 48%);
+  background: rgb(179 141 109 / 14%);
+  color: #d6ad8a;
+}
+
 .editorial-ingestion-list {
   display: grid;
   gap: 10px;
@@ -3550,6 +3600,10 @@ button.editorial-ingestion-item.selected {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.editorial-ingestion-item .editorial-state-badge {
+  margin-bottom: 6px;
 }
 
 .editorial-ingestion-item small {

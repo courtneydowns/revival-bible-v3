@@ -37,6 +37,25 @@ Editorial Memory contains reviewable, unresolved, or in-progress material. This 
 
 Canon Memory contains explicitly promoted material only. Repetition across sources does not make a claim canon.
 
+## Completed Phase 41 State
+
+Phase 41 passed and added the controlled extraction-review boundary.
+
+Confirmed capabilities:
+- extraction candidates must originate from existing staged source records
+- source provenance carries forward to each extracted candidate or narrative fragment
+- extracted material remains editorial memory with explicit review states
+- unresolved, in-review, and accepted-for-placement states remain separate from promoted canon
+- duplicate uncertainty creates/keeps review records without merging or overwriting them
+- contradictions continue to route into manual continuity review without resolving canon
+- direct status mutation to Promoted is blocked; canon creation still requires explicit promotion
+- Editorial Ingestion visually differentiates Staged Source, Extracted Candidate, Accepted for Placement, and Promoted Canon
+- future AI extraction remains review-only: AI may suggest structured candidates, but cannot canonize, merge, overwrite, or resolve contradictions
+
+Validation:
+- npm run build passed
+- real Electron smoke passed against the app database through the renderer IPC bridge; staged source extraction, pending placement, duplicate preservation, direct promotion blocking, and unchanged canon counts were verified
+
 ## Completed Phase 40 State
 
 Phase 40 passed and added a safe staged-source layer before extraction work begins.
@@ -251,6 +270,6 @@ Revival Bible remains responsible for:
 
 ## Immediate Next Direction
 
-The next recommended phase is a narrow controlled extraction boundary from staged sources into reviewable editorial candidates now that Phase 40 preserves source attachments safely.
+The next recommended phase is an AI-assisted review-only extraction boundary on top of Phase 41.
 
-Any next extraction work must remain review-first: staged source, extracted candidate, and accepted canon must stay visibly distinct; provenance must carry forward; uncertain duplicates and contradictions must route to manual review; and explicit user promotion remains required for canon.
+Any AI-assisted extraction work must remain review-first: staged source, AI suggestion, extracted candidate, accepted-for-placement, and promoted canon must stay visibly distinct; provenance must carry forward; uncertain duplicates and contradictions must route to manual review; and explicit user promotion remains required for canon.

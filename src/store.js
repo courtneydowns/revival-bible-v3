@@ -494,35 +494,31 @@ export const useRevivalStore = create((set, get) => ({
   },
   createManualExtractionCandidate: async (payload = {}) => {
     const api = window.revival?.ingestion;
-    if (!api?.createSourceRecord || !api?.createExtraction) {
+    if (!api?.createExtraction) {
       get().markSaveFailed('Ingestion API unavailable');
       return { ok: false, message: 'Ingestion API is unavailable. Restart the app and try again.' };
     }
+    const sourceRecord = get().ingestionReviewSummary.sourceRecords.find((source) => String(source.id) === String(payload.sourceRecordId));
+    if (!sourceRecord || sourceRecord.provenance_metadata?.memory_layer === 'editorial') {
+      get().markSaveFailed('Staged source required');
+      return { ok: false, message: 'Choose an existing staged source before extracting a candidate.' };
+    }
 
     get().markSaving('Saving staged material');
+    const sourceProvenance = sourceRecord.provenance_metadata || {};
     const provenanceMetadata = {
+      ...sourceProvenance,
       workflow: 'Editorial Ingestion',
-      source_label: payload.sourceLabel,
+      extraction_boundary: 'staged-source-to-review-candidate',
+      source_label: sourceRecord.source_label,
       source_note: payload.provenanceNote,
-      custom_source_label: payload.sourceTypeLabel,
-      import_session_id: payload.importSessionId,
+      custom_source_label: sourceProvenance.custom_source_label || payload.sourceTypeLabel,
+      import_session_id: sourceRecord.import_session_id || payload.importSessionId,
+      source_record_id: sourceRecord.id,
       memory_layer: 'editorial',
       preserved: true
     };
-    const sourceResponse = await api.createSourceRecord({
-      importSessionId: payload.importSessionId,
-      sourceLabel: payload.sourceLabel,
-      sourceType: payload.sourceType,
-      rawContent: payload.rawContent,
-      provenanceMetadata
-    });
-
-    if (!sourceResponse?.ok || !sourceResponse.source) {
-      get().markSaveFailed(sourceResponse?.message || 'Source memory save failed');
-      return sourceResponse;
-    }
-
-    const sourceRecordId = sourceResponse.source.id;
+    const sourceRecordId = sourceRecord.id;
     let reviewResponse;
     if (payload.classification === 'narrative-fragment') {
       reviewResponse = await api.createNarrativeFragment?.({
@@ -531,26 +527,20 @@ export const useRevivalStore = create((set, get) => ({
         content: payload.content,
         fragmentType: payload.fragmentType || 'story-material',
         confidenceState: payload.confidenceState || 'speculative',
-        status: 'unplaced',
-        provenanceMetadata: {
-          ...provenanceMetadata,
-          source_record_id: sourceRecordId
-        }
+        status: payload.reviewStatus === 'pending-placement' ? 'pending-placement' : 'unplaced',
+        provenanceMetadata
       });
     } else {
       reviewResponse = await api.createExtraction({
-        importSessionId: payload.importSessionId,
+        importSessionId: sourceRecord.import_session_id || payload.importSessionId,
         sourceRecordId,
         title: payload.title,
         content: payload.content,
         classification: payload.classification,
         confidenceState: payload.confidenceState,
         trustReason: payload.trustReason,
-        status: 'unresolved',
-        provenanceMetadata: {
-          ...provenanceMetadata,
-          source_record_id: sourceRecordId
-        }
+        status: payload.reviewStatus || 'unresolved',
+        provenanceMetadata
       });
     }
 
@@ -592,7 +582,7 @@ export const useRevivalStore = create((set, get) => ({
 
     await get().loadIngestionReviewSummary();
     get().markSaved('Staged material saved');
-    return { ok: true, source: sourceResponse.source, review: reviewRecord };
+    return { ok: true, source: sourceRecord, review: reviewRecord };
   },
   createStagedSource: async (payload = {}) => {
     const api = window.revival?.ingestion;
@@ -1161,10 +1151,16 @@ function createLocalCandidate(payload = {}) {
 function updateLocalCandidateStatus({ id, status }) {
   const allowedStatuses = new Set(['New', 'In Review', 'Accepted / Needs Placement', 'Promoted', 'Rejected']);
   if (!allowedStatuses.has(status)) return { ok: false, message: 'Candidate status is required.' };
+  if (status === 'Promoted') return { ok: false, message: 'Use explicit promotion to create traceable canon records.' };
 
   let updatedCandidate = null;
+  let protectedCandidate = false;
   const candidates = getLocalCandidates().map((candidate) => {
     if (String(candidate.id) !== String(id)) return candidate;
+    if (candidate.status === 'Promoted') {
+      protectedCandidate = true;
+      return candidate;
+    }
     updatedCandidate = {
       ...candidate,
       status,
@@ -1173,6 +1169,7 @@ function updateLocalCandidateStatus({ id, status }) {
     return updatedCandidate;
   });
 
+  if (protectedCandidate) return { ok: false, message: 'Promoted candidates are protected and cannot return to review states.' };
   if (!updatedCandidate) return { ok: false, message: 'Candidate not found.' };
   persistLocalCandidates(candidates);
   return { ok: true, candidate: updatedCandidate };

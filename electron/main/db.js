@@ -851,6 +851,16 @@ export function updateCandidateStatus(id, status) {
   if (!nextStatus) {
     return { ok: false, message: 'Candidate status is required.' };
   }
+  if (nextStatus === 'Promoted') {
+    return { ok: false, message: 'Use explicit promotion to create traceable canon records.' };
+  }
+  const existing = getCandidate(id);
+  if (!existing) {
+    return { ok: false, message: 'Candidate not found.' };
+  }
+  if (existing.status === 'Promoted') {
+    return { ok: false, message: 'Promoted candidates are protected and cannot return to review states.' };
+  }
 
   const result = connection
     .prepare('UPDATE candidates SET status = ? WHERE id = ?')
@@ -1146,12 +1156,13 @@ export function createEditorialExtraction(payload = {}) {
   const title = normalizeNullableText(payload.title);
   const content = String(payload.content || '').trim();
   const trustReason = String(payload.trustReason || payload.trust_reason || '').trim();
-  const sourceRecordId = normalizeExistingSourceRecordId(payload.sourceRecordId || payload.source_record_id);
+  const sourceRecord = getStagedExtractionSource(payload.sourceRecordId || payload.source_record_id);
+  const sourceRecordId = sourceRecord?.id || null;
   const importSessionId = normalizeExistingImportSessionId(payload.importSessionId || payload.import_session_id)
     || getImportSessionIdForSource(sourceRecordId);
 
   if (!sourceRecordId || !importSessionId) {
-    return { ok: false, message: 'Source provenance is required before staging an extraction.' };
+    return { ok: false, message: 'A staged source is required before saving an extraction.' };
   }
 
   if (!title || !content || !trustReason) {
@@ -1177,8 +1188,9 @@ export function createEditorialExtraction(payload = {}) {
       classification: normalizeExtractionClassification(payload.classification),
       confidenceState: normalizeConfidenceState(payload.confidenceState || payload.confidence_state, 'weak'),
       trustReason,
-      status: normalizeReviewToken(payload.status, 'unresolved'),
+      status: normalizeExtractionReviewStatus(payload.status),
       provenanceMetadata: JSON.stringify(normalizeFrameworkProvenance({
+        ...sourceRecord.provenance_metadata,
         ...payload.provenanceMetadata,
         source_record_id: sourceRecordId,
         import_session_id: importSessionId
@@ -1213,11 +1225,7 @@ export function createPossibleDuplicateLink(payload = {}) {
       VALUES (
         @leftType, @leftId, @rightType, @rightId, @confidence, @reason, 'pending', @provenanceMetadata
       )
-      ON CONFLICT(left_type, left_id, right_type, right_id) DO UPDATE SET
-        confidence = excluded.confidence,
-        reason = excluded.reason,
-        status = 'pending',
-        provenance_metadata = excluded.provenance_metadata
+      ON CONFLICT(left_type, left_id, right_type, right_id) DO NOTHING
     `)
     .run({
       leftType: left.type,
@@ -1310,12 +1318,13 @@ export function updateContinuityReviewItem(payload = {}) {
 }
 
 export function createNarrativeFragment(payload = {}) {
-  const sourceRecordId = normalizeExistingSourceRecordId(payload.sourceRecordId || payload.source_record_id);
+  const sourceRecord = getStagedExtractionSource(payload.sourceRecordId || payload.source_record_id);
+  const sourceRecordId = sourceRecord?.id || null;
   const title = normalizeNullableText(payload.title);
   const content = String(payload.content || '').trim();
 
   if (!sourceRecordId) {
-    return { ok: false, message: 'Source provenance is required before staging a narrative fragment.' };
+    return { ok: false, message: 'A staged source is required before saving a narrative fragment.' };
   }
 
   if (!title || !content) {
@@ -1337,10 +1346,12 @@ export function createNarrativeFragment(payload = {}) {
       content,
       fragmentType: normalizeReviewToken(payload.fragmentType || payload.fragment_type, 'story-material'),
       confidenceState: normalizeConfidenceState(payload.confidenceState || payload.confidence_state, 'speculative'),
-      status: normalizeReviewToken(payload.status, 'unplaced'),
+      status: normalizeNarrativeFragmentStatus(payload.status),
       provenanceMetadata: JSON.stringify(normalizeFrameworkProvenance({
+        ...sourceRecord.provenance_metadata,
         ...payload.provenanceMetadata,
-        source_record_id: sourceRecordId
+        source_record_id: sourceRecordId,
+        import_session_id: sourceRecord.import_session_id
       }))
     });
 
@@ -2472,6 +2483,18 @@ function normalizeCandidateStatus(value) {
   return allowed[label] || null;
 }
 
+function normalizeExtractionReviewStatus(value) {
+  const status = normalizeReviewToken(value, 'unresolved');
+  const allowed = new Set(['unresolved', 'in-review', 'pending-placement', 'rejected']);
+  return allowed.has(status) ? status : 'unresolved';
+}
+
+function normalizeNarrativeFragmentStatus(value) {
+  const status = normalizeReviewToken(value, 'unplaced');
+  const allowed = new Set(['unplaced', 'review-later', 'pending-placement', 'rejected']);
+  return allowed.has(status) ? status : 'unplaced';
+}
+
 function normalizePromotionTarget(value) {
   const normalized = String(value || '').trim();
   const allowed = new Set(['character', 'episode', 'decision', 'question', 'location', 'bible_section']);
@@ -2602,6 +2625,14 @@ function normalizeExistingSourceRecordId(id) {
   if (!normalizedId) return null;
   const exists = connection.prepare('SELECT id FROM source_memory_records WHERE id = ?').get(normalizedId);
   return exists ? normalizedId : null;
+}
+
+function getStagedExtractionSource(id) {
+  const normalizedId = normalizeExistingSourceRecordId(id);
+  if (!normalizedId) return null;
+  const source = hydrateProvenanceRow(connection.prepare('SELECT * FROM source_memory_records WHERE id = ?').get(normalizedId));
+  if (source.provenance_metadata?.memory_layer === 'editorial') return null;
+  return source;
 }
 
 function getImportSessionIdForSource(sourceRecordId) {

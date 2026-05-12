@@ -14,6 +14,7 @@ const initialSessionDraft = {
 
 const initialCandidateDraft = {
   importSessionId: '',
+  sourceRecordId: '',
   sourceLabel: '',
   sourceType: 'draft-notes',
   sourceTypeLabel: '',
@@ -23,6 +24,7 @@ const initialCandidateDraft = {
   content: '',
   classification: 'candidate',
   confidenceState: 'weak',
+  reviewStatus: 'unresolved',
   trustReason: '',
   flagDuplicate: false,
   duplicateReason: '',
@@ -62,7 +64,11 @@ export default function EditorialIngestion() {
   const createManualExtractionCandidate = useRevivalStore((state) => state.createManualExtractionCandidate);
   const sessions = ingestionReviewSummary.sessions || [];
   const sourceRecords = ingestionReviewSummary.sourceRecords || [];
-  const selectedSessionSources = sourceRecords.filter((source) => String(source.import_session_id || '') === String(sourceDraft.importSessionId || candidateDraft.importSessionId || ''));
+  const selectedSourceDraftSources = sourceRecords.filter((source) => String(source.import_session_id || '') === String(sourceDraft.importSessionId || ''));
+  const selectedCandidateSessionSources = sourceRecords.filter((source) => (
+    String(source.import_session_id || '') === String(candidateDraft.importSessionId || '')
+    && source.provenance_metadata?.memory_layer !== 'editorial'
+  ));
   const stagedItems = useMemo(() => [
     ...(ingestionReviewSummary.sourceRecords || []).map((item) => ({
       key: `source-${item.id}`,
@@ -149,6 +155,19 @@ export default function EditorialIngestion() {
   const updateSessionDraft = (field, value) => setSessionDraft((draft) => ({ ...draft, [field]: value }));
   const updateSourceDraft = (field, value) => setSourceDraft((draft) => ({ ...draft, [field]: value }));
   const updateCandidateDraft = (field, value) => setCandidateDraft((draft) => ({ ...draft, [field]: value }));
+  const selectCandidateSource = (sourceRecordId) => {
+    const source = sourceRecords.find((item) => String(item.id) === String(sourceRecordId));
+    setCandidateDraft((draft) => ({
+      ...draft,
+      sourceRecordId,
+      importSessionId: source?.import_session_id ? String(source.import_session_id) : draft.importSessionId,
+      sourceLabel: source?.source_label || '',
+      sourceType: source?.source_type || 'draft-notes',
+      sourceTypeLabel: source?.provenance_metadata?.custom_source_label || '',
+      provenanceNote: source?.provenance_metadata?.source_note || '',
+      rawContent: source?.raw_content || ''
+    }));
+  };
 
   const openNewSessionDraft = () => {
     setSessionDraft(initialSessionDraft);
@@ -267,8 +286,8 @@ export default function EditorialIngestion() {
 
   const saveCandidate = async (event) => {
     event.preventDefault();
-    if (!candidateDraft.importSessionId || !candidateDraft.sourceLabel.trim() || !candidateDraft.provenanceNote.trim() || !candidateDraft.rawContent.trim() || !candidateDraft.title.trim() || !candidateDraft.content.trim() || !candidateDraft.trustReason.trim()) {
-      setMessage('Session, source label, provenance note, source text, candidate title, candidate content, and trust note are required.');
+    if (!candidateDraft.importSessionId || !candidateDraft.sourceRecordId || !candidateDraft.provenanceNote.trim() || !candidateDraft.rawContent.trim() || !candidateDraft.title.trim() || !candidateDraft.content.trim() || !candidateDraft.trustReason.trim()) {
+      setMessage('Session, staged source, provenance note, source text, candidate title, candidate content, and trust note are required.');
       return;
     }
 
@@ -413,13 +432,13 @@ export default function EditorialIngestion() {
               </button>
             </form>
 
-            {selectedSessionSources.length ? (
+            {selectedSourceDraftSources.length ? (
               <div className="session-source-list" aria-label="Attached sources">
                 <div className="editorial-review-queue-heading">
                   <strong>Attached Sources</strong>
-                  <small>{selectedSessionSources.length} staged</small>
+                  <small>{selectedSourceDraftSources.length} staged</small>
                 </div>
-                {selectedSessionSources.slice(0, 4).map((source) => (
+                {selectedSourceDraftSources.slice(0, 4).map((source) => (
                   <article className="session-source-row" key={source.id}>
                     <span className="source-type-badge">{formatSourceType(source.source_type, source.provenance_metadata?.custom_source_label)}</span>
                     <strong>{source.source_label}</strong>
@@ -442,7 +461,20 @@ export default function EditorialIngestion() {
             <div className="editorial-ingestion-grid">
               <label>
                 <span>Session</span>
-                <select ref={sessionSelectRef} onChange={(event) => updateCandidateDraft('importSessionId', event.target.value)} value={candidateDraft.importSessionId}>
+                <select
+                  ref={sessionSelectRef}
+                  onChange={(event) => setCandidateDraft((draft) => ({
+                    ...draft,
+                    importSessionId: event.target.value,
+                    sourceRecordId: '',
+                    sourceLabel: '',
+                    sourceType: 'draft-notes',
+                    sourceTypeLabel: '',
+                    provenanceNote: '',
+                    rawContent: ''
+                  }))}
+                  value={candidateDraft.importSessionId}
+                >
                   <option value="">Choose a session</option>
                   {sessions.map((session) => (
                     <option key={session.id} value={session.id}>{formatSessionOption(session)}</option>
@@ -450,14 +482,11 @@ export default function EditorialIngestion() {
                 </select>
               </label>
               <label>
-                <span>Confidence</span>
-                <select
-                  onChange={(event) => updateCandidateDraft('confidenceState', event.target.value)}
-                  title={getConfidenceDefinition(candidateDraft.confidenceState)}
-                  value={candidateDraft.confidenceState}
-                >
-                  {confidencePresets.map((preset) => (
-                    <option key={preset.value} value={preset.value}>{preset.label}</option>
+                <span>Staged source</span>
+                <select onChange={(event) => selectCandidateSource(event.target.value)} value={candidateDraft.sourceRecordId}>
+                  <option value="">Choose a staged source</option>
+                  {selectedCandidateSessionSources.map((source) => (
+                    <option key={source.id} value={source.id}>{source.source_label}</option>
                   ))}
                 </select>
               </label>
@@ -465,11 +494,11 @@ export default function EditorialIngestion() {
             <div className="editorial-ingestion-grid">
               <label>
                 <span>Source label</span>
-                <input onChange={(event) => updateCandidateDraft('sourceLabel', event.target.value)} placeholder="Interview note, old outline, AI export..." value={candidateDraft.sourceLabel} />
+                <input readOnly placeholder="Choose a staged source first" value={candidateDraft.sourceLabel} />
               </label>
               <label>
                 <span>Source preset</span>
-                <select onChange={(event) => updateCandidateDraft('sourceType', event.target.value)} value={candidateDraft.sourceType}>
+                <select disabled value={candidateDraft.sourceType}>
                   {sourceTypePresets.map((preset) => (
                     <option key={preset.value} value={preset.value}>{preset.label}</option>
                   ))}
@@ -479,7 +508,7 @@ export default function EditorialIngestion() {
             <div className="editorial-ingestion-grid">
               <label>
                 <span>Custom label</span>
-                <input onChange={(event) => updateCandidateDraft('sourceTypeLabel', event.target.value)} placeholder="Optional archive label" value={candidateDraft.sourceTypeLabel} />
+                <input readOnly placeholder="Optional archive label" value={candidateDraft.sourceTypeLabel} />
               </label>
               <label>
                 <span>Classification</span>
@@ -494,13 +523,35 @@ export default function EditorialIngestion() {
                 </select>
               </label>
             </div>
+            <div className="editorial-ingestion-grid">
+              <label>
+                <span>Confidence</span>
+                <select
+                  onChange={(event) => updateCandidateDraft('confidenceState', event.target.value)}
+                  title={getConfidenceDefinition(candidateDraft.confidenceState)}
+                  value={candidateDraft.confidenceState}
+                >
+                  {confidencePresets.map((preset) => (
+                    <option key={preset.value} value={preset.value}>{preset.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Review state</span>
+                <select onChange={(event) => updateCandidateDraft('reviewStatus', event.target.value)} value={candidateDraft.reviewStatus}>
+                  {extractionReviewStates.map((state) => (
+                    <option key={state.value} value={state.value}>{state.label}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
             <label>
               <span>Source provenance note</span>
               <input onChange={(event) => updateCandidateDraft('provenanceNote', event.target.value)} placeholder="Where this excerpt came from and why it is being staged" value={candidateDraft.provenanceNote} />
             </label>
             <label>
               <span>Raw source excerpt</span>
-              <textarea onChange={(event) => updateCandidateDraft('rawContent', event.target.value)} placeholder="Paste the preserved source text here" value={candidateDraft.rawContent} />
+              <textarea readOnly placeholder="Choose a staged source to carry forward its preserved text" value={candidateDraft.rawContent} />
             </label>
             <label>
               <span>Candidate title</span>
@@ -530,7 +581,7 @@ export default function EditorialIngestion() {
                 <input onChange={(event) => updateCandidateDraft('contradictionClaim', event.target.value)} placeholder="Existing claim to compare against" value={candidateDraft.contradictionClaim} />
               ) : null}
             </div>
-            <button className="primary-button" disabled={saving} type="submit">
+            <button className="primary-button" disabled={saving || !candidateDraft.sourceRecordId} type="submit">
               <ShieldCheck size={14} />
               <span>Stage for Review</span>
             </button>
@@ -552,6 +603,12 @@ export default function EditorialIngestion() {
             <span>No automatic merge</span>
             <span>No canon mutation</span>
           </div>
+          <div className="editorial-state-legend" aria-label="Editorial state legend">
+            <StateBadge state="staged-source" label="Staged Source" />
+            <StateBadge state="extracted-candidate" label="Extracted Candidate" />
+            <StateBadge state="accepted-placement" label="Accepted for Placement" />
+            <StateBadge state="promoted-canon" label="Promoted Canon" />
+          </div>
 
           <div className="editorial-review-split">
             <nav className="editorial-review-queue" aria-label="Review queue">
@@ -569,6 +626,7 @@ export default function EditorialIngestion() {
                     type="button"
                   >
                     <span>
+                      <StateBadge state={getReviewStateKey(item)} label={getReviewStateLabel(item)} />
                       <strong>{item.title}</strong>
                       <small>{item.kind} / {formatDate(item.timestamp)}</small>
                     </span>
@@ -596,7 +654,7 @@ export default function EditorialIngestion() {
                       <small>{selectedReviewItem.kind}</small>
                       <h3>{selectedReviewItem.title}</h3>
                     </div>
-                    <StatusBadge status={selectedReviewItem.status} />
+                    <StateBadge state={getReviewStateKey(selectedReviewItem)} label={getReviewStateLabel(selectedReviewItem)} />
                   </div>
                   <div className="editorial-review-meta-grid">
                     <ReviewFact label="Source" value={selectedReviewItem.sourceLabel || selectedReviewItem.provenance?.source_label || 'Source preserved'} />
@@ -655,6 +713,16 @@ const confidencePresets = [
   { value: 'speculative', label: 'Speculative', definition: 'Idea-level material preserved without canon authority.' }
 ];
 
+const extractionReviewStates = [
+  { value: 'unresolved', label: 'Extracted Candidate' },
+  { value: 'in-review', label: 'In Review' },
+  { value: 'pending-placement', label: 'Accepted for Placement' }
+];
+
+function StateBadge({ state, label }) {
+  return <span className={`editorial-state-badge ${state}`}>{label}</span>;
+}
+
 function ReviewFact({ label, value }) {
   return (
     <div>
@@ -702,6 +770,21 @@ function formatConfidence(value) {
   if (normalized === 'explicit') return 'Confirmed';
   if (normalized === 'inferred') return 'Moderate';
   return formatReviewType(value);
+}
+
+function getReviewStateKey(item = {}) {
+  if (item.provenance?.promotions?.length || item.status === 'Promoted') return 'promoted-canon';
+  if (item.kind === 'Staged Source') return 'staged-source';
+  if (item.status === 'pending-placement') return 'accepted-placement';
+  if (item.kind === 'Extraction Candidate' || item.kind === 'Narrative Fragment') return 'extracted-candidate';
+  return 'extracted-candidate';
+}
+
+function getReviewStateLabel(item = {}) {
+  if (item.kind === 'Staged Source') return 'Staged Source';
+  if (item.status === 'pending-placement') return 'Accepted for Placement';
+  if (item.provenance?.promotions?.length || item.status === 'Promoted') return 'Promoted Canon';
+  return item.kind === 'Narrative Fragment' ? 'Extracted Fragment' : 'Extracted Candidate';
 }
 
 function getConfidenceDefinition(value) {

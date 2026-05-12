@@ -1,5 +1,38 @@
 # Revival Bible v3 — Phase Ledger
 
+## Phase 41 — Controlled Extraction Boundary
+
+Status: Passed
+
+Completion summary:
+Phase 41 added a guarded extraction-review boundary from staged source memory into provenance-linked editorial candidates.
+
+Files changed:
+- electron/main/db.js
+- src/store.js
+- src/components/EditorialIngestion.jsx
+- src/components/CandidateInbox.jsx
+- src/index.css
+- docs/ACTIVE_SCOPE.md
+- docs/CURRENT_STATE.md
+- docs/ROADMAP.md
+- docs/PHASE_LEDGER.md
+
+Root cause:
+Phase 40 preserved staged sources, but extraction still needed a hard review boundary so candidates could not bypass provenance, overwrite review records, or become canon through status changes.
+
+One sentence fix:
+Required staged-source input for extraction, carried provenance into review candidates/fragments, protected duplicate/contradiction review routing, blocked direct Promoted status changes, and added distinct editorial state badges.
+
+Build result:
+npm run build passed.
+
+Smoke result:
+Real Electron smoke passed against the app database through the renderer IPC bridge; staged source extraction, accepted-for-placement review state, duplicate preservation, contradiction review routing direction, direct promotion blocking, UI state labels, and unchanged canon counts were verified.
+
+Unresolved blockers:
+None.
+
 ## Phase 40 — Safe Editorial Ingestion Staging Foundations
 
 Status: Passed
@@ -265,12 +298,12 @@ None.
 
 ## Next Planned Phase
 
-### Phase 41 — Controlled Extraction Boundary
+### Phase 42 — AI-Assisted Review-Only Extraction Boundary
 
 Status: Planned
 
 Reason:
-Staged sources are now preserved safely with provenance and recovery compatibility, so the next step can introduce a narrow extraction boundary into reviewable editorial candidates.
+The manual extraction-review boundary is now protected, so AI can only be introduced as a source-linked suggestion layer with no canon, merge, overwrite, or contradiction-resolution authority.
 
 Goal:
-Extract only from staged sources into reviewable, provenance-linked candidates while preserving duplicate review, continuity review, recovery expectations, and explicit canon promotion.
+Suggest reviewable extraction candidates from staged sources while preserving provenance, duplicate review, continuity review, recovery expectations, and explicit canon promotion.

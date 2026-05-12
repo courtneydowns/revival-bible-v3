@@ -2,11 +2,40 @@
 
 ## Current Status
 
-Phase 40 passed.
+Phase 41 passed.
 
-Phase 40 added safe editorial ingestion staging foundations. Import sessions now support attached staged sources, source counts, provenance metadata, Central Time import timestamps, lightweight TXT/MD previews, placeholder preservation for binary/unsupported sources, and calm source/session browsing without canon mutation.
+Phase 41 added the controlled extraction boundary from Phase 40 staged sources into provenance-linked editorial candidates. Extraction remains review-first, duplicate/contradiction routing remains manual, and canon authority remains explicit user promotion only.
 
 ## Recently Completed Phase
+
+### Phase 41 — Controlled Extraction Boundary
+
+Status: Passed
+
+Files changed:
+- electron/main/db.js
+- src/store.js
+- src/components/EditorialIngestion.jsx
+- src/components/CandidateInbox.jsx
+- src/index.css
+- docs/ACTIVE_SCOPE.md
+- docs/CURRENT_STATE.md
+- docs/ROADMAP.md
+- docs/PHASE_LEDGER.md
+
+Validated:
+- npm run build passed.
+- Real Electron smoke passed against the app database through the renderer IPC bridge.
+- Existing staged sources remain compatible as extraction inputs.
+- Extractions now require an existing staged source record and carry source provenance forward.
+- Extracted candidates can remain unresolved, in review, or accepted for placement without becoming canon.
+- Duplicate uncertainty creates review records without overwriting existing review records.
+- Contradictions remain routed to continuity review.
+- Directly setting candidate status to Promoted is blocked; canon promotion remains a separate explicit action.
+- UI badges visually distinguish Staged Source, Extracted Candidate, Accepted for Placement, and Promoted Canon.
+- Canon counts remained unchanged during the real Electron smoke.
+
+No unresolved blockers.
 
 ### Phase 40 — Safe Editorial Ingestion Staging Foundations
 
@@ -205,19 +234,19 @@ Explicitly promoted material only.
 
 ## Next Recommended Phase
 
-### Phase 41 — Controlled Extraction Boundary
+### Phase 42 — AI-Assisted Review-Only Extraction Boundary
 
 Goal:
-Begin the smallest review-first extraction boundary from staged sources into editorial candidates, using Phase 40 source staging as the preserved source layer.
+Allow AI assistance to suggest extractions from staged sources while preserving human review as the only authority.
 
 Strict scope:
-- staged source remains distinct from extracted candidate and accepted canon
-- extraction remains manual/reviewable unless explicitly authorized
-- source provenance must carry forward to every candidate/review item
-- use snapshots before unstable import/extraction passes
+- AI output may create reviewable suggestions only after source memory is preserved
+- every suggestion must remain provenance-linked to a staged source
+- duplicate and contradiction findings must route to review queues only
 - no automatic canon mutation
 - no automatic duplicate merge
 - no automatic contradiction resolution
+- no autonomous promotion
 - no embeddings, vector search, or autonomous organization
 
 ## Workflow Reminder
