@@ -447,6 +447,117 @@ export const useRevivalStore = create((set, get) => ({
     set({ ingestionReviewSummary });
     return ingestionReviewSummary;
   },
+  createImportSession: async (payload) => {
+    get().markSaving('Saving import session');
+    const response = await window.revival?.ingestion?.createSession?.(payload);
+    if (!response?.ok || !response.session) {
+      get().markSaveFailed(response?.message || 'Import session save failed');
+      return response;
+    }
+    await get().loadIngestionReviewSummary();
+    get().markSaved('Import session saved');
+    return response;
+  },
+  createManualExtractionCandidate: async (payload = {}) => {
+    const api = window.revival?.ingestion;
+    if (!api?.createSourceRecord || !api?.createExtraction) {
+      return { ok: false, message: 'Ingestion API is unavailable. Restart the app and try again.' };
+    }
+
+    get().markSaving('Saving staged material');
+    const provenanceMetadata = {
+      workflow: 'Editorial Ingestion',
+      source_label: payload.sourceLabel,
+      source_note: payload.provenanceNote,
+      import_session_id: payload.importSessionId,
+      memory_layer: 'editorial',
+      preserved: true
+    };
+    const sourceResponse = await api.createSourceRecord({
+      importSessionId: payload.importSessionId,
+      sourceLabel: payload.sourceLabel,
+      sourceType: payload.sourceType,
+      rawContent: payload.rawContent,
+      provenanceMetadata
+    });
+
+    if (!sourceResponse?.ok || !sourceResponse.source) {
+      get().markSaveFailed(sourceResponse?.message || 'Source memory save failed');
+      return sourceResponse;
+    }
+
+    const sourceRecordId = sourceResponse.source.id;
+    let reviewResponse;
+    if (payload.classification === 'narrative-fragment') {
+      reviewResponse = await api.createNarrativeFragment?.({
+        sourceRecordId,
+        title: payload.title,
+        content: payload.content,
+        fragmentType: payload.fragmentType || 'story-material',
+        confidenceState: payload.confidenceState || 'speculative',
+        status: 'unplaced',
+        provenanceMetadata: {
+          ...provenanceMetadata,
+          source_record_id: sourceRecordId
+        }
+      });
+    } else {
+      reviewResponse = await api.createExtraction({
+        importSessionId: payload.importSessionId,
+        sourceRecordId,
+        title: payload.title,
+        content: payload.content,
+        classification: payload.classification,
+        confidenceState: payload.confidenceState,
+        trustReason: payload.trustReason,
+        status: 'unresolved',
+        provenanceMetadata: {
+          ...provenanceMetadata,
+          source_record_id: sourceRecordId
+        }
+      });
+    }
+
+    if (!reviewResponse?.ok) {
+      get().markSaveFailed(reviewResponse?.message || 'Review item save failed');
+      return reviewResponse;
+    }
+
+    const reviewRecord = reviewResponse.extraction || reviewResponse.fragment;
+    const reviewType = payload.classification === 'narrative-fragment' ? 'narrative_fragment' : 'editorial_extraction';
+    const routingProvenance = {
+      ...provenanceMetadata,
+      source_record_id: sourceRecordId,
+      source_record_ids: [sourceRecordId],
+      review_record_type: reviewType,
+      review_record_id: reviewRecord?.id
+    };
+
+    if (payload.flagDuplicate && reviewRecord?.id && api.createDuplicateLink) {
+      await api.createDuplicateLink({
+        left: { type: 'source_memory_record', id: sourceRecordId },
+        right: { type: reviewType, id: reviewRecord.id },
+        confidence: payload.confidenceState || 'weak',
+        reason: payload.duplicateReason || 'Manual duplicate uncertainty from editorial staging',
+        provenanceMetadata: routingProvenance
+      });
+    }
+
+    if (payload.flagContradiction && api.createContinuityReview) {
+      await api.createContinuityReview({
+        title: payload.contradictionTitle || payload.title,
+        claimA: payload.contradictionClaim || 'Existing canon or source claim requires comparison.',
+        claimB: payload.content,
+        confidenceState: 'contradictory',
+        riskLevel: 'review',
+        provenanceMetadata: routingProvenance
+      });
+    }
+
+    await get().loadIngestionReviewSummary();
+    get().markSaved('Staged material saved');
+    return { ok: true, source: sourceResponse.source, review: reviewRecord };
+  },
   selectCandidate: async (candidateId) => {
     const api = window.revival;
     if (!candidateId) return null;

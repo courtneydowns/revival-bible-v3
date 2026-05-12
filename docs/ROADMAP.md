@@ -15,6 +15,52 @@ The system should help the user remember, compare, review, and intentionally pro
 
 ## Completed Recent Phases
 
+### Phase 36 — Minimal Safe Editorial Ingestion Surface
+
+Status: Passed
+
+Summary:
+Exposed a calm, minimal Editorial Ingestion workspace for manual source/extraction staging before real ZIP/document import begins.
+
+Delivered:
+- manual import session creation through the real UI
+- mandatory provenance/source metadata before staging
+- manual source memory and extraction candidate creation
+- weak-confidence review surfacing
+- duplicate uncertainty routing into duplicate review
+- contradiction routing into continuity review
+- narrative fragment preservation as non-canon material
+- Dashboard queue updates for staged review material
+- unchanged canon counts during manual staging
+
+Validation:
+- npm run build passed
+- Electron dev launch passed
+- real Electron UI smoke passed for manual import session creation, fake extraction candidates, provenance persistence, duplicate routing, contradiction routing, weak-confidence surfacing, narrative fragment preservation, Dashboard queue updates, autosave/status stability, Central Time timestamps, and unchanged canon counts
+
+### Phase 35 — Import / Extraction Workflow Smoke + ZIP/Document Readiness Pass
+
+Status: Passed
+
+Summary:
+Validated the protected ingestion framework against a real temp DB import/extraction workflow and patched Dashboard review routing into a stable detail surface.
+
+Delivered:
+- temp DB readiness smoke for safe import/session creation
+- overlapping source records and extractions validated
+- uncertain duplicates verified as review-only
+- contradictions verified as continuity review items
+- weak-confidence material verified as reviewable
+- narrative fragments verified as preserved and non-canon
+- Dashboard source, continuity, and confidence queue detail routing
+- visible provenance/source state in Dashboard review detail
+- unchanged canon counts during import/extraction workflows
+
+Validation:
+- npm run build passed
+- Electron dev launch passed
+- temp DB import/extraction smoke passed
+
 ### Phase 34 — Dashboard / Editorial Home Structural UX Pass
 
 Status: Passed
@@ -65,16 +111,16 @@ Validation:
 
 ## Next Priority Phase
 
-### Phase 35 — Controlled Source Import / Extraction Planning
+### Phase 37 — Controlled ZIP / Document Import Entry Point
 
 Goal:
-Define the smallest safe next import/extraction workflow now that protected ingestion structures and a review-oriented Dashboard home exist.
+Add the smallest safe user-facing ZIP/document import entry point now that protected ingestion structures, a review-oriented Dashboard home, readiness smoke validation, and a manual staging surface exist.
 
 Why now:
-Phase 33 created the safety framework and Phase 34 made review surfaces usable. The next phase should decide how controlled source import begins without bypassing provenance, duplicate review, continuity review, or explicit canon promotion.
+Phase 33 created the safety framework, Phase 34 made review surfaces usable, and Phase 35 verified the workflow can preserve provenance and route risks without canon mutation. The next phase should expose a narrow controlled import path without bypassing duplicate review, continuity review, or explicit canon promotion.
 
 Primary objectives:
-- identify the narrowest source import/extraction path to implement next
+- implement the narrowest ZIP/document import entry point
 - keep source memory preserved
 - keep extracted material reviewable before any canon promotion
 - route uncertain duplicates into review

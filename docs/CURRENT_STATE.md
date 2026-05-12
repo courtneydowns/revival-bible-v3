@@ -37,6 +37,54 @@ Editorial Memory contains reviewable, unresolved, or in-progress material. This 
 
 Canon Memory contains explicitly promoted material only. Repetition across sources does not make a claim canon.
 
+## Completed Phase 36 State
+
+Phase 36 passed and exposed a minimal safe Editorial Ingestion surface for manual import/extraction testing through the real UI.
+
+Confirmed capabilities:
+- manual import sessions can be created from the UI
+- provenance is required before a session or staged extraction can be saved
+- source memory records preserve raw manual excerpts
+- extraction candidates persist as reviewable, non-canon editorial memory
+- duplicate uncertainty routes into duplicate review without merging
+- contradictions route into continuity review without mutating canon
+- weak-confidence material surfaces in review queues
+- narrative fragments remain preserved and non-canon
+- Dashboard source, continuity, and confidence queues update after manual staging
+- Dashboard review detail continues to show provenance/source state
+- Central Time timestamps remain visible
+- autosave/status display remains stable
+- canon counts remain unchanged during manual staging
+
+Validation:
+- npm run build passed
+- Electron dev launch passed
+- real Electron UI smoke passed for manual session creation, fake extraction staging, duplicate routing, contradiction routing, weak-confidence surfacing, narrative fragment preservation, Dashboard queue updates, unchanged canon counts, autosave/status stability, and Central Time timestamps
+
+## Completed Phase 35 State
+
+Phase 35 passed and validated import/extraction readiness for upcoming ZIP/document workflows.
+
+Confirmed capabilities:
+- safe import/session creation works in a temp DB workflow
+- source memory records preserve raw content and provenance
+- editorial extractions persist as reviewable, non-canon material
+- uncertain duplicates route to duplicate review without creating canon duplicates
+- contradictions route to continuity review without mutating canon
+- weak-confidence material remains reviewable
+- narrative fragments remain preserved and non-canon
+- Dashboard source, continuity, and confidence queues update after extraction activity
+- Dashboard review items open into a detail surface with provenance/source state visible
+- Central Time timestamps remain visible
+- primary Dashboard UI avoids internal phase labels
+- autosave/status display remains stable
+- canon counts remain unchanged during import/extraction workflows
+
+Validation:
+- npm run build passed
+- Electron dev launch passed
+- temp DB import/extraction smoke passed
+
 ## Completed Phase 34 State
 
 Phase 34 passed and reworked the Dashboard / Editorial Home structure.
@@ -104,6 +152,6 @@ Revival Bible remains responsible for:
 
 ## Immediate Next Direction
 
-The next recommended phase is controlled planning for source import / extraction now that the ingestion safeguards and Dashboard review home are in place.
+The next recommended phase is a narrow controlled ZIP/document import entry point now that the ingestion safeguards, Dashboard review home, Phase 35 readiness smoke, and Phase 36 manual staging surface are in place.
 
 Any next import work must remain review-first: preserve source memory, route uncertain duplicates and contradictions to manual review, keep provenance permanent, and require explicit user promotion for canon.

@@ -2,13 +2,40 @@
 
 ## Current Status
 
-Phase 34 passed.
+Phase 36 passed.
 
-Phase 34 reworked the Dashboard / Editorial Home into a calmer contained continuation workspace. Continue Working is now a stable primary region, Editorial Focus is a separate review column with compact contained queues, and the Dashboard no longer relies on a single long vertical stack.
+Phase 36 exposed a minimal safe Editorial Ingestion workspace for manual staging/testing before real ZIP/document ingestion. The workflow creates manual import sessions, requires provenance, stages source memory and extraction candidates, routes duplicate uncertainty and contradictions into existing review queues, preserves narrative fragments as non-canon, and leaves canon counts unchanged.
 
 ## Recently Completed Phase
 
-### Phase 34 — Dashboard / Editorial Home Structural UX Pass
+### Phase 36 — Minimal Safe Editorial Ingestion Surface
+
+Status: Passed
+
+Files changed:
+- src/components/EditorialIngestion.jsx
+- src/components/AppShell.jsx
+- src/components/NavRail.jsx
+- src/store.js
+- src/index.css
+- phase docs
+
+Validated:
+- npm run build passed.
+- Electron dev launch passed.
+- Manual UI smoke created an import session through the real Electron UI.
+- Fake extraction candidates persisted with provenance.
+- Duplicate uncertainty routed into duplicate review.
+- Contradiction routed into continuity review.
+- Weak-confidence material surfaced in review queues.
+- Narrative fragment remained non-canon.
+- Canon counts remained unchanged.
+- Dashboard queues updated and routed staged items.
+- Autosave/status and Central Time timestamps remained stable.
+
+No unresolved blockers.
+
+### Phase 35 — Import / Extraction Workflow Smoke + ZIP/Document Readiness Pass
 
 Status: Passed
 
@@ -20,13 +47,23 @@ Files changed:
 Validated:
 - npm run build passed.
 - Electron dev launch passed.
-- Dashboard smoke confirmed a two-column contained editorial home with Continue Working, Recent Editorial Activity, and Editorial Focus visible without long-page sprawl.
-- Phase 33 review structures remain surfaced through duplicate review, continuity review, unresolved extraction, narrative fragment, weak-confidence, pending-placement, and editorial-risk queues.
-- Central Time timestamps remain visible.
-- No internal phase labels appear in primary Dashboard UI.
-- Dashboard navigation actions and autosave/status display remained stable in smoke.
+- Temp DB import/extraction smoke created a safe import session, source records, overlapping weak/contradictory extractions, duplicate review, continuity review, and narrative fragment records.
+- Duplicate uncertainty remained review-only and did not create canon duplicates.
+- Contradictions routed to continuity review instead of mutating canon.
+- Weak-confidence material and narrative fragments remained reviewable and non-canon.
+- Source/provenance linkage remained visible.
+- Dashboard source, continuity, and confidence queues update and route into review detail.
+- Canon counts remained unchanged.
+- Central Time timestamps, absence of primary UI phase labels, and autosave/status display remained stable.
 
 No unresolved blockers.
+
+### Phase 34 — Dashboard / Editorial Home Structural UX Pass
+
+Status: Passed
+
+Summary:
+Phase 34 reworked the Dashboard / Editorial Home into a calmer contained continuation workspace.
 
 ### Phase 33 — Editorial Ingestion / Continuity Protection Framework
 
@@ -94,13 +131,13 @@ Explicitly promoted material only.
 
 ## Next Recommended Phase
 
-### Phase 35 — Controlled Source Import / Extraction Planning
+### Phase 37 — Controlled ZIP / Document Import Entry Point
 
 Goal:
-Define the smallest safe next step for controlled source import or extraction using the Phase 33 protection framework and Phase 34 Dashboard review home.
+Add the smallest safe user-facing ZIP/document import entry point using the Phase 33 protection framework, Phase 34 Dashboard home, and Phase 35 readiness validation.
 
 Strict scope:
-- planning and narrow workflow definition only unless explicitly approved
+- narrow controlled import entry point only
 - no automatic canon mutation
 - no automatic duplicate merge
 - no automatic contradiction resolution

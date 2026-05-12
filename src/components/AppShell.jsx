@@ -8,6 +8,7 @@ import CharacterWorkspace from './CharacterWorkspace.jsx';
 import ContextPacks from './ContextPacks.jsx';
 import Dashboard from './Dashboard.jsx';
 import DecisionTracker from './DecisionTracker.jsx';
+import EditorialIngestion from './EditorialIngestion.jsx';
 import EpisodeGuide from './EpisodeGuide.jsx';
 import FlanaganCompanion from './FlanaganCompanion.jsx';
 import LivingDocuments from './LivingDocuments.jsx';
@@ -28,6 +29,7 @@ const views = {
   characters: CharacterWorkspace,
   'context-packs': ContextPacks,
   candidates: CandidateInbox,
+  ingestion: EditorialIngestion,
   decisions: DecisionTracker,
   questions: QuestionsLog,
   session: SessionInterface,
@@ -50,7 +52,7 @@ export default function AppShell() {
   }, [hydratePhaseOneData]);
 
   return (
-    <div className={`app-shell nav-${navMode} view-${activeView} ${['session', 'bible', 'living-docs', 'candidates', 'decisions', 'questions'].includes(activeView) ? 'workspace-wide' : ''}`}>
+    <div className={`app-shell nav-${navMode} view-${activeView} ${['session', 'bible', 'living-docs', 'candidates', 'ingestion', 'decisions', 'questions'].includes(activeView) ? 'workspace-wide' : ''}`}>
       <NavRail />
       <main className="main-column">
         <TopBar />
