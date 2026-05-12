@@ -1,7 +1,7 @@
 import { app, BrowserWindow, clipboard, ipcMain, screen, shell } from 'electron';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { addContextPackLink, addEntityLink, addEntityTag, closeDatabase, createCandidate, createContextPack, createContinuityReviewItem, createDecision, createEditorialExtraction, createImportSession, createNarrativeFragment, createPossibleDuplicateLink, createQuestion, createSourceMemoryRecord, deleteCandidate, deleteContextPack, deleteDecision, deleteQuestion, ensureSearchIndex, getCandidate, getCandidates, getCanonTags, getCharacter, getCharacterRelationshipCount, getCharacterRelationships, getCharacters, getContextPacks, getDatabaseInfo, getDecision, getDecisionBlockers, getDecisions, getEntityLinks, getEntityTagLinks, getEpisode, getEpisodes, getEpisodesBySeason, getIngestionReviewSummary, getLatestNodeContent, getLivingDocumentEntry, getLivingDocuments, getLivingDocumentsByType, getNode, getNodeTree, getQuestion, getQuestions, getTimelineEvent, getTimelineEvents, initDatabase, promoteCandidate, removeContextPackLink, removeEntityLink, removeEntityTag, updateCandidate, updateCandidateStatus, updateContextPack, updateContinuityReviewItem, updateDecisionResolution, updateEntityStatus, updatePossibleDuplicateReview, updateQuestionResolution } from './db.js';
+import { addContextPackLink, addEntityLink, addEntityTag, closeDatabase, createCandidate, createContextPack, createContinuityReviewItem, createDecision, createEditorialExtraction, createImportSession, createNarrativeFragment, createPossibleDuplicateLink, createQuestion, createRecoverySnapshot, createSourceMemoryRecord, deleteCandidate, deleteContextPack, deleteDecision, deleteQuestion, ensureSearchIndex, getCandidate, getCandidates, getCanonTags, getCharacter, getCharacterRelationshipCount, getCharacterRelationships, getCharacters, getContextPacks, getDatabaseInfo, getDecision, getDecisionBlockers, getDecisions, getEntityLinks, getEntityTagLinks, getEpisode, getEpisodes, getEpisodesBySeason, getIngestionReviewSummary, getLatestNodeContent, getLivingDocumentEntry, getLivingDocuments, getLivingDocumentsByType, getNode, getNodeTree, getQuestion, getQuestions, getTimelineEvent, getTimelineEvents, initDatabase, listRecoverySnapshots, promoteCandidate, removeContextPackLink, removeEntityLink, removeEntityTag, restoreRecoverySnapshot, updateCandidate, updateCandidateStatus, updateContextPack, updateContinuityReviewItem, updateDecisionResolution, updateEntityStatus, updatePossibleDuplicateReview, updateQuestionResolution } from './db.js';
 import { getPreferences, hasApiKey, initConfig, setApiKey, setPreferences, testProviderConnection } from './config.js';
 import { seedBible } from './seed-bible.js';
 import { seedCanonTags } from './seed-canon-tags.js';
@@ -61,6 +61,9 @@ function registerCoreHandlers() {
   ipcMain.handle('config:set-api-key', async (_event, payload) => setApiKey(payload));
   ipcMain.handle('config:test-provider-connection', async (_event, provider) => testProviderConnection(provider));
   ipcMain.handle('app:get-database-info', async () => getDatabaseInfo());
+  ipcMain.handle('recovery:create-snapshot', async (_event, payload) => createRecoverySnapshot(payload));
+  ipcMain.handle('recovery:list-snapshots', async () => listRecoverySnapshots());
+  ipcMain.handle('recovery:restore-snapshot', async (_event, payload) => restoreRecoverySnapshot(payload));
   ipcMain.handle('clipboard:write-text', async (_event, text) => {
     clipboard.writeText(String(text || ''));
     return { ok: true };

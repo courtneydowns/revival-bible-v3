@@ -1,20 +1,23 @@
 import Database from 'better-sqlite3';
-import { existsSync, mkdirSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { initializeSchema } from './schema.js';
 
 let connection;
 let databasePath;
+let databaseDataDir;
+
+const RECOVERY_APP_VERSION = '0.1.0';
+const SNAPSHOT_RETENTION_LIMIT = 25;
 
 export function initDatabase(app) {
   const dataDir = app.isPackaged
     ? app.getPath('userData')
     : join(process.cwd(), '.data');
 
-  if (!existsSync(dataDir)) {
-    mkdirSync(dataDir, { recursive: true });
-  }
+  ensureDirectory(dataDir);
 
+  databaseDataDir = dataDir;
   databasePath = join(dataDir, 'revival-bible-v3.sqlite');
   connection = new Database(databasePath);
   initializeSchema(connection);
@@ -26,7 +29,8 @@ export function initDatabase(app) {
 export function getDatabaseInfo() {
   return {
     path: databasePath,
-    connected: Boolean(connection)
+    connected: Boolean(connection),
+    recoveryPath: databaseDataDir ? join(databaseDataDir, 'recovery') : ''
   };
 }
 
@@ -34,6 +38,96 @@ export function closeDatabase() {
   if (connection) {
     connection.close();
     connection = undefined;
+  }
+}
+
+export async function createRecoverySnapshot(payload = {}) {
+  const label = normalizeNullableText(payload.label) || 'Manual snapshot';
+  return createRecoveryPoint({
+    kind: 'snapshot',
+    label,
+    reason: normalizeNullableText(payload.reason) || label,
+    prune: true
+  });
+}
+
+export function listRecoverySnapshots() {
+  const entries = readRecoveryEntries('snapshots')
+    .filter((entry) => entry.metadata.kind === 'snapshot')
+    .sort((a, b) => String(b.metadata.createdAt || '').localeCompare(String(a.metadata.createdAt || '')));
+
+  return {
+    ok: true,
+    snapshots: entries.map(({ metadata }) => metadata)
+  };
+}
+
+export async function restoreRecoverySnapshot(payload = {}) {
+  const snapshotId = String(payload.snapshotId || '').trim();
+  const confirmation = String(payload.confirmation || '').trim();
+
+  if (confirmation !== 'RESTORE') {
+    return { ok: false, message: 'Restore confirmation is required.' };
+  }
+
+  const snapshot = findRecoveryEntry('snapshots', snapshotId);
+  if (!snapshot) {
+    return { ok: false, message: 'Snapshot not found.' };
+  }
+
+  const sourcePath = join(snapshot.path, 'revival-bible-v3.sqlite');
+  if (!existsSync(sourcePath)) {
+    return { ok: false, message: 'Snapshot database file is missing.' };
+  }
+
+  const preRestoreBackup = await createRecoveryPoint({
+    kind: 'pre-restore-backup',
+    label: 'Pre-restore safety backup',
+    reason: `Before restoring ${snapshot.metadata.label || snapshot.metadata.id}`,
+    prune: false
+  });
+
+  const backupPath = join(getRecoveryRoot(), 'backups', preRestoreBackup.id, 'revival-bible-v3.sqlite');
+
+  try {
+    if (connection) {
+      connection.pragma('wal_checkpoint(TRUNCATE)');
+      connection.close();
+      connection = undefined;
+    }
+
+    removeDatabaseSidecarFiles();
+    copyFileSync(sourcePath, databasePath);
+    connection = new Database(databasePath);
+    initializeSchema(connection);
+    rebuildSearchIndex();
+
+    return {
+      ok: true,
+      restoredSnapshot: snapshot.metadata,
+      preRestoreBackup
+    };
+  } catch (error) {
+    try {
+      if (connection) {
+        connection.close();
+        connection = undefined;
+      }
+      removeDatabaseSidecarFiles();
+      copyFileSync(backupPath, databasePath);
+      connection = new Database(databasePath);
+      initializeSchema(connection);
+      rebuildSearchIndex();
+    } catch {
+      connection = new Database(databasePath);
+      initializeSchema(connection);
+    }
+
+    return {
+      ok: false,
+      message: error?.message || 'Snapshot restore failed. Pre-restore backup was preserved.',
+      preRestoreBackup
+    };
   }
 }
 
@@ -2164,6 +2258,153 @@ function normalizeStatusValue(value) {
     .replace(/[^a-z0-9_-]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 64);
+}
+
+async function createRecoveryPoint({ kind, label, reason, prune = false } = {}) {
+  if (!connection || !databasePath || !databaseDataDir) {
+    return { ok: false, message: 'Database is not connected.' };
+  }
+
+  const idPrefix = kind === 'snapshot' ? 'snapshot' : 'backup';
+  const category = kind === 'snapshot' ? 'snapshots' : 'backups';
+  const createdAt = new Date();
+  const id = `${idPrefix}-${formatRecoveryFileTimestamp(createdAt)}-${Math.random().toString(16).slice(2, 8)}`;
+  const targetDir = join(getRecoveryRoot(), category, id);
+  ensureDirectory(targetDir);
+
+  connection.pragma('wal_checkpoint(TRUNCATE)');
+  const targetPath = join(targetDir, 'revival-bible-v3.sqlite');
+  await connection.backup(targetPath);
+
+  const metadata = {
+    id,
+    kind,
+    label: normalizeNullableText(label) || (kind === 'snapshot' ? 'Manual snapshot' : 'Safety backup'),
+    reason: normalizeNullableText(reason) || '',
+    appVersion: RECOVERY_APP_VERSION,
+    dataVersion: 'sqlite-local',
+    createdAt: createdAt.toISOString(),
+    createdAtCentral: formatCentralTime(createdAt),
+    recordCounts: getRecoveryRecordCounts(),
+    path: targetDir
+  };
+
+  writeFileSync(join(targetDir, 'metadata.json'), `${JSON.stringify(metadata, null, 2)}\n`, 'utf8');
+
+  if (prune) {
+    pruneRecoveryEntries(category, SNAPSHOT_RETENTION_LIMIT);
+  }
+
+  return { ok: true, ...metadata };
+}
+
+function getRecoveryRoot() {
+  const root = join(databaseDataDir, 'recovery');
+  ensureDirectory(join(root, 'snapshots'));
+  ensureDirectory(join(root, 'backups'));
+  return root;
+}
+
+function ensureDirectory(path) {
+  if (!existsSync(path)) {
+    mkdirSync(path, { recursive: true });
+  }
+}
+
+function readRecoveryEntries(category) {
+  const root = join(getRecoveryRoot(), category);
+  if (!existsSync(root)) return [];
+
+  return readdirSync(root, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => {
+      const path = join(root, entry.name);
+      const metadataPath = join(path, 'metadata.json');
+      if (!existsSync(metadataPath)) return null;
+
+      try {
+        const metadata = JSON.parse(readFileSync(metadataPath, 'utf8'));
+        return { path, metadata };
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean);
+}
+
+function findRecoveryEntry(category, id) {
+  if (!id) return null;
+  return readRecoveryEntries(category).find((entry) => entry.metadata.id === id) || null;
+}
+
+function pruneRecoveryEntries(category, limit) {
+  const entries = readRecoveryEntries(category)
+    .sort((a, b) => String(b.metadata.createdAt || '').localeCompare(String(a.metadata.createdAt || '')));
+
+  for (const entry of entries.slice(limit)) {
+    rmSync(entry.path, { recursive: true, force: true });
+  }
+}
+
+function removeDatabaseSidecarFiles() {
+  for (const suffix of ['', '-wal', '-shm']) {
+    const path = `${databasePath}${suffix}`;
+    if (existsSync(path)) {
+      unlinkSync(path);
+    }
+  }
+}
+
+function getRecoveryRecordCounts() {
+  const tables = [
+    'nodes',
+    'node_content',
+    'episodes',
+    'characters',
+    'decisions',
+    'questions',
+    'living_documents',
+    'timeline_events',
+    'candidates',
+    'import_sessions',
+    'source_memory_records',
+    'editorial_extractions',
+    'possible_duplicate_links',
+    'continuity_review_items',
+    'narrative_fragments'
+  ];
+
+  return tables.reduce((counts, table) => {
+    counts[table] = connection.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get().count;
+    return counts;
+  }, {});
+}
+
+function formatRecoveryFileTimestamp(date) {
+  const centralParts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Chicago',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  }).formatToParts(date);
+  const getPart = (type) => centralParts.find((part) => part.type === type)?.value || '00';
+  return `${getPart('year')}${getPart('month')}${getPart('day')}-${getPart('hour')}${getPart('minute')}${getPart('second')}-ct`;
+}
+
+function formatCentralTime(date) {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Chicago',
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short'
+  }).format(date);
 }
 
 function normalizeResolutionStatus(value, allowed, fallback) {

@@ -1,5 +1,39 @@
 # Revival Bible v3 — Phase Ledger
 
+## Phase 39 — Recovery / Snapshot / Rollback Foundations
+
+Status: Passed
+
+Completion summary:
+Phase 39 added a lightweight local recovery layer before real import/extraction work begins.
+
+Files changed:
+- electron/main/db.js
+- electron/main/index.js
+- electron/preload/index.js
+- src/components/SettingsModal.jsx
+- src/store.js
+- src/index.css
+- docs/ACTIVE_SCOPE.md
+- docs/CURRENT_STATE.md
+- docs/ROADMAP.md
+- docs/PHASE_LEDGER.md
+
+Root cause:
+The protected ingestion framework needed a local, user-authoritative recovery foundation before unstable extraction/import sessions could safely begin.
+
+One sentence fix:
+Added manual SQLite snapshots, a calm Settings recovery UI, confirmed restore with pre-restore safety backup, Central Time metadata, record counts, and concise recovery roadmap hooks without changing canon mutation paths.
+
+Build result:
+npm run build passed.
+
+Smoke result:
+Real Electron smoke passed; manual snapshot creation, recovery UI listing, Central Time timestamp formatting, harmless test edit, confirmed restore, pre-restore backup creation, Dashboard load, autosave/status stability, unchanged canon counts at 25/8/16/49, and no automatic canon mutation were verified.
+
+Unresolved blockers:
+None.
+
 ## Phase 38 — Editorial Review Workspace Refactor + Provenance Normalization
 
 Status: Passed
@@ -199,12 +233,12 @@ None.
 
 ## Next Planned Phase
 
-### Phase 39 — Controlled ZIP / Document Import Entry Point
+### Phase 40 — Controlled ZIP / Document Import Entry Point
 
 Status: Planned
 
 Reason:
-The ingestion safety framework, Dashboard review home, readiness smoke, manual staging surface, Phase 37 import safety gate, and Phase 38 review workspace are now in place, so the next step should expose the smallest safe controlled ZIP/document import entry point.
+The ingestion safety framework, Dashboard review home, readiness smoke, manual staging surface, Phase 37 import safety gate, Phase 38 review workspace, and Phase 39 recovery foundation are now in place, so the next step should expose the smallest safe controlled ZIP/document import entry point.
 
 Goal:
 Implement a narrow source import entry point while preserving review-first behavior, provenance, batching/auditability, duplicate review, continuity review, recovery expectations, and explicit canon promotion.

@@ -15,6 +15,27 @@ The system should help the user remember, compare, review, and intentionally pro
 
 ## Completed Recent Phases
 
+### Phase 39 — Recovery / Snapshot / Rollback Foundations
+
+Status: Passed
+
+Summary:
+Added the local-first recovery layer needed before real ZIP/document import and extraction work.
+
+Delivered:
+- Settings Recovery maintenance entry point
+- manual SQLite snapshot creation
+- snapshot listing with Central Time timestamps, labels/reasons, app/data version, paths, and record counts
+- confirmed restore flow with clear state-change warning
+- automatic pre-restore safety backup before live database replacement
+- search rebuild and app rehydration after restore
+- simple manual snapshot retention cap
+- future deleted-record recovery roadmap hook without canon-flow changes
+
+Validation:
+- npm run build passed
+- real Electron smoke passed for snapshot creation, recovery UI listing, Central Time formatting, harmless edit, confirmed restore, pre-restore backup existence, Dashboard load, autosave/status stability, unchanged canon counts, and no automatic canon mutation
+
 ### Phase 38 — Editorial Review Workspace Refactor + Provenance Normalization
 
 Status: Passed
@@ -151,20 +172,20 @@ Validation:
 
 ## Next Priority Phase
 
-### Phase 39 — Controlled ZIP / Document Import Entry Point
+### Phase 40 — Controlled ZIP / Document Import Entry Point
 
 Goal:
-Add the smallest safe user-facing ZIP/document import entry point now that protected ingestion structures, a review-oriented Dashboard home, readiness smoke validation, a manual staging surface, a formal import safety gate, and a scalable review workspace exist.
+Add the smallest safe user-facing ZIP/document import entry point now that protected ingestion structures, a review-oriented Dashboard home, readiness smoke validation, a manual staging surface, a formal import safety gate, a scalable review workspace, and local snapshots exist.
 
 Why now:
-Phase 33 created the safety framework, Phase 34 made review surfaces usable, Phase 35 verified protected import behavior, Phase 36 exposed manual staging, Phase 37 confirmed persistence plus safety requirements, and Phase 38 made review inspection scalable. The next phase should expose a narrow controlled import path without bypassing duplicate review, continuity review, or explicit canon promotion.
+Phase 33 created the safety framework, Phase 34 made review surfaces usable, Phase 35 verified protected import behavior, Phase 36 exposed manual staging, Phase 37 confirmed persistence plus safety requirements, Phase 38 made review inspection scalable, and Phase 39 added rollback foundations. The next phase should expose a narrow controlled import path without bypassing duplicate review, continuity review, recovery safeguards, or explicit canon promotion.
 
 Primary objectives:
 - implement the narrowest ZIP/document import entry point
 - preserve raw source memory before extraction
 - require provenance before staging extracted material
 - create auditable extraction sessions
-- support import batching with recovery expectations
+- support import batching with snapshot/recovery expectations
 - keep source memory preserved
 - keep extracted material reviewable before any canon promotion
 - route uncertain duplicates into review
@@ -184,6 +205,7 @@ Required safety behavior:
 - weak-confidence material routes into review queues
 - narrative fragments remain non-canon editorial memory
 - rollback/recovery must never require canon edits
+- create or encourage a snapshot before unstable extraction passes
 - the user must explicitly promote any canon change
 
 ## Future Priorities
@@ -200,6 +222,14 @@ Rules:
 - route uncertain duplicates into soft-merge review
 - preserve provenance permanently
 - require explicit user promotion for canon
+- use manual snapshots/pre-restore backups as the recovery base for unstable extraction passes
+
+### Deleted Record Recovery / Trash
+
+Future recovery work should start small:
+- soft-delete/trash for editorial ingestion sessions, source records, extraction candidates, and narrative fragments
+- recover or permanently remove only after explicit user choice
+- preserve canon authority and avoid hidden promotions or destructive cleanups
 
 ### Soft Merge Review Expansion
 

@@ -2,20 +2,22 @@
 
 ## Current Status
 
-Phase 38 passed.
+Phase 39 passed.
 
-Phase 38 refactored Editorial Ingestion into a scalable split-pane editorial review workspace. Review items now open from a persistent queue into a roomy detail pane with provenance, raw excerpts, editorial notes, continuity context, duplicate context, explicit close/back navigation, and Escape-to-close behavior. Source typing now uses controlled archival presets with optional custom labels, and confidence now uses normalized editorial definitions: Confirmed, Strong, Moderate, Weak, and Speculative.
+Phase 39 added a local recovery foundation before real import/extraction begins. Settings now includes a calm Recovery maintenance area for manual SQLite snapshots, snapshot listing, and confirmed restores. Restores create a pre-restore safety backup first, preserve readable Central Time metadata, include lightweight record counts, and keep canon/editorial authority unchanged unless the user intentionally restores a prior state.
 
 ## Recently Completed Phase
 
-### Phase 38 — Editorial Review Workspace Refactor + Provenance Normalization
+### Phase 39 — Recovery / Snapshot / Rollback Foundations
 
 Status: Passed
 
 Files changed:
-- src/components/EditorialIngestion.jsx
-- src/store.js
 - electron/main/db.js
+- electron/main/index.js
+- electron/preload/index.js
+- src/components/SettingsModal.jsx
+- src/store.js
 - src/index.css
 - docs/ACTIVE_SCOPE.md
 - docs/CURRENT_STATE.md
@@ -24,14 +26,20 @@ Files changed:
 
 Validated:
 - npm run build passed.
-- Editorial Ingestion now uses an intake column plus split-pane review workspace.
-- Review queue selection, detail inspection, back/close controls, and Escape-to-close behavior were added.
-- Provenance, raw source excerpts, review material, continuity context, duplicate context, and editorial notes are readable in the detail pane.
-- Source type presets are normalized while optional custom source labels remain preserved in provenance metadata.
-- Confidence presets are normalized to editorial definitions without automatic canon promotion.
-- Existing review routing, Dashboard queues, autosave behavior, and canon safety rules remain intact.
+- Real Electron smoke passed for creating a manual snapshot, listing it in Settings recovery UI, Central Time timestamp display, harmless edit, confirmed restore, pre-restore backup creation, Dashboard load, autosave/status stability, and unchanged canon counts.
+- Snapshot metadata includes label/reason, app/data version, Central Time timestamp, filesystem path, and lightweight record counts.
+- Restore requires explicit confirmation, creates a pre-restore backup, replaces the live SQLite database safely, rebuilds search, and rehydrates app state.
+- Backup retention is capped for manual snapshots while restore-time backups are preserved.
+- Deleted-record recovery remains a future dedicated phase; Phase 39 documents the roadmap hook without destabilizing canon/editorial flows.
 
 No unresolved blockers.
+
+### Phase 38 — Editorial Review Workspace Refactor + Provenance Normalization
+
+Status: Passed
+
+Summary:
+Phase 38 refactored Editorial Ingestion into a scalable split-pane editorial review workspace and normalized provenance/confidence controls.
 
 ### Phase 37 — Manual Ingestion Retest + ZIP/Document Import Planning Gate
 
@@ -196,7 +204,7 @@ Explicitly promoted material only.
 
 ## Next Recommended Phase
 
-### Phase 39 — Controlled ZIP / Document Import Entry Point
+### Phase 40 — Controlled ZIP / Document Import Entry Point
 
 Goal:
 Add the smallest safe user-facing ZIP/document import entry point using the protected ingestion framework, Dashboard queues, Phase 37 import safety gate, and Phase 38 split-pane editorial review workspace.
@@ -206,6 +214,7 @@ Strict scope:
 - source preservation and provenance capture before extraction
 - extraction-session audit trail
 - import batching with rollback/recovery expectations
+- use Phase 39 snapshots before destructive or unstable import/extraction passes
 - no automatic canon mutation
 - no automatic duplicate merge
 - no automatic contradiction resolution

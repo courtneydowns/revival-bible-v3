@@ -13,6 +13,11 @@ contextBridge.exposeInMainWorld('revival', {
   app: {
     getDatabaseInfo: () => invoke('app:get-database-info')
   },
+  recovery: {
+    createSnapshot: (payload) => invoke('recovery:create-snapshot', payload),
+    listSnapshots: () => invoke('recovery:list-snapshots'),
+    restoreSnapshot: (payload) => invoke('recovery:restore-snapshot', payload)
+  },
   clipboard: {
     writeText: (text) => invoke('clipboard:write-text', text)
   },

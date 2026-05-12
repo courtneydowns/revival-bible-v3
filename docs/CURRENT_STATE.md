@@ -37,6 +37,31 @@ Editorial Memory contains reviewable, unresolved, or in-progress material. This 
 
 Canon Memory contains explicitly promoted material only. Repetition across sources does not make a claim canon.
 
+## Completed Phase 39 State
+
+Phase 39 passed and added a minimum viable local recovery/snapshot safety layer before real import/extraction work.
+
+Confirmed capabilities:
+- Settings includes a calm Recovery maintenance area
+- manual SQLite snapshots can be created with a label/reason
+- snapshots list with readable Central Time timestamps and lightweight record counts
+- snapshot metadata preserves app/data version, created time, label, path, and record counts
+- restore requires explicit confirmation and explains that current state will change
+- restore creates a pre-restore safety backup before replacing the live database
+- restore reopens SQLite, rebuilds search, and rehydrates app state
+- manual snapshots use a simple rolling retention cap to avoid unbounded growth
+- restore-time backups are preserved and not pruned during restore
+- canon counts and canon mutation paths remain unchanged unless the user intentionally restores a prior snapshot
+
+Recovery direction:
+- deleted-record recovery remains a future dedicated phase
+- any future trash/recovery work should begin with editorial ingestion/session/candidate records and avoid destabilizing canon flows
+- future ZIP/document import and extraction phases should create snapshots before unstable passes or destructive recovery operations
+
+Validation:
+- npm run build passed
+- real Electron smoke passed for manual snapshot creation, snapshot UI visibility, Central Time formatting, harmless test edit, confirmed restore, pre-restore backup creation, Dashboard loading, autosave/status stability, unchanged canon counts at 25/8/16/49, and no automatic canon mutation
+
 ## Completed Phase 38 State
 
 Phase 38 passed and turned Editorial Ingestion from a cramped staging/review surface into an archival split-pane editorial review workspace.
@@ -207,6 +232,6 @@ Revival Bible remains responsible for:
 
 ## Immediate Next Direction
 
-The next recommended phase is a narrow controlled ZIP/document import entry point now that the ingestion safeguards, Dashboard review home, readiness smoke, manual staging surface, Phase 37 safety gate, and Phase 38 review workspace are in place.
+The next recommended phase is a narrow controlled ZIP/document import entry point now that the ingestion safeguards, Dashboard review home, readiness smoke, manual staging surface, Phase 37 safety gate, Phase 38 review workspace, and Phase 39 recovery foundation are in place.
 
-Any next import work must remain review-first: preserve source memory, batch and audit extraction sessions, route uncertain duplicates and contradictions to manual review, keep provenance permanent, support recovery, and require explicit user promotion for canon.
+Any next import work must remain review-first: preserve source memory, batch and audit extraction sessions, create snapshots before risky extraction passes, route uncertain duplicates and contradictions to manual review, keep provenance permanent, support recovery, and require explicit user promotion for canon.

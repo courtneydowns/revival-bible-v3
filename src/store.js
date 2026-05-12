@@ -66,6 +66,7 @@ export const useRevivalStore = create((set, get) => ({
     continuityReviews: [],
     narrativeFragments: []
   },
+  recoverySnapshots: [],
   activeAiSessionId: getSavedActiveAiSessionId(),
   activeAiSession: null,
   sourceSessionJump: null,
@@ -446,6 +447,38 @@ export const useRevivalStore = create((set, get) => ({
     const ingestionReviewSummary = normalizeIngestionReviewSummary(summary);
     set({ ingestionReviewSummary });
     return ingestionReviewSummary;
+  },
+  loadRecoverySnapshots: async () => {
+    const response = await window.revival?.recovery?.listSnapshots?.();
+    const snapshots = response?.snapshots || [];
+    set({ recoverySnapshots: snapshots });
+    return snapshots;
+  },
+  createRecoverySnapshot: async (payload = {}) => {
+    get().markSaving('Creating snapshot');
+    const response = await window.revival?.recovery?.createSnapshot?.(payload);
+    if (!response?.ok) {
+      get().markSaveFailed(response?.message || 'Snapshot failed');
+      return response;
+    }
+    await get().loadRecoverySnapshots();
+    get().markSaved('Snapshot created');
+    return response;
+  },
+  restoreRecoverySnapshot: async (snapshotId) => {
+    get().markSaving('Restoring snapshot');
+    const response = await window.revival?.recovery?.restoreSnapshot?.({
+      snapshotId,
+      confirmation: 'RESTORE'
+    });
+    if (!response?.ok) {
+      get().markSaveFailed(response?.message || 'Restore failed');
+      return response;
+    }
+    await get().hydratePhaseOneData();
+    await get().loadRecoverySnapshots();
+    get().markSaved('Snapshot restored');
+    return response;
   },
   createImportSession: async (payload) => {
     get().markSaving('Saving import session');
@@ -918,7 +951,7 @@ export const useRevivalStore = create((set, get) => ({
       return;
     }
 
-    const [databaseInfo, nodeTree, episodes, characters, decisions, questions, contextPacks, aiSessions, candidates, ingestionReviewSummary, livingRows, timelineEvents, canonTags, entityTagLinks, characterRelationshipCount] = await Promise.all([
+    const [databaseInfo, nodeTree, episodes, characters, decisions, questions, contextPacks, aiSessions, candidates, ingestionReviewSummary, recoveryResponse, livingRows, timelineEvents, canonTags, entityTagLinks, characterRelationshipCount] = await Promise.all([
       api.app.getDatabaseInfo(),
       api.nodes.getTree(),
       api.episodes.getAll(),
@@ -929,6 +962,7 @@ export const useRevivalStore = create((set, get) => ({
       api.ai.listSessions(),
       api.candidates?.getAll() || [],
       api.ingestion?.getReviewSummary?.() || null,
+      api.recovery?.listSnapshots?.() || null,
       api.living.getAll(),
       api.timeline.getEvents(),
       api.canon.getTags(),
@@ -952,6 +986,7 @@ export const useRevivalStore = create((set, get) => ({
       aiSessions: aiSessions || [],
       candidates: candidates || [],
       ingestionReviewSummary: normalizeIngestionReviewSummary(ingestionReviewSummary),
+      recoverySnapshots: recoveryResponse?.snapshots || [],
       activeCandidateId: get().activeCandidateId || candidates?.[0]?.id || null,
       activeAiSessionId: hydratedAiSession?.id || null,
       activeAiSession: hydratedAiSession,

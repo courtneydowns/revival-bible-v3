@@ -8,10 +8,17 @@ const providers = [
 
 export default function SettingsModal() {
   const closeSettings = useRevivalStore((state) => state.closeSettings);
+  const recoverySnapshots = useRevivalStore((state) => state.recoverySnapshots);
+  const loadRecoverySnapshots = useRevivalStore((state) => state.loadRecoverySnapshots);
+  const createRecoverySnapshot = useRevivalStore((state) => state.createRecoverySnapshot);
+  const restoreRecoverySnapshot = useRevivalStore((state) => state.restoreRecoverySnapshot);
   const [provider, setProvider] = useState('openai');
   const [apiKey, setApiKey] = useState('');
   const [models, setModels] = useState({ anthropic: '', openai: '' });
   const [apiKeySaved, setApiKeySaved] = useState({});
+  const [snapshotLabel, setSnapshotLabel] = useState('');
+  const [recoveryMessage, setRecoveryMessage] = useState('');
+  const [recoveryBusy, setRecoveryBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [connectionTest, setConnectionTest] = useState({ status: 'idle', message: '' });
@@ -35,6 +42,7 @@ export default function SettingsModal() {
         openai: preferences.aiModels?.openai || ''
       });
       setApiKeySaved(keyStatus);
+      await loadRecoverySnapshots();
       setLoading(false);
     }
 
@@ -113,6 +121,34 @@ export default function SettingsModal() {
     }
   };
 
+  const saveSnapshot = async () => {
+    if (recoveryBusy) return;
+
+    setRecoveryBusy(true);
+    setRecoveryMessage('');
+    const response = await createRecoverySnapshot({
+      label: snapshotLabel.trim() || 'Manual safety snapshot'
+    });
+    setRecoveryMessage(response?.ok ? 'Snapshot created locally.' : response?.message || 'Snapshot failed.');
+    if (response?.ok) setSnapshotLabel('');
+    setRecoveryBusy(false);
+  };
+
+  const restoreSnapshot = async (snapshot) => {
+    if (!snapshot?.id || recoveryBusy) return;
+
+    const confirmed = window.confirm(`Restore "${snapshot.label}" from ${snapshot.createdAtCentral}? Current state will change. A pre-restore safety backup will be created first.`);
+    if (!confirmed) return;
+
+    setRecoveryBusy(true);
+    setRecoveryMessage('');
+    const response = await restoreRecoverySnapshot(snapshot.id);
+    setRecoveryMessage(response?.ok
+      ? 'Snapshot restored. A pre-restore safety backup was created first.'
+      : response?.message || 'Restore failed.');
+    setRecoveryBusy(false);
+  };
+
   return (
     <div className="modal-backdrop">
       <section className="modal">
@@ -169,6 +205,45 @@ export default function SettingsModal() {
         </p>
         {message ? <p className="editor-message">{message}</p> : null}
         {connectionTest.message ? <p className={`editor-message connection-test-message ${connectionTest.status}`}>{connectionTest.message}</p> : null}
+        <section className="settings-recovery-panel" aria-labelledby="settings-recovery-title">
+          <div>
+            <div className="eyebrow">Maintenance</div>
+            <h3 id="settings-recovery-title">Recovery</h3>
+            <p className="small-note">
+              Local snapshots capture the SQLite editorial state before risky work. Restores require confirmation and create a pre-restore backup first.
+            </p>
+          </div>
+          <div className="settings-recovery-create">
+            <input
+              disabled={recoveryBusy}
+              onChange={(event) => setSnapshotLabel(event.target.value)}
+              placeholder="Snapshot label or reason"
+              value={snapshotLabel}
+            />
+            <button className="secondary-button" disabled={recoveryBusy} onClick={saveSnapshot} type="button">
+              Create Snapshot
+            </button>
+          </div>
+          {recoveryMessage ? <p className="editor-message">{recoveryMessage}</p> : null}
+          <div className="settings-snapshot-list">
+            {recoverySnapshots.length ? recoverySnapshots.map((snapshot) => (
+              <article className="settings-snapshot-row" key={snapshot.id}>
+                <div>
+                  <strong>{snapshot.label || 'Snapshot'}</strong>
+                  <span>{snapshot.createdAtCentral || snapshot.createdAt}</span>
+                  <small>
+                    {formatSnapshotCounts(snapshot.recordCounts)}
+                  </small>
+                </div>
+                <button className="secondary-button" disabled={recoveryBusy} onClick={() => restoreSnapshot(snapshot)} type="button">
+                  Restore
+                </button>
+              </article>
+            )) : (
+              <p className="small-note">No snapshots yet.</p>
+            )}
+          </div>
+        </section>
         <div className="modal-actions">
           <button className="secondary-button" onClick={closeSettings} type="button">Close</button>
           <button
@@ -184,6 +259,19 @@ export default function SettingsModal() {
       </section>
     </div>
   );
+}
+
+function formatSnapshotCounts(recordCounts = {}) {
+  const sourceCount = Number(recordCounts.source_memory_records || 0);
+  const extractionCount = Number(recordCounts.editorial_extractions || 0);
+  const canonCount = [
+    recordCounts.characters,
+    recordCounts.episodes,
+    recordCounts.decisions,
+    recordCounts.questions
+  ].reduce((total, count) => total + Number(count || 0), 0);
+
+  return `${canonCount} canon/editorial anchors · ${sourceCount} sources · ${extractionCount} extractions`;
 }
 
 async function loadApiKeyStatus() {
