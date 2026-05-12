@@ -1,5 +1,5 @@
 import { ArrowRight, BookOpen, FileSearch, History, MapPin, MessageSquareText, Sparkles, TriangleAlert } from 'lucide-react';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useRevivalStore } from '../store.js';
 import { formatCentralTime } from '../time.js';
 import StatusBadge from './StatusBadge.jsx';
@@ -10,6 +10,7 @@ const unresolvedDecisionStatuses = new Set(['proposed', 'accepted']);
 const continuityRiskTags = ['contradiction-risk', 'canon-risk', 'timeline', 'continuity'];
 
 export default function Dashboard() {
+  const [selectedReviewItem, setSelectedReviewItem] = useState(null);
   const candidates = useRevivalStore((state) => state.candidates);
   const decisions = useRevivalStore((state) => state.decisions);
   const questions = useRevivalStore((state) => state.questions);
@@ -59,6 +60,14 @@ export default function Dashboard() {
   const weakConfidenceItems = useMemo(
     () => buildWeakConfidenceItems(ingestionReviewSummary).slice(0, 4),
     [ingestionReviewSummary]
+  );
+  const routedReviewItems = useMemo(
+    () => [...ingestionReviewItems, ...weakConfidenceItems, ...continuityRisks.map((risk) => risk.reviewItem).filter(Boolean)],
+    [continuityRisks, ingestionReviewItems, weakConfidenceItems]
+  );
+  const activeReviewDetail = useMemo(
+    () => routedReviewItems.find((item) => item.key === selectedReviewItem?.key) || routedReviewItems[0] || null,
+    [routedReviewItems, selectedReviewItem]
   );
   const recentActivity = useMemo(
     () => [
@@ -160,7 +169,7 @@ export default function Dashboard() {
                 title: risk.title,
                 meta: risk.meta,
                 status: risk.status,
-                onOpen: risk.onOpen || (() => setActiveView(risk.fallbackView))
+                onOpen: risk.reviewItem ? () => setSelectedReviewItem(risk.reviewItem) : risk.onOpen || (() => setActiveView(risk.fallbackView))
               }))}
               title="Continuity Review"
             />
@@ -172,7 +181,7 @@ export default function Dashboard() {
                 title: item.title,
                 meta: item.meta,
                 status: item.status,
-                onOpen: () => setActiveView('candidates')
+                onOpen: () => setSelectedReviewItem(item)
               }))}
               title="Source Review"
             />
@@ -184,7 +193,7 @@ export default function Dashboard() {
                 title: item.title,
                 meta: item.meta,
                 status: item.status,
-                onOpen: () => setActiveView('candidates')
+                onOpen: () => setSelectedReviewItem(item)
               }))}
               title="Confidence Check"
             />
@@ -225,6 +234,7 @@ export default function Dashboard() {
               title="Recent Decisions"
             />
           </div>
+          <ReviewDetail item={activeReviewDetail} />
         </aside>
       </div>
     </section>
@@ -253,6 +263,40 @@ function DashboardQueue({ emptyText, icon, items, title }) {
         ))}
         {!items.length ? <p className="muted">{emptyText}</p> : null}
       </div>
+    </section>
+  );
+}
+
+function ReviewDetail({ item }) {
+  if (!item) {
+    return (
+      <section className="dashboard-review-detail" aria-label="Review detail">
+        <div>
+          <strong>Review Detail</strong>
+          <small>No import or extraction review item is selected.</small>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="dashboard-review-detail" aria-label="Review detail">
+      <div className="dashboard-review-detail-heading">
+        <div>
+          <span>{item.kindLabel}</span>
+          <strong>{item.rawTitle || item.title}</strong>
+        </div>
+        {item.status ? <StatusBadge status={item.status} /> : null}
+      </div>
+      <div className="dashboard-review-detail-body">
+        {item.detailRows.map((row) => (
+          <p key={row.label}>
+            <span>{row.label}</span>
+            <strong>{row.value}</strong>
+          </p>
+        ))}
+      </div>
+      <small>{item.provenanceSummary}</small>
     </section>
   );
 }
@@ -390,6 +434,7 @@ function buildContinuityRisks({ candidates, questions, decisions, timelineEvents
       title: item.title,
       meta: `${formatReviewType(item.review_type)} / Updated ${formatDate(item.updated_at || item.created_at)}`,
       status: item.confidence_state || item.risk_level || 'Review',
+      reviewItem: toContinuityReviewItem(item),
       fallbackView: 'dashboard'
     }));
 
@@ -399,32 +444,52 @@ function buildContinuityRisks({ candidates, questions, decisions, timelineEvents
 function buildIngestionReviewItems(summary = {}) {
   const duplicates = (summary.duplicateReviews || []).map((item) => ({
     key: `duplicate-${item.id}`,
+    kindLabel: 'Duplicate Review',
+    rawTitle: 'Possible duplicate',
     title: `Duplicate review: ${formatReviewEndpoint(item.left_type, item.left_id)} / ${formatReviewEndpoint(item.right_type, item.right_id)}`,
     meta: `${item.reason || 'Manual duplicate review'} / Updated ${formatDate(item.updated_at || item.created_at)}`,
     status: item.confidence || item.status,
-    timestamp: item.updated_at || item.created_at
+    timestamp: item.updated_at || item.created_at,
+    provenanceSummary: formatFrameworkProvenance(item.provenance_metadata),
+    detailRows: [
+      { label: 'Left', value: formatReviewEndpoint(item.left_type, item.left_id) },
+      { label: 'Right', value: formatReviewEndpoint(item.right_type, item.right_id) },
+      { label: 'Reason', value: item.reason || 'Manual duplicate review' }
+    ]
   }));
   const extractions = (summary.unresolvedExtractions || []).map((item) => ({
     key: `extraction-${item.id}`,
+    kindLabel: 'Extraction Review',
+    rawTitle: item.title,
     title: `Unresolved extraction: ${item.title}`,
     meta: `${formatReviewType(item.classification)} / ${item.source_label || 'Source preserved'} / Updated ${formatDate(item.updated_at || item.created_at)}`,
     status: item.confidence_state || item.status,
-    timestamp: item.updated_at || item.created_at
+    timestamp: item.updated_at || item.created_at,
+    provenanceSummary: formatFrameworkProvenance(item.provenance_metadata),
+    detailRows: [
+      { label: 'Source', value: item.source_label || 'Source preserved' },
+      { label: 'Classification', value: formatReviewType(item.classification) },
+      { label: 'Content', value: item.content || 'No extracted content.' },
+      { label: 'Trust', value: item.trust_reason || 'Needs review' }
+    ]
   }));
   const fragments = (summary.narrativeFragments || []).map((item) => ({
     key: `fragment-${item.id}`,
+    kindLabel: 'Narrative Fragment',
+    rawTitle: item.title,
     title: `Narrative fragment: ${item.title}`,
     meta: `${formatReviewType(item.fragment_type)} / ${item.source_label || 'Source preserved'} / Updated ${formatDate(item.updated_at || item.created_at)}`,
     status: item.confidence_state || item.status,
-    timestamp: item.updated_at || item.created_at
+    timestamp: item.updated_at || item.created_at,
+    provenanceSummary: formatFrameworkProvenance(item.provenance_metadata),
+    detailRows: [
+      { label: 'Source', value: item.source_label || 'Source preserved' },
+      { label: 'Type', value: formatReviewType(item.fragment_type) },
+      { label: 'Content', value: item.content || 'No fragment content.' },
+      { label: 'Canon state', value: 'Non-canon until promoted' }
+    ]
   }));
-  const continuity = (summary.continuityReviews || []).map((item) => ({
-    key: `continuity-${item.id}`,
-    title: `Continuity review: ${item.title}`,
-    meta: `${formatReviewType(item.review_type)} / Updated ${formatDate(item.updated_at || item.created_at)}`,
-    status: item.confidence_state || item.risk_level,
-    timestamp: item.updated_at || item.created_at
-  }));
+  const continuity = (summary.continuityReviews || []).map(toContinuityReviewItem);
 
   return [...continuity, ...duplicates, ...extractions, ...fragments]
     .sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
@@ -438,6 +503,24 @@ function buildWeakConfidenceItems(summary = {}) {
       ...item,
       title: item.title.replace(/^(Unresolved extraction|Narrative fragment|Continuity review): /, '')
     }));
+}
+
+function toContinuityReviewItem(item) {
+  return {
+    key: `continuity-${item.id}`,
+    kindLabel: 'Continuity Review',
+    rawTitle: item.title,
+    title: `Continuity review: ${item.title}`,
+    meta: `${formatReviewType(item.review_type)} / Updated ${formatDate(item.updated_at || item.created_at)}`,
+    status: item.confidence_state || item.risk_level,
+    timestamp: item.updated_at || item.created_at,
+    provenanceSummary: formatFrameworkProvenance(item.provenance_metadata),
+    detailRows: [
+      { label: 'Claim A', value: item.claim_a || 'No first claim recorded.' },
+      { label: 'Claim B', value: item.claim_b || 'No second claim recorded.' },
+      { label: 'Risk', value: item.risk_level || 'Review' }
+    ]
+  };
 }
 
 function toActivity(type, record, title, meta, onOpen) {
@@ -512,6 +595,16 @@ function formatReviewType(value) {
 
 function formatReviewEndpoint(type, id) {
   return `${formatReviewType(type)} ${id}`;
+}
+
+function formatFrameworkProvenance(provenance = {}) {
+  const sourceIds = Array.isArray(provenance.source_record_ids)
+    ? provenance.source_record_ids.join(', ')
+    : provenance.source_record_id || '';
+  const session = provenance.import_session_id ? `Session ${provenance.import_session_id}` : 'Session linked by source memory when available';
+  const source = sourceIds ? `Source ${sourceIds}` : 'Source metadata preserved';
+  const preserved = provenance.preserved === false ? 'not marked preserved' : 'preserved';
+  return `${session} / ${source} / ${preserved} / non-canon`;
 }
 
 function isInternalPhaseRecord(record, title) {
