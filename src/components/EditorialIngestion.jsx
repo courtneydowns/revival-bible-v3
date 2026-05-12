@@ -55,7 +55,11 @@ export default function EditorialIngestion() {
   const [candidateDraft, setCandidateDraft] = useState(initialCandidateDraft);
   const [message, setMessage] = useState('');
   const [sourceAttachmentMessage, setSourceAttachmentMessage] = useState('');
+  const [sessionValidationMessage, setSessionValidationMessage] = useState('');
+  const [sourceValidationMessage, setSourceValidationMessage] = useState('');
+  const [candidateValidationMessage, setCandidateValidationMessage] = useState('');
   const [lastAttachedSourceId, setLastAttachedSourceId] = useState(null);
+  const [lastStagedReview, setLastStagedReview] = useState(null);
   const [saving, setSaving] = useState(false);
   const [selectingSourceFile, setSelectingSourceFile] = useState(false);
   const [selectedReviewKey, setSelectedReviewKey] = useState(null);
@@ -153,10 +157,6 @@ export default function EditorialIngestion() {
     }))
   ].sort(compareReviewPriority), [ingestionReviewSummary]);
   const extractionItems = useMemo(() => stagedItems.filter((item) => item.kind === 'Extraction Candidate'), [stagedItems]);
-  const triageCounts = useMemo(() => extractionItems.reduce((counts, item) => {
-    counts[item.status] = (counts[item.status] || 0) + 1;
-    return counts;
-  }, {}), [extractionItems]);
   const sourceClusters = useMemo(() => {
     const sourceLookup = new Map((ingestionReviewSummary.sourceRecords || []).map((source) => [String(source.id), source]));
     const grouped = new Map();
@@ -182,13 +182,19 @@ export default function EditorialIngestion() {
       .filter((cluster) => cluster.items.length)
       .sort((a, b) => compareReviewPriority(a.items[0], b.items[0]));
   }, [extractionItems, ingestionReviewSummary.sourceRecords, reviewStateFilter, riskFilter]);
+  const visibleReviewItems = useMemo(() => sourceClusters.flatMap((cluster) => cluster.items), [sourceClusters]);
+  const visibleTriageCounts = useMemo(() => visibleReviewItems.reduce((counts, item) => {
+    counts[item.status] = (counts[item.status] || 0) + 1;
+    return counts;
+  }, {}), [visibleReviewItems]);
   const selectedReviewItem = stagedItems.find((item) => item.key === selectedReviewKey) || null;
   const selectedExtractionSet = useMemo(() => new Set(selectedExtractionIds.map(String)), [selectedExtractionIds]);
   const selectedExtractionCount = selectedExtractionIds.length;
-  const acceptedCount = triageCounts['accepted-for-placement'] || 0;
-  const unresolvedCount = extractionItems.filter((item) => !['resolved', 'deferred'].includes(item.status)).length;
-  const contradictionCount = triageCounts['contradiction-risk'] || 0;
-  const duplicateCount = triageCounts['duplicate-risk'] || 0;
+  const lastAttachedSource = sourceRecords.find((source) => String(source.id) === String(lastAttachedSourceId)) || null;
+  const acceptedCount = visibleTriageCounts['accepted-for-placement'] || 0;
+  const unresolvedCount = visibleReviewItems.filter((item) => !['resolved', 'deferred'].includes(item.status)).length;
+  const contradictionCount = visibleTriageCounts['contradiction-risk'] || 0;
+  const duplicateCount = visibleTriageCounts['duplicate-risk'] || 0;
 
   useEffect(() => {
     if (selectedReviewKey && !stagedItems.some((item) => item.key === selectedReviewKey)) {
@@ -198,7 +204,7 @@ export default function EditorialIngestion() {
 
   useEffect(() => {
     setExpandedSourceIds((ids) => {
-      const visibleKeys = sourceClusters.slice(0, 4).map((cluster) => cluster.key);
+      const visibleKeys = sourceClusters.map((cluster) => cluster.key);
       return [...new Set([...ids, ...visibleKeys])];
     });
   }, [sourceClusters]);
@@ -281,7 +287,9 @@ export default function EditorialIngestion() {
 
   const saveSession = async (event) => {
     event.preventDefault();
-    if (!sessionDraft.title.trim() || !sessionDraft.provenanceNote.trim()) {
+    const missing = getMissingSessionFields(sessionDraft);
+    if (missing.length) {
+      setSessionValidationMessage(`Before creating a session, add ${formatMissingFields(missing)}.`);
       setMessage('Session title and provenance note are required.');
       return;
     }
@@ -306,6 +314,7 @@ export default function EditorialIngestion() {
       return;
     }
 
+    setSessionValidationMessage('');
     setCandidateDraft((draft) => ({ ...draft, importSessionId: String(response.session.id) }));
     setSourceDraft((draft) => ({ ...draft, importSessionId: String(response.session.id) }));
     setSessionDraft(initialSessionDraft);
@@ -323,11 +332,52 @@ export default function EditorialIngestion() {
     ).trim();
   };
 
+  const ensureSourceDraftSession = async (draftToSave, file) => {
+    if (draftToSave.importSessionId) return { ok: true, draft: draftToSave };
+
+    const provenanceNote = draftToSave.provenanceNote || buildAutoProvenanceNote(file?.name);
+    const title = buildAutoSessionTitle(file?.name);
+    setSaving(true);
+    const response = await createImportSession({
+      title,
+      sourceType: draftToSave.sourceType,
+      notes: 'Auto-created when a source file was staged.',
+      provenanceMetadata: {
+        workflow: 'Editorial Ingestion',
+        source_note: provenanceNote,
+        source_label: draftToSave.sourceLabel || file?.name || title,
+        custom_source_label: draftToSave.sourceTypeLabel,
+        original_filename: file?.name || draftToSave.originalFilename,
+        preserved: true,
+        memory_layer: 'source'
+      }
+    });
+    setSaving(false);
+
+    if (!response?.ok || !response.session) {
+      setMessage(response?.message || 'Import session could not be created for this source.');
+      setSourceAttachmentMessage(response?.message || 'Source selected, but not saved yet.');
+      return { ok: false };
+    }
+
+    const sessionBackedDraft = {
+      ...draftToSave,
+      importSessionId: String(response.session.id),
+      provenanceNote
+    };
+    setSessionValidationMessage('');
+    setCandidateDraft((draft) => ({ ...draft, importSessionId: String(response.session.id) }));
+    setSourceDraft(sessionBackedDraft);
+    return { ok: true, draft: sessionBackedDraft };
+  };
+
   const persistSourceDraft = async (draftToSave, { automatic = false } = {}) => {
     const provenanceNote = getSourceProvenanceNote(draftToSave);
     if (!draftToSave.importSessionId || !draftToSave.sourceLabel.trim() || !provenanceNote || !draftToSave.rawContent.trim()) {
+      const missing = getMissingSourceFields(draftToSave, provenanceNote);
+      setSourceValidationMessage(`Before this source can be saved, add ${formatMissingFields(missing)}.`);
       if (automatic) {
-        setSourceAttachmentMessage('Source ready. Choose a session and provenance note to attach it.');
+        setSourceAttachmentMessage('Source selected, but not saved yet.');
         return { ok: false };
       }
       setMessage('Session, source file, source label, and provenance note are required.');
@@ -347,16 +397,26 @@ export default function EditorialIngestion() {
       return response;
     }
 
+    setSourceValidationMessage('');
     setSourceDraft((draft) => ({
-      ...initialSourceDraft,
+      ...draftToSave,
       importSessionId: draftToSave.importSessionId || draft.importSessionId,
       sourceType: draftToSave.sourceType || draft.sourceType,
       sourceTypeLabel: draftToSave.sourceTypeLabel || draft.sourceTypeLabel
     }));
     setLastAttachedSourceId(response.source.id);
-    setSourceAttachmentMessage(`Source attached: ${response.source.source_label}.`);
+    setSourceAttachmentMessage('Source staged safely. Canon remains unchanged.');
     setMessage('Source attached to session. It remains staged and non-canon.');
     return response;
+  };
+
+  const stageSelectedSourceDraft = async (nextDraft, file) => {
+    setSourceDraft(nextDraft);
+    setSelectingSourceFile(false);
+    setSourceAttachmentMessage('Source ready to attach.');
+    const sessionResult = await ensureSourceDraftSession(nextDraft, file);
+    if (!sessionResult.ok) return;
+    await persistSourceDraft(sessionResult.draft, { automatic: true });
   };
 
   const applySelectedSourceFile = async (file) => {
@@ -373,11 +433,13 @@ export default function EditorialIngestion() {
       ...sourceDraft,
       sourceLabel: sourceDraft.sourceLabel || file.name,
       sourceType: detectedType,
+      provenanceNote: sourceDraft.provenanceNote || buildAutoProvenanceNote(file.name),
       originalFilename: file.name,
       fileExtension: extension || 'unknown',
       fileSize: file.size || 0,
       checksum: `${file.name}:${file.size}:${file.lastModified || ''}`
     };
+    setSourceValidationMessage('');
 
     if (!readable) {
       const nextDraft = {
@@ -386,10 +448,7 @@ export default function EditorialIngestion() {
         previewState: 'placeholder',
         previewNote: 'Binary or unsupported source preserved as a staged record. Full extraction remains future work.'
       };
-      setSourceDraft(nextDraft);
-      setSelectingSourceFile(false);
-      setSourceAttachmentMessage('Source ready to attach.');
-      await persistSourceDraft(nextDraft, { automatic: true });
+      await stageSelectedSourceDraft(nextDraft, file);
       return;
     }
 
@@ -401,10 +460,7 @@ export default function EditorialIngestion() {
         previewState: text.length > SOURCE_PREVIEW_LIMIT ? 'truncated-preview' : 'readable-preview',
         previewNote: text.length > SOURCE_PREVIEW_LIMIT ? `Readable preview truncated at ${SOURCE_PREVIEW_LIMIT} characters.` : 'Readable preview preserved.'
       };
-      setSourceDraft(nextDraft);
-      setSelectingSourceFile(false);
-      setSourceAttachmentMessage('Source ready to attach.');
-      await persistSourceDraft(nextDraft, { automatic: true });
+      await stageSelectedSourceDraft(nextDraft, file);
     } catch (error) {
       const nextDraft = {
         ...baseDraft,
@@ -412,10 +468,7 @@ export default function EditorialIngestion() {
         previewState: 'preview-failed',
         previewNote: 'Preview failed safely; source metadata remains staged.'
       };
-      setSourceDraft(nextDraft);
-      setSelectingSourceFile(false);
-      setSourceAttachmentMessage('Source ready to attach.');
-      await persistSourceDraft(nextDraft, { automatic: true });
+      await stageSelectedSourceDraft(nextDraft, file);
     }
   };
 
@@ -474,7 +527,9 @@ export default function EditorialIngestion() {
 
   const saveCandidate = async (event) => {
     event.preventDefault();
-    if (!candidateDraft.importSessionId || !candidateDraft.sourceRecordId || !candidateDraft.provenanceNote.trim() || !candidateDraft.rawContent.trim() || !candidateDraft.title.trim() || !candidateDraft.content.trim() || !candidateDraft.trustReason.trim()) {
+    const missing = getMissingCandidateFields(candidateDraft);
+    if (missing.length) {
+      setCandidateValidationMessage(`Before staging for review, add ${formatMissingFields(missing)}.`);
       setMessage('Session, staged source, provenance note, source text, candidate title, candidate content, and trust note are required.');
       return;
     }
@@ -488,13 +543,27 @@ export default function EditorialIngestion() {
       return;
     }
 
+    const reviewKey = response.review?.id ? `extraction-${response.review.id}` : null;
+    const sourceKey = String(candidateDraft.sourceRecordId || 'unassigned');
+    setCandidateValidationMessage('');
+    setLastStagedReview({
+      key: reviewKey,
+      title: response.review?.title || candidateDraft.title,
+      sourceLabel: candidateDraft.sourceLabel || 'selected source',
+      location: reviewKey ? 'Review Workspace / Review List' : 'Review Workspace',
+      status: formatReviewType(response.review?.status || candidateDraft.reviewStatus)
+    });
+    setReviewStateFilter('all');
+    setRiskFilter('all');
+    setExpandedSourceIds((ids) => [...new Set([...ids, sourceKey])]);
+    if (reviewKey) setSelectedReviewKey(reviewKey);
     setCandidateDraft((draft) => ({
       ...initialCandidateDraft,
       importSessionId: draft.importSessionId,
       sourceType: draft.sourceType,
       sourceTypeLabel: draft.sourceTypeLabel
     }));
-    setMessage('Staged material saved for manual review. Canon counts are untouched.');
+    setMessage('Review item staged. It now appears in the Review Workspace list for editorial review. Canon counts are untouched.');
   };
 
   return (
@@ -532,12 +601,13 @@ export default function EditorialIngestion() {
             </div>
             <form className="editorial-ingestion-form" onSubmit={saveSession}>
               <label>
-                <span>Session title</span>
+                <RequiredLabel>Session title</RequiredLabel>
                 <input ref={sessionTitleRef} onChange={(event) => updateSessionDraft('title', event.target.value)} placeholder="Manual extraction test" value={sessionDraft.title} />
+                {sessionValidationMessage && !sessionDraft.title.trim() ? <small className="field-validation">Session title is required.</small> : null}
               </label>
               <div className="editorial-ingestion-grid">
                 <label>
-                  <span>Source preset</span>
+                  <RequiredLabel>Source preset</RequiredLabel>
                   <select onChange={(event) => updateSessionDraft('sourceType', event.target.value)} value={sessionDraft.sourceType}>
                     {sourceTypePresets.map((preset) => (
                       <option key={preset.value} value={preset.value}>{preset.label}</option>
@@ -550,17 +620,19 @@ export default function EditorialIngestion() {
                 </label>
               </div>
               <label>
-                <span>Provenance note</span>
+                <RequiredLabel>Provenance note</RequiredLabel>
                 <input onChange={(event) => updateSessionDraft('provenanceNote', event.target.value)} placeholder="Where this test source came from" value={sessionDraft.provenanceNote} />
+                {sessionValidationMessage && !sessionDraft.provenanceNote.trim() ? <small className="field-validation">Provenance note is required.</small> : null}
               </label>
               <label>
                 <span>Session notes</span>
                 <textarea onChange={(event) => updateSessionDraft('notes', event.target.value)} placeholder="Optional editorial context" value={sessionDraft.notes} />
               </label>
-              <button className="primary-button" disabled={saving || !sessionDraft.title.trim() || !sessionDraft.provenanceNote.trim()} type="submit">
+              <button className="primary-button" disabled={saving} type="submit">
                 <Plus size={14} />
                 <span>Create Session</span>
               </button>
+              {sessionValidationMessage ? <p className="inline-validation" role="alert">{sessionValidationMessage}</p> : null}
             </form>
           </section>
 
@@ -574,17 +646,23 @@ export default function EditorialIngestion() {
             </div>
             <form className="editorial-ingestion-form" onSubmit={saveSource}>
               <div className="editorial-ingestion-grid">
+                <div className="editorial-session-picker-field">
+                  <label>
+                    <RequiredLabel>Session</RequiredLabel>
+                    <select onChange={(event) => updateSourceDraft('importSessionId', event.target.value)} value={sourceDraft.importSessionId}>
+                      <option value="">Choose a session</option>
+                      {sessions.map((session) => (
+                        <option key={session.id} value={session.id}>{formatSessionOption(session)}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <button className="secondary-button editorial-ingestion-header-button quiet" onClick={openNewSessionDraft} type="button">
+                    <Plus size={14} />
+                    <span>New Session</span>
+                  </button>
+                </div>
                 <label>
-                  <span>Session</span>
-                  <select onChange={(event) => updateSourceDraft('importSessionId', event.target.value)} value={sourceDraft.importSessionId}>
-                    <option value="">Choose a session</option>
-                    {sessions.map((session) => (
-                      <option key={session.id} value={session.id}>{formatSessionOption(session)}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span>Source file</span>
+                  <RequiredLabel>Source file</RequiredLabel>
                   <span className={`secondary-button source-file-picker-button ${selectingSourceFile ? 'selecting' : ''}`}>
                     <Paperclip size={14} />
                     <span>{sourceDraft.originalFilename || (selectingSourceFile ? 'Choosing source...' : 'Choose Source File')}</span>
@@ -601,11 +679,11 @@ export default function EditorialIngestion() {
               </div>
               <div className="editorial-ingestion-grid">
                 <label>
-                  <span>Source label</span>
+                  <RequiredLabel>Source label</RequiredLabel>
                   <input onChange={(event) => updateSourceDraft('sourceLabel', event.target.value)} placeholder="Original file or archive label" value={sourceDraft.sourceLabel} />
                 </label>
                 <label>
-                  <span>Source type</span>
+                  <RequiredLabel>Source type</RequiredLabel>
                   <select onChange={(event) => updateSourceDraft('sourceType', event.target.value)} value={sourceDraft.sourceType}>
                     {sourceTypePresets.map((preset) => (
                       <option key={preset.value} value={preset.value}>{preset.label}</option>
@@ -614,7 +692,7 @@ export default function EditorialIngestion() {
                 </label>
               </div>
               <label>
-                <span>Provenance note</span>
+                <RequiredLabel>Provenance note</RequiredLabel>
                 <input onChange={(event) => updateSourceDraft('provenanceNote', event.target.value)} placeholder="Where this file came from and why it is staged" value={sourceDraft.provenanceNote} />
               </label>
               <div className="source-preview-card">
@@ -629,20 +707,31 @@ export default function EditorialIngestion() {
                 <ShieldCheck size={14} />
                 <span>Attach Source</span>
               </button>
+              {sourceValidationMessage ? <p className="inline-validation" role="alert">{sourceValidationMessage}</p> : null}
               {sourceAttachmentMessage ? <p className="candidate-message source-attachment-message" role="status">{sourceAttachmentMessage}</p> : null}
+              {lastAttachedSource ? (
+                <div className="attached-source-confirmation" role="status">
+                  <strong>Attached source saved</strong>
+                  <span>{lastAttachedSource.source_label}</span>
+                  <small>
+                    Saved to {lastAttachedSource.session_title || 'selected import session'} / {formatSourceType(lastAttachedSource.source_type, lastAttachedSource.provenance_metadata?.custom_source_label)} / Source record #{lastAttachedSource.id}
+                  </small>
+                  <p>{lastAttachedSource.provenance_metadata?.source_note || 'Source provenance is preserved on the saved record.'}</p>
+                </div>
+              ) : null}
             </form>
 
             {selectedSourceDraftSources.length ? (
               <div className="session-source-list" aria-label="Attached sources">
                 <div className="editorial-review-queue-heading">
-                  <strong>Attached Sources</strong>
-                  <small>{selectedSourceDraftSources.length} staged</small>
+                  <strong>Saved Attached Sources</strong>
+                  <small>{selectedSourceDraftSources.length} saved to this session</small>
                 </div>
                 {selectedSourceDraftSources.slice(0, 4).map((source) => (
                   <article className={`session-source-row ${String(lastAttachedSourceId) === String(source.id) ? 'just-attached' : ''}`} key={source.id}>
                     <span className="source-type-badge">{formatSourceType(source.source_type, source.provenance_metadata?.custom_source_label)}</span>
                     <strong>{source.source_label}</strong>
-                    <small>{formatDate(source.created_at)} / {source.provenance_metadata?.file_preview_state || 'staged'}</small>
+                    <small>Source record #{source.id} / {formatDate(source.created_at)} / {source.provenance_metadata?.file_preview_state || 'staged'}</small>
                   </article>
                 ))}
               </div>
@@ -660,7 +749,7 @@ export default function EditorialIngestion() {
             <form className="editorial-ingestion-form" onSubmit={saveCandidate}>
             <div className="editorial-ingestion-grid">
               <label>
-                <span>Session</span>
+                <RequiredLabel>Session</RequiredLabel>
                 <select
                   ref={sessionSelectRef}
                   onChange={(event) => setCandidateDraft((draft) => ({
@@ -680,15 +769,17 @@ export default function EditorialIngestion() {
                     <option key={session.id} value={session.id}>{formatSessionOption(session)}</option>
                   ))}
                 </select>
+                {candidateValidationMessage && !candidateDraft.importSessionId ? <small className="field-validation">Choose a session.</small> : null}
               </label>
               <label>
-                <span>Staged source</span>
+                <RequiredLabel>Staged source</RequiredLabel>
                 <select onChange={(event) => selectCandidateSource(event.target.value)} value={candidateDraft.sourceRecordId}>
                   <option value="">Choose a staged source</option>
                   {selectedCandidateSessionSources.map((source) => (
                     <option key={source.id} value={source.id}>{source.source_label}</option>
                   ))}
                 </select>
+                {candidateValidationMessage && !candidateDraft.sourceRecordId ? <small className="field-validation">Choose a staged source.</small> : null}
               </label>
             </div>
             <div className="editorial-ingestion-grid">
@@ -746,24 +837,29 @@ export default function EditorialIngestion() {
               </label>
             </div>
             <label>
-              <span>Source provenance note</span>
+              <RequiredLabel>Source provenance note</RequiredLabel>
               <input onChange={(event) => updateCandidateDraft('provenanceNote', event.target.value)} placeholder="Where this excerpt came from and why it is being staged" value={candidateDraft.provenanceNote} />
+              {candidateValidationMessage && !candidateDraft.provenanceNote.trim() ? <small className="field-validation">Source provenance is required.</small> : null}
             </label>
             <label>
-              <span>Raw source excerpt</span>
+              <RequiredLabel>Raw source excerpt</RequiredLabel>
               <textarea readOnly placeholder="Choose a staged source to carry forward its preserved text" value={candidateDraft.rawContent} />
+              {candidateValidationMessage && !candidateDraft.rawContent.trim() ? <small className="field-validation">Choose a staged source to load the excerpt.</small> : null}
             </label>
             <label>
-              <span>Candidate title</span>
+              <RequiredLabel>Candidate title</RequiredLabel>
               <input onChange={(event) => updateCandidateDraft('title', event.target.value)} placeholder="Short review title" value={candidateDraft.title} />
+              {candidateValidationMessage && !candidateDraft.title.trim() ? <small className="field-validation">Candidate title is required.</small> : null}
             </label>
             <label>
-              <span>Candidate content</span>
+              <RequiredLabel>Candidate content</RequiredLabel>
               <textarea onChange={(event) => updateCandidateDraft('content', event.target.value)} placeholder="Manually extracted claim, note, or fragment" value={candidateDraft.content} />
+              {candidateValidationMessage && !candidateDraft.content.trim() ? <small className="field-validation">Candidate content is required.</small> : null}
             </label>
             <label>
-              <span>Trust note</span>
+              <RequiredLabel>Trust note</RequiredLabel>
               <input onChange={(event) => updateCandidateDraft('trustReason', event.target.value)} placeholder={getConfidenceDefinition(candidateDraft.confidenceState)} value={candidateDraft.trustReason} />
+              {candidateValidationMessage && !candidateDraft.trustReason.trim() ? <small className="field-validation">Trust note is required.</small> : null}
             </label>
             <div className="editorial-routing-options">
               <label>
@@ -781,11 +877,21 @@ export default function EditorialIngestion() {
                 <input onChange={(event) => updateCandidateDraft('contradictionClaim', event.target.value)} placeholder="Existing claim to compare against" value={candidateDraft.contradictionClaim} />
               ) : null}
             </div>
-            <button className="primary-button" disabled={saving || !candidateDraft.sourceRecordId} type="submit">
+            <button className="primary-button" disabled={saving} type="submit">
               <ShieldCheck size={14} />
               <span>Stage for Review</span>
             </button>
           </form>
+          {candidateValidationMessage ? <p className="inline-validation" role="alert">{candidateValidationMessage}</p> : null}
+          {lastStagedReview ? (
+            <div className="staged-review-confirmation" role="status">
+              <strong>Review item staged</strong>
+              <span>{lastStagedReview.title}</span>
+              <small>{lastStagedReview.location} / {lastStagedReview.sourceLabel} / {lastStagedReview.status}</small>
+              <p>The item is selected in the Review Workspace list. Open it there to inspect provenance, notes, and placement readiness. Canon is unchanged.</p>
+              <p>Next: review this item, then Accept, Defer, or mark for placement. Canon remains unchanged.</p>
+            </div>
+          ) : null}
           {message ? <p className="candidate-message" role="status">{message}</p> : null}
           </section>
         </div>
@@ -811,11 +917,21 @@ export default function EditorialIngestion() {
             <StateBadge state="accepted-placement" label="Accepted for Placement" />
             <StateBadge state="promoted-canon" label="Promoted Canon" />
           </div>
-          <div className="editorial-triage-overview" aria-label="Extraction review overview">
-            <ReviewFact label="Unresolved" value={unresolvedCount} />
-            <ReviewFact label="Contradiction" value={contradictionCount} />
-            <ReviewFact label="Duplicate" value={duplicateCount} />
-            <ReviewFact label="Placement ready" value={acceptedCount} />
+          {lastStagedReview ? (
+            <div className="review-workspace-guidance" role="status">
+              <strong>Latest staged item is ready for editorial review</strong>
+              <span>{lastStagedReview.title}</span>
+              <small>Selected below in the Review List / Canon remains unchanged</small>
+              <p>Next: review this item, then Accept, Defer, or mark for placement. Canon remains unchanged.</p>
+            </div>
+          ) : (
+            <p className="review-workspace-guidance subtle">Review items staged from sources appear here. Select an item to inspect provenance, resolve risks, or mark it ready for future placement.</p>
+          )}
+          <div className="editorial-triage-overview" aria-label="Extraction review overview for visible list">
+            <ReviewFact label="Awaiting review" scope="in the list below" value={unresolvedCount} />
+            <ReviewFact label="Continuity flags" scope="in the list below" value={contradictionCount} />
+            <ReviewFact label="Duplicate checks" scope="in the list below" value={duplicateCount} />
+            <ReviewFact label="Ready to place" scope="in the list below" value={acceptedCount} />
           </div>
           <div className="editorial-review-controls" aria-label="Review filters and batch actions">
             <label>
@@ -851,8 +967,8 @@ export default function EditorialIngestion() {
           <div className="editorial-review-split">
             <nav className="editorial-review-queue" aria-label="Review queue">
               <div className="editorial-review-queue-heading">
-                <strong>Source Intakes</strong>
-                <small>{sourceClusters.length} grouped</small>
+                <strong>Review List</strong>
+                <small>Staged review items awaiting editorial review</small>
               </div>
               <div className="editorial-ingestion-list">
                 {sourceClusters.map((cluster) => {
@@ -871,8 +987,10 @@ export default function EditorialIngestion() {
                           {allSelected ? <CheckSquare size={15} /> : <Square size={15} />}
                         </button>
                       </div>
-                      {open ? cluster.items.map((item) => (
-                        <div className="editorial-triage-row" key={item.key}>
+                      {open ? cluster.items.map((item) => {
+                        const isLatestStaged = lastStagedReview?.key === item.key;
+                        return (
+                        <div className={`editorial-triage-row ${isLatestStaged ? 'latest-staged-review' : ''}`} key={item.key}>
                           <button aria-label="Select extraction review item" className="icon-button" onClick={() => toggleExtractionSelection(item.id)} title="Select review item" type="button">
                             {selectedExtractionSet.has(String(item.id)) ? <CheckSquare size={15} /> : <Square size={15} />}
                           </button>
@@ -884,17 +1002,19 @@ export default function EditorialIngestion() {
                           >
                             <span>
                               <StateBadge state={getReviewStateKey(item)} label={getReviewStateLabel(item)} />
+                              {isLatestStaged ? <em className="latest-staged-label">Newly staged</em> : null}
                               <strong>{item.title}</strong>
                               <small>{item.kind} / {formatDate(item.timestamp)}</small>
                             </span>
                             <StatusBadge status={formatReviewType(item.status)} />
                           </button>
                         </div>
-                      )) : null}
+                        );
+                      }) : null}
                     </section>
                   );
                 })}
-                {!sourceClusters.length ? <p className="muted">No extraction review items match these filters.</p> : null}
+                {!sourceClusters.length ? <p className="muted">No staged review items are visible for these filters yet. Attached sources are saved above first; once you stage an extraction candidate, it appears here for editorial review.</p> : null}
               </div>
             </nav>
 
@@ -995,10 +1115,20 @@ function StateBadge({ state, label }) {
   return <span className={`editorial-state-badge ${state}`}>{label}</span>;
 }
 
-function ReviewFact({ label, value }) {
+function RequiredLabel({ children }) {
+  return (
+    <span>
+      {children}
+      <span aria-hidden="true" className="required-marker">*</span>
+    </span>
+  );
+}
+
+function ReviewFact({ label, scope, value }) {
   return (
     <div>
       <span>{label}</span>
+      {scope ? <small>{scope}</small> : null}
       <strong>{value}</strong>
     </div>
   );
@@ -1029,6 +1159,40 @@ function formatReviewType(value) {
   return String(value || 'review')
     .replace(/[-_]+/g, ' ')
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function formatMissingFields(fields) {
+  if (fields.length <= 1) return fields[0] || 'the required fields';
+  if (fields.length === 2) return `${fields[0]} and ${fields[1]}`;
+  return `${fields.slice(0, -1).join(', ')}, and ${fields[fields.length - 1]}`;
+}
+
+function getMissingSessionFields(draft) {
+  return [
+    !draft.title?.trim() ? 'a session title' : '',
+    !draft.provenanceNote?.trim() ? 'a provenance note' : ''
+  ].filter(Boolean);
+}
+
+function getMissingSourceFields(draft, provenanceNote) {
+  return [
+    !draft.importSessionId ? 'a session' : '',
+    !draft.rawContent?.trim() ? 'a source file' : '',
+    !draft.sourceLabel?.trim() ? 'a source label' : '',
+    !provenanceNote ? 'a provenance note' : ''
+  ].filter(Boolean);
+}
+
+function getMissingCandidateFields(draft) {
+  return [
+    !draft.importSessionId ? 'a session' : '',
+    !draft.sourceRecordId ? 'a staged source' : '',
+    !draft.provenanceNote?.trim() ? 'a source provenance note' : '',
+    !draft.rawContent?.trim() ? 'a raw source excerpt' : '',
+    !draft.title?.trim() ? 'a candidate title' : '',
+    !draft.content?.trim() ? 'candidate content' : '',
+    !draft.trustReason?.trim() ? 'a trust note' : ''
+  ].filter(Boolean);
 }
 
 function formatSourceType(value, customLabel) {
@@ -1112,6 +1276,19 @@ function formatSessionOption(session) {
   return count ? `${session.title} (${count} source${count === 1 ? '' : 's'})` : session.title;
 }
 
+function buildAutoSessionTitle(filename) {
+  const cleanName = String(filename || '').trim();
+  if (cleanName) return `Intake: ${cleanName}`;
+  return `Intake: ${new Date().toLocaleString()}`;
+}
+
+function buildAutoProvenanceNote(filename) {
+  const cleanName = String(filename || '').trim();
+  return cleanName
+    ? `Staged from ${cleanName}. Edit this note if more source context is needed.`
+    : 'Staged from a selected source file. Edit this note if more source context is needed.';
+}
+
 function getFileExtension(filename) {
   const match = String(filename || '').toLowerCase().match(/\.([a-z0-9]+)$/);
   return match?.[1] || '';
@@ -1123,8 +1300,7 @@ function isReadablePreview(extension) {
 
 function detectSourceType(extension) {
   const normalized = String(extension || '').toLowerCase();
-  if (normalized === 'md' || normalized === 'markdown') return 'draft-notes';
-  if (normalized === 'txt') return 'imported-document';
+  if (['txt', 'md', 'markdown'].includes(normalized)) return 'imported-document';
   if (['pdf', 'doc', 'docx'].includes(normalized)) return 'imported-document';
   return 'unknown';
 }

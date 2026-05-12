@@ -1,128 +1,162 @@
-# ACTIVE_SCOPE.md — Revival Bible v3
+# Revival Bible v3 — ACTIVE_SCOPE
 
-## CURRENT MICRO-PHASE
+Last updated: 2026-05-12 CDT
 
-Phase 42A-fix3
+## Current focus
 
-Goal:
-Fix the visible Attach Source button failure in the real Electron Editorial Ingestion UI.
+Move from Phase 42C/fix loops into a clean stabilization cluster:
 
-This is a surgical diagnostic micro-phase.
-Do not broaden scope.
+**Phase 43 — Editorial Ingestion Workflow Stabilization**
 
----
+Phase 43 exists because Phase 42 stabilized the source/session/review safety architecture, but repeated micro-fixes exposed broader UX comprehension, layout, and review-list readability problems that should no longer be handled as endless `42C-fixX` patches.
 
-## ACTIVE FAILURE
+## Current status before Phase 43
 
-The visible gold “Attach Source” button inside the Staged Source card currently does nothing in the real Electron app.
+Phase 42 core and follow-up fixes established:
 
-Observed:
-- no file picker opens
-- no source attaches
-- no error appears
-- no success feedback appears
+- staged source attachment workflow
+- native file picker path
+- manual and auto-created intake session support
+- source label/type/provenance autofill after attachment
+- attachment success confirmation
+- required-field indicators and validation paths
+- non-canon staged review item creation
+- Review Workspace / Review List counter clarification attempts
+- footer/status calmness cleanup
+- canon safety preserved during staged intake and review
 
-Previous smoke claims were insufficient because they did not validate the exact visible button path used by the user.
+Phase 42C-fix5 added the important workflow correction:
 
----
+- choosing a source file can auto-create/select a calm intake session when needed
+- users no longer have to manually create an import session before attaching a document
+- sessions remain internally useful for provenance, grouping, recovery, rollback, and audit history, but should not feel mandatory/admin-first
 
-## ALLOWED FILES
+## Why Phase 43 is needed
 
-Primary:
-- src/components/EditorialIngestion.jsx
-- src/store.js
+The architecture is now safe enough to stop patching counter/session details one at a time. The remaining problems are workflow-stabilization and UX-readability issues:
 
-Allowed ONLY if required:
-- electron/preload/index.js
-- electron/main/index.js
-- src/index.css
+- Review List cards are cramped and visually confusing.
+- Tags/chips can overlap or wrap badly.
+- Review Workspace / Review List can feel like an abstract metrics dashboard instead of an editorial review surface.
+- The user can lose track of where staged items appeared and what happens next.
+- Scroll/clipping behavior is fragile.
+- Nested review cards, checkboxes, badges, and list hierarchy need a calmer structure.
+- Some wording still feels internal/tooling-oriented.
+- The current Editorial Ingestion left intake column can still behave like a long stacked form.
 
----
+## Phase 43 cluster plan
 
-## FORBIDDEN AREAS
+Break the work into focused stabilization subphases instead of more Phase 42C fixes.
 
-Do NOT touch:
-- Dashboard
-- footer/database path cleanup
-- canon logic
-- review-state architecture
-- ingestion redesign
-- Dashboard layout polish
-- future Phase 42D intake restructuring
+### Phase 43A — Review List readability + card hierarchy
 
-Do NOT:
-- opportunistically refactor
-- expand scope
-- redesign Editorial Ingestion
-- claim pass without real Electron validation
+Goal: Make staged review items readable, scannable, and clearly connected to the review workflow.
 
----
+Focus:
+- Review List cards
+- card hierarchy
+- title/source/type/status layout
+- checkbox alignment
+- row-level “Newly staged” marker
+- clear selected/active item state
+- readable truncation rules
+- calm density reduction
 
-## ACCEPTANCE CRITERIA
+Known issue to include:
+- Screenshot showed cramped nested review cards and confusing card boundaries in the Review Workspace.
 
-Required:
-- visible gold Attach Source button opens native file picker
-- TXT file attaches immediately
-- staged source appears instantly
-- calm success feedback appears
-- cancel creates no junk source
-- reload preserves source
-- autosave stable
-- no console errors
-- canon counts unchanged
+### Phase 43B — Tag/chip wrapping and overflow behavior
 
-Secondary:
-- Import Session and Staged Source cards remain visually separated
-- no overlap/clipping in the left column
+Goal: Fix tags/chips/badges so they never overlap or crowd text.
 
-Expected canon counts:
-25 / 8 / 16 / 49
+Focus:
+- chip wrapping
+- chip spacing
+- responsive behavior
+- overflow handling
+- avoiding badge/text collision
+- no chips covering staged/latest item panels or review-list rows
 
----
+Known issue to include:
+- Tags/chips in Review Workspace cards overlapped and made the list look broken.
 
-## VALIDATION RULES
+### Phase 43C — Review List scroll/clipping/responsive stability
 
-REAL ELECTRON SMOKE IS REQUIRED.
+Goal: Make the Review List reliably scrollable and inspectable across normal Electron window sizes.
 
-Renderer-only validation is NOT sufficient.
+Focus:
+- scroll containers
+- clipped panels
+- fixed-height conflicts
+- sticky/overflow behavior
+- right-column/list usability
+- moderate window resize behavior
 
-Codex must test:
-the exact visible gold Attach Source button shown in the user screenshots.
+### Phase 43D — Intake workflow simplification / source-first flow
 
-Required smoke:
-1. Launch Electron app
-2. Open Editorial Ingestion
-3. Create/select ingestion session
-4. Click visible gold Attach Source button
-5. Confirm native picker opens
-6. Select TXT file
-7. Confirm staged source appears immediately
-8. Confirm success feedback appears
-9. Click Attach Source again
-10. Cancel picker
-11. Confirm no junk source created
-12. Reload Electron
-13. Confirm source persists
-14. Confirm autosave stable
-15. Confirm canon counts unchanged
+Goal: Make the left intake area feel like source-first intake, not session-admin-first tooling.
 
----
+Focus:
+- source attachment as primary action
+- auto session remains invisible/supportive unless needed
+- session details editable but not blocking
+- avoid one long stacked form
+- consider contained sections, collapsible details, or light step flow
 
-## WORKFLOW RULES
+Do not remove the underlying session architecture.
 
-This repo now uses:
-- major phases for architecture/workflow
-- micro-phases for regression/debug/polish
+### Phase 43E — Editorial action clarity
 
-Examples:
-- Phase 42 = extraction triage architecture
-- Phase 42A = attachment/control fixes
-- Phase 42B = footer cleanup
-- Phase 42C = Dashboard overflow fix
-- Phase 42D = future intake-flow restructuring
+Goal: Make next actions understandable after staging.
 
-Micro-phases must remain:
-- surgical
-- token-efficient
-- minimal-file-touch
-- narrow in scope
+Focus:
+- Accept / Defer / placement wording
+- selected item action state
+- what happens next
+- canon-safety reassurance
+- empty/success/error states
+
+## Current recommended next phase
+
+Start with:
+
+**Phase 43A — Review List readability + card hierarchy**
+
+Reason: The most visible current problem is that the Review List itself is cramped, hard to read, and visually untrustworthy. Stabilizing the list/card hierarchy first will make later chip, scroll, and action clarity work easier to validate.
+
+## Strict constraints for Phase 43
+
+- Do not mutate canon.
+- Do not change canon promotion behavior unless the phase explicitly requires action-copy clarity only.
+- Do not rewrite the database/schema unless explicitly scoped and unavoidable.
+- Do not redesign Dashboard.
+- Do not restart extraction automation work.
+- Do not make sessions user-blocking again.
+- Do not do broad opportunistic refactors.
+- Keep each subphase surgical and testable.
+- Prefer one or two files per subphase when possible.
+
+## Codex workflow rules
+
+Future prompts must include:
+
+- concise phase scope
+- exact files/docs to read
+- no broad repo scans
+- silent mode
+- no interim narration
+- no command narration
+- final report only
+- expected runtime/fail threshold
+- real Electron smoke requirements
+
+## Output control reminder
+
+Codex final report only:
+
+Files changed:
+Root cause:
+One sentence fix:
+Build result:
+Smoke result:
+Unresolved blockers:
