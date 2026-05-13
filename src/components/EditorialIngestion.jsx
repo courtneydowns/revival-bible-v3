@@ -67,7 +67,10 @@ export default function EditorialIngestion() {
   const [activeIntakeStep, setActiveIntakeStep] = useState('source-batch');
   const [reviewStateFilter, setReviewStateFilter] = useState('all');
   const [riskFilter, setRiskFilter] = useState('all');
+  const [batchSearchQuery, setBatchSearchQuery] = useState('');
+  const [batchVisibleLimit, setBatchVisibleLimit] = useState(8);
   const [sourceSearchQuery, setSourceSearchQuery] = useState('');
+  const [sourceSortOrder, setSourceSortOrder] = useState('newest');
   const [storedSourceVisibleLimit, setStoredSourceVisibleLimit] = useState(12);
   const [selectedReviewStatusDraft, setSelectedReviewStatusDraft] = useState('unreviewed');
   const [selectedReviewNote, setSelectedReviewNote] = useState('');
@@ -95,9 +98,18 @@ export default function EditorialIngestion() {
   const sourceRecords = (ingestionReviewSummary.sourceRecords || []).filter(isActiveSourceMaterial);
   const selectedSourceDraftSources = sourceRecords.filter((source) => String(source.import_session_id || '') === String(sourceDraft.importSessionId || ''));
   const activeSourceCount = sourceRecords.length;
+  const sourceBatches = useMemo(
+    () => buildIndexedSourceBatches(sessions, sourceRecords),
+    [sessions, sourceRecords]
+  );
+  const filteredBatches = useMemo(
+    () => filterSourceBatches(sourceBatches, batchSearchQuery),
+    [sourceBatches, batchSearchQuery]
+  );
+  const visibleBatches = filteredBatches.slice(0, batchVisibleLimit);
   const filteredStoredSources = useMemo(
-    () => filterStoredSources(sourceRecords, sourceSearchQuery),
-    [sourceRecords, sourceSearchQuery]
+    () => sortStoredSources(filterStoredSources(sourceRecords, sourceSearchQuery), sourceSortOrder),
+    [sourceRecords, sourceSearchQuery, sourceSortOrder]
   );
   const visibleStoredSources = filteredStoredSources.slice(0, storedSourceVisibleLimit);
   const storedSourceScopeLabel = sourceSearchQuery.trim() ? 'matching this search' : 'stored across source batches';
@@ -277,7 +289,11 @@ export default function EditorialIngestion() {
 
   useEffect(() => {
     setStoredSourceVisibleLimit(12);
-  }, [sourceSearchQuery, sourceDraft.importSessionId, activeSourceCount]);
+  }, [sourceSearchQuery, sourceSortOrder, sourceDraft.importSessionId, activeSourceCount]);
+
+  useEffect(() => {
+    setBatchVisibleLimit(8);
+  }, [batchSearchQuery, sourceBatches.length]);
 
   const updateSessionDraft = (field, value) => setSessionDraft((draft) => ({ ...draft, [field]: value }));
   const updateSourceDraft = (field, value) => setSourceDraft((draft) => ({ ...draft, [field]: value }));
@@ -619,7 +635,7 @@ export default function EditorialIngestion() {
       provenanceNote: response.source.provenance_metadata?.source_note || draftToSave.provenanceNote || '',
       rawContent: response.source.raw_content || draftToSave.rawContent || ''
     }));
-    setSourceAttachmentMessage('Source material saved. Current source preview cleared; stored sources are listed below.');
+    setSourceAttachmentMessage('Source material saved. Current source preview cleared; source is stored in Stored Source Material.');
     setMessage('Source material saved to its batch. It remains review-only and non-canon.');
     return response;
   };
@@ -866,9 +882,62 @@ export default function EditorialIngestion() {
               </button>
               {sessionValidationMessage ? <p className="inline-validation" role="alert">{sessionValidationMessage}</p> : null}
             </form>
+            <div className="source-batch-browser" aria-label="Source batch list">
+              <div className="editorial-review-queue-heading stored-source-heading">
+                <strong>Source Batches</strong>
+                <small>
+                  {sourceBatches.length
+                    ? `${filteredBatches.length} of ${sourceBatches.length} source batch${sourceBatches.length === 1 ? '' : 'es'} ${batchSearchQuery.trim() ? 'matching this search' : 'stored for source material'}`
+                    : '0 source batches'}
+                </small>
+              </div>
+              <div className="stored-source-tools">
+                <label>
+                  <span>Find source batch</span>
+                  <input
+                    onChange={(event) => setBatchSearchQuery(event.target.value)}
+                    placeholder="Search title, type, provenance, or notes"
+                    value={batchSearchQuery}
+                  />
+                </label>
+              </div>
+              {sourceBatches.length ? (
+                <>
+                  {visibleBatches.length ? (
+                    <div className="source-batch-list">
+                      {visibleBatches.map((session) => (
+                        <article className="source-batch-row" key={session.id}>
+                          <div>
+                            <strong>{session.title || `Source batch #${session.id}`}</strong>
+                            <small>{formatSourceType(session.source_type, session.provenance_metadata?.custom_source_label)} / {formatDate(session.created_at)}</small>
+                          </div>
+                          <p>{session.provenance_metadata?.source_note || session.notes || 'No provenance note recorded yet.'}</p>
+                          <small>{Number(session.source_count || 0)} active source{Number(session.source_count || 0) === 1 ? '' : 's'} / Archive and remove controls remain future review work.</small>
+                        </article>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="stored-source-empty-state" role="status">
+                      <strong>No batches match this search.</strong>
+                      <p>Clear or change the search to browse stored source batches again.</p>
+                    </div>
+                  )}
+                  {filteredBatches.length > visibleBatches.length ? (
+                    <button className="secondary-button stored-source-show-more" onClick={() => setBatchVisibleLimit((limit) => limit + 8)} type="button">
+                      Show More Batches
+                    </button>
+                  ) : null}
+                </>
+              ) : (
+                <div className="stored-source-empty-state" role="status">
+                  <strong>No source batches yet.</strong>
+                  <p>Create a source batch above or attach source material to create one automatically. Canon stays unchanged.</p>
+                </div>
+              )}
+            </div>
           </section>
 
-          <section className={`editorial-ingestion-panel intake-step-panel ${activeIntakeStep === 'source-material' ? 'active' : ''}`} aria-labelledby="staged-source-heading" hidden={activeIntakeStep !== 'source-material'} ref={sourceMaterialSectionRef} tabIndex={-1}>
+          <section className={`editorial-ingestion-panel intake-step-panel source-material-step ${activeIntakeStep === 'source-material' ? 'active' : ''}`} aria-labelledby="staged-source-heading" hidden={activeIntakeStep !== 'source-material'} ref={sourceMaterialSectionRef} tabIndex={-1}>
             <div className="editorial-ingestion-heading">
               <Paperclip size={17} />
               <div>
@@ -876,7 +945,89 @@ export default function EditorialIngestion() {
                 <span>Add a local source for review. Canon unchanged.</span>
               </div>
             </div>
-            <form className="editorial-ingestion-form" onSubmit={saveSource}>
+
+            <div className="session-source-list" aria-label="Stored source material">
+              <div className="editorial-review-queue-heading stored-source-heading">
+                <strong>Stored Source Material</strong>
+                <small>
+                  {activeSourceCount
+                    ? `${filteredStoredSources.length} of ${activeSourceCount} active stored source${activeSourceCount === 1 ? '' : 's'} ${storedSourceScopeLabel} / newest first`
+                    : '0 active stored sources'}
+                </small>
+              </div>
+              {activeSourceCount ? (
+                <>
+                  <div className="stored-source-tools">
+                    <label>
+                      <span>Find source material</span>
+                      <input
+                        onChange={(event) => setSourceSearchQuery(event.target.value)}
+                        placeholder="Search title, filename, batch, type, or status"
+                        value={sourceSearchQuery}
+                      />
+                    </label>
+                    <label>
+                      <span>Sort sources</span>
+                      <select onChange={(event) => setSourceSortOrder(event.target.value)} value={sourceSortOrder}>
+                        <option value="newest">Newest first</option>
+                        <option value="oldest">Oldest first</option>
+                        <option value="title">Title A-Z</option>
+                      </select>
+                    </label>
+                    {sourceDraft.importSessionId ? <small>{selectedSourceDraftSources.length} active in selected batch</small> : null}
+                  </div>
+                  <p className="source-storage-anchor">Return here to find attached sources later. They persist independently of Review Queue items.</p>
+                  {visibleStoredSources.length ? visibleStoredSources.map((source) => (
+                    <article className={`session-source-row ${String(lastAttachedSourceId) === String(source.id) ? 'just-attached' : ''}`} key={source.id}>
+                      {(() => {
+                        const sourceIdentity = getSourceIdentity(source);
+                        return (
+                          <>
+                            <span className="source-type-badge">{formatSourceType(source.source_type, source.provenance_metadata?.custom_source_label)}</span>
+                            <div className="session-source-row-main">
+                              <strong>{sourceIdentity.primary}</strong>
+                              <small>{sourceIdentity.detail} / {formatDate(source.created_at)} / {source.provenance_metadata?.file_preview_state || 'staged'}</small>
+                            </div>
+                            <div className="session-source-row-footer">
+                              <small>{sourceIdentity.recordLabel}</small>
+                              <button
+                                aria-label={`Remove stored source material ${sourceIdentity.primary} ${sourceIdentity.recordLabel}`}
+                                className="quiet-danger-button stored-source-remove-button"
+                                disabled={saving}
+                                onClick={() => requestSourceRemoval(source)}
+                                title="Remove stored source material"
+                                type="button"
+                              >
+                                <Trash2 size={14} />
+                                <span>Remove</span>
+                              </button>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </article>
+                  )) : (
+                    <div className="stored-source-empty-state" role="status">
+                      <strong>No sources match this search.</strong>
+                      <p>Clear or change the search to browse active Stored Source Material again.</p>
+                    </div>
+                  )}
+                  {filteredStoredSources.length > visibleStoredSources.length ? (
+                    <button className="secondary-button stored-source-show-more" onClick={() => setStoredSourceVisibleLimit((limit) => limit + 12)} type="button">
+                      Show More Sources
+                    </button>
+                  ) : null}
+                </>
+              ) : (
+                <div className="stored-source-empty-state" role="status">
+                  <strong>No active stored sources yet.</strong>
+                  <p>Attach source material on this page to begin this shelf. Search, Show More, and Remove appear after at least one active stored source exists.</p>
+                  <small>Review Queue notes can still keep preserved source history, but there is nothing active to browse or remove here right now.</small>
+                </div>
+              )}
+            </div>
+
+            <form className="editorial-ingestion-form source-material-attach-form" onSubmit={saveSource}>
               <div className="editorial-ingestion-grid">
                 <div className="editorial-session-picker-field">
                   <label>
@@ -946,79 +1097,11 @@ export default function EditorialIngestion() {
                   <strong>Last saved source</strong>
                   <span>{lastSavedSourceSummary.label}</span>
                   <small>
-                    Stored below as source record #{lastSavedSourceSummary.id} / {lastSavedSourceSummary.sessionTitle} / {formatSourceType(lastSavedSourceSummary.sourceType, lastSavedSourceSummary.sourceTypeLabel)}
+                    Stored as source record #{lastSavedSourceSummary.id} / {lastSavedSourceSummary.sessionTitle} / {formatSourceType(lastSavedSourceSummary.sourceType, lastSavedSourceSummary.sourceTypeLabel)}
                   </small>
                 </div>
               ) : null}
             </form>
-
-            <div className="session-source-list" aria-label="Stored source material">
-              <div className="editorial-review-queue-heading stored-source-heading">
-                <strong>Stored Source Material</strong>
-                <small>
-                  {activeSourceCount
-                    ? `${filteredStoredSources.length} of ${activeSourceCount} active stored source${activeSourceCount === 1 ? '' : 's'} ${storedSourceScopeLabel} / newest first`
-                    : '0 active stored sources'}
-                </small>
-              </div>
-              {activeSourceCount ? (
-                <>
-                  <div className="stored-source-tools">
-                    <label>
-                      <span>Find source material</span>
-                      <input
-                        onChange={(event) => setSourceSearchQuery(event.target.value)}
-                        placeholder="Search title, filename, batch, type, or status"
-                        value={sourceSearchQuery}
-                      />
-                    </label>
-                    {sourceDraft.importSessionId ? <small>{selectedSourceDraftSources.length} active in selected batch</small> : null}
-                  </div>
-                  <p className="source-storage-anchor">Return here to find attached sources later. They persist independently of Review Queue items.</p>
-                  {visibleStoredSources.length ? visibleStoredSources.map((source) => (
-                    <article className={`session-source-row ${String(lastAttachedSourceId) === String(source.id) ? 'just-attached' : ''}`} key={source.id}>
-                      {(() => {
-                        const sourceIdentity = getSourceIdentity(source);
-                        return (
-                          <>
-                            <span className="source-type-badge">{formatSourceType(source.source_type, source.provenance_metadata?.custom_source_label)}</span>
-                            <div className="session-source-row-main">
-                              <strong>{sourceIdentity.primary}</strong>
-                              <small>{sourceIdentity.detail} / {formatDate(source.created_at)} / {source.provenance_metadata?.file_preview_state || 'staged'}</small>
-                            </div>
-                            <div className="session-source-row-footer">
-                              <small>{sourceIdentity.recordLabel}</small>
-                              <button
-                                aria-label={`Remove stored source material ${sourceIdentity.primary} ${sourceIdentity.recordLabel}`}
-                                className="quiet-danger-button stored-source-remove-button"
-                                disabled={saving}
-                                onClick={() => requestSourceRemoval(source)}
-                                title="Remove stored source material"
-                                type="button"
-                              >
-                                <Trash2 size={14} />
-                                <span>Remove</span>
-                              </button>
-                            </div>
-                          </>
-                        );
-                      })()}
-                    </article>
-                  )) : <p className="muted">No active source material matches this search.</p>}
-                  {filteredStoredSources.length > visibleStoredSources.length ? (
-                    <button className="secondary-button stored-source-show-more" onClick={() => setStoredSourceVisibleLimit((limit) => limit + 12)} type="button">
-                      Show More Sources
-                    </button>
-                  ) : null}
-                </>
-              ) : (
-                <div className="stored-source-empty-state" role="status">
-                  <strong>No active stored sources yet.</strong>
-                  <p>Attach source material above to begin this shelf. Search, Show More, and Remove appear after at least one active stored source exists.</p>
-                  <small>Review Queue notes can still keep preserved source history, but there is nothing active to browse or remove here right now.</small>
-                </div>
-              )}
-            </div>
           </section>
 
           <section className={`editorial-ingestion-panel intake-step-panel ${activeIntakeStep === 'story-detail' ? 'active' : ''}`} aria-labelledby="extraction-candidate-heading" hidden={activeIntakeStep !== 'story-detail'}>
@@ -1731,11 +1814,98 @@ function filterStoredSources(sources = [], query = '') {
       source.session_title,
       source.id ? `source record ${source.id}` : '',
       provenance.source_label,
+      provenance.source_note,
       provenance.original_filename,
       provenance.custom_source_label,
       provenance.file_preview_state
     ].some((value) => String(value || '').toLowerCase().includes(normalizedQuery));
   });
+}
+
+function sortStoredSources(sources = [], sortOrder = 'newest') {
+  return [...sources].sort((a, b) => {
+    if (sortOrder === 'oldest') {
+      return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
+    }
+    if (sortOrder === 'title') {
+      return getSourceIdentity(a).primary.localeCompare(getSourceIdentity(b).primary, undefined, { sensitivity: 'base' });
+    }
+    return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+  });
+}
+
+function buildIndexedSourceBatches(sessions = [], sources = []) {
+  const batchMap = new Map(sessions.map((session) => [String(session.id), { ...session }]));
+
+  for (const source of sources) {
+    const batchId = String(source.import_session_id || source.provenance_metadata?.import_session_id || '');
+    if (!batchId || batchMap.has(batchId)) continue;
+    const provenance = source.provenance_metadata || {};
+    batchMap.set(batchId, {
+      id: batchId,
+      title: source.session_title || provenance.session_title || `Source batch #${batchId}`,
+      source_type: provenance.session_source_type || source.source_type,
+      status: provenance.session_status || provenance.status || 'stored',
+      notes: provenance.session_note || provenance.source_note || '',
+      source_count: sources.filter((item) => String(item.import_session_id || item.provenance_metadata?.import_session_id || '') === batchId).length,
+      created_at: source.created_at,
+      provenance_metadata: {
+        ...provenance,
+        source_label: provenance.source_label || source.source_label,
+        source_type: provenance.source_type || source.source_type,
+        original_filename: provenance.original_filename,
+        indexed_from_stored_source: true
+      }
+    });
+  }
+
+  return [...batchMap.values()].sort((a, b) => new Date(b.updated_at || b.created_at || 0).getTime() - new Date(a.updated_at || a.created_at || 0).getTime());
+}
+
+function filterSourceBatches(sessions = [], query = '') {
+  const normalizedQuery = String(query || '').trim().toLowerCase();
+  if (!normalizedQuery) return sessions;
+
+  return sessions.filter((session) => {
+    const provenance = session.provenance_metadata || {};
+    return [
+      session.label,
+      session.name,
+      session.title,
+      session.type,
+      session.source_type,
+      formatSourceType(session.source_type, provenance.custom_source_label),
+      session.source,
+      session.provenance,
+      session.mode,
+      session.status,
+      session.notes,
+      session.id ? `source batch ${session.id}` : '',
+      provenance.label,
+      provenance.name,
+      provenance.title,
+      provenance.type,
+      provenance.source,
+      provenance.provenance,
+      provenance.mode,
+      provenance.status,
+      provenance.source_note,
+      provenance.source_label,
+      provenance.source_type,
+      provenance.custom_source_label,
+      provenance.original_filename,
+      ...collectSearchableValues(provenance)
+    ].some((value) => String(value || '').toLowerCase().includes(normalizedQuery));
+  });
+}
+
+function collectSearchableValues(value, seen = new Set()) {
+  if (value == null) return [];
+  if (['string', 'number', 'boolean'].includes(typeof value)) return [value];
+  if (typeof value !== 'object' || seen.has(value)) return [];
+  seen.add(value);
+  if (Array.isArray(value)) return value.flatMap((item) => collectSearchableValues(item, seen));
+  return Object.values(value).flatMap((item) => collectSearchableValues(item, seen));
 }
 
 function formatLinkedReviewImpact(impact = {}) {
