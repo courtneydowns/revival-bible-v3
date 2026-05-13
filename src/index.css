@@ -3408,8 +3408,13 @@ button.candidate-filter-pill {
   display: flex;
   align-items: flex-start;
   gap: 10px;
+  min-width: 0;
   margin-bottom: 14px;
   color: var(--text-muted);
+}
+
+.editorial-ingestion-heading > div {
+  min-width: 0;
 }
 
 .editorial-ingestion-heading h2 {
@@ -3417,12 +3422,16 @@ button.candidate-filter-pill {
   color: var(--text);
   font-size: 17px;
   line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .editorial-ingestion-heading span {
+  display: block;
+  min-width: 0;
   color: var(--text-muted);
   font-size: 12px;
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .editorial-ingestion-form {
@@ -3509,14 +3518,13 @@ button.candidate-filter-pill {
   padding: 8px 10px;
   cursor: pointer;
   line-height: 1.2;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .source-file-picker-button span {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .source-file-picker-button.selecting {
@@ -3563,10 +3571,9 @@ button.candidate-filter-pill {
 .source-preview-card strong,
 .session-source-row strong {
   min-width: 0;
-  overflow: hidden;
   color: var(--text);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .source-preview-card small,
@@ -3575,6 +3582,8 @@ button.candidate-filter-pill {
   color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: 11px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
   text-transform: uppercase;
 }
 
@@ -3699,9 +3708,9 @@ button.candidate-filter-pill {
 
 .stored-source-tools {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) max-content;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px 12px;
-  align-items: end;
+  align-items: start;
 }
 
 .stored-source-tools label {
@@ -3720,7 +3729,8 @@ button.candidate-filter-pill {
 }
 
 .stored-source-tools small {
-  padding-bottom: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .session-source-row {
@@ -3746,16 +3756,15 @@ button.candidate-filter-pill {
   align-self: start;
   width: fit-content;
   max-width: 100%;
-  overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 999px;
   color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: 10px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
   padding: 4px 7px;
-  text-overflow: ellipsis;
   text-transform: uppercase;
-  white-space: nowrap;
 }
 
 .session-source-row-main {
@@ -4281,19 +4290,27 @@ button.editorial-ingestion-item.selected {
 
 .editorial-review-queue-heading {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 10px;
+  gap: 4px 10px;
+  min-width: 0;
 }
 
 .editorial-review-queue-heading strong {
+  min-width: 0;
   color: var(--text);
   font-size: 13px;
+  overflow-wrap: anywhere;
 }
 
 .editorial-review-queue-heading small {
+  min-width: 0;
   color: var(--text-muted);
   font-size: 11px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  text-align: right;
 }
 
 .editorial-review-detail {
