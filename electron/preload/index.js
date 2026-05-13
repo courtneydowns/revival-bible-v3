@@ -95,8 +95,11 @@ contextBridge.exposeInMainWorld('revival', {
   ingestion: {
     getReviewSummary: () => invoke('ingestion:get-review-summary'),
     createSession: (payload) => invoke('ingestion:create-session', payload),
+    selectSourceFile: () => invoke('ingestion:select-source-file'),
     createSourceRecord: (payload) => invoke('ingestion:create-source-record', payload),
     createExtraction: (payload) => invoke('ingestion:create-extraction', payload),
+    updateExtractionReview: (payload) => invoke('ingestion:update-extraction-review', payload),
+    removeExtractionReview: (payload) => invoke('ingestion:remove-extraction-review', payload),
     createDuplicateLink: (payload) => invoke('ingestion:create-duplicate-link', payload),
     updateDuplicateReview: (payload) => invoke('ingestion:update-duplicate-review', payload),
     createContinuityReview: (payload) => invoke('ingestion:create-continuity-review', payload),

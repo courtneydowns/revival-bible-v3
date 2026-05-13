@@ -1000,9 +1000,15 @@ export function getIngestionReviewSummary() {
     sessions: connection
       .prepare(`
         SELECT import_sessions.*,
-          COUNT(source_memory_records.id) AS source_count
+          COUNT(DISTINCT source_memory_records.id) AS source_count,
+          COUNT(DISTINCT editorial_extractions.id) AS extraction_count,
+          SUM(CASE
+            WHEN editorial_extractions.status IN ('unreviewed', 'needs-review', 'contradiction-risk', 'duplicate-risk', 'accepted-for-placement', 'deferred', 'unresolved', 'in-review', 'pending-placement')
+            THEN 1 ELSE 0 END
+          ) AS unresolved_review_count
         FROM import_sessions
         LEFT JOIN source_memory_records ON source_memory_records.import_session_id = import_sessions.id
+        LEFT JOIN editorial_extractions ON editorial_extractions.import_session_id = import_sessions.id
         GROUP BY import_sessions.id
         ORDER BY COALESCE(import_sessions.updated_at, import_sessions.created_at) DESC, import_sessions.id DESC
         LIMIT 8
@@ -1024,9 +1030,22 @@ export function getIngestionReviewSummary() {
         SELECT ee.*, smr.source_label, smr.source_type, smr.raw_content
         FROM editorial_extractions ee
         LEFT JOIN source_memory_records smr ON smr.id = ee.source_record_id
-        WHERE ee.status IN ('unresolved', 'in-review', 'pending-placement')
-        ORDER BY COALESCE(ee.updated_at, ee.created_at) DESC, ee.id DESC
-        LIMIT 8
+        WHERE ee.status IN ('unreviewed', 'needs-review', 'contradiction-risk', 'duplicate-risk', 'accepted-for-placement', 'deferred', 'resolved', 'unresolved', 'in-review', 'pending-placement')
+        ORDER BY
+          CASE ee.status
+            WHEN 'contradiction-risk' THEN 0
+            WHEN 'duplicate-risk' THEN 1
+            WHEN 'needs-review' THEN 2
+            WHEN 'unreviewed' THEN 3
+            WHEN 'accepted-for-placement' THEN 4
+            WHEN 'pending-placement' THEN 4
+            WHEN 'deferred' THEN 5
+            WHEN 'resolved' THEN 6
+            ELSE 3
+          END,
+          COALESCE(ee.updated_at, ee.created_at) DESC,
+          ee.id DESC
+        LIMIT 80
       `)
       .all()
       .map(hydrateProvenanceRow),
@@ -1062,6 +1081,130 @@ export function getIngestionReviewSummary() {
       .all()
       .map(hydrateProvenanceRow)
   };
+}
+
+export function updateEditorialExtractionReview(payload = {}) {
+  const ids = Array.isArray(payload.ids) ? payload.ids : [payload.id];
+  const normalizedIds = [...new Set(ids.map((id) => normalizeInteger(id, null)).filter(Boolean))];
+  const status = normalizeExtractionReviewStatus(payload.status);
+  const note = String(payload.note || payload.trustReason || payload.trust_reason || '').trim();
+
+  if (!normalizedIds.length) {
+    return { ok: false, message: 'At least one extraction review item is required.' };
+  }
+
+  const transaction = connection.transaction(() => {
+    const existing = connection
+      .prepare(`SELECT * FROM editorial_extractions WHERE id IN (${normalizedIds.map(() => '?').join(',')})`)
+      .all(...normalizedIds);
+
+    if (!existing.length) {
+      return { ok: false, message: 'Extraction review item not found.' };
+    }
+
+    const update = connection.prepare(`
+      UPDATE editorial_extractions
+      SET status = ?,
+        trust_reason = CASE WHEN ? != '' THEN ? ELSE trust_reason END,
+        provenance_metadata = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+
+    for (const item of existing) {
+      const provenance = parseJsonObject(item.provenance_metadata);
+      const history = Array.isArray(provenance.triage_history) ? provenance.triage_history.slice(-19) : [];
+      history.push({
+        at: new Date().toISOString(),
+        from: item.status,
+        to: status,
+        note: note || null,
+        manual: true
+      });
+      update.run(
+        status,
+        note,
+        note,
+        JSON.stringify(normalizeFrameworkProvenance({
+          ...provenance,
+          triage_state: status,
+          triage_note: note || provenance.triage_note,
+          triage_history: history,
+          canon_mutation: false,
+          manual_review_only: true
+        })),
+        item.id
+      );
+      if (item.import_session_id) touchImportSession(item.import_session_id);
+    }
+
+    return {
+      ok: true,
+      extractions: connection
+        .prepare(`SELECT * FROM editorial_extractions WHERE id IN (${existing.map(() => '?').join(',')})`)
+        .all(...existing.map((item) => item.id))
+        .map(hydrateProvenanceRow)
+    };
+  });
+
+  return transaction();
+}
+
+export function removeEditorialExtractionFromReview(payload = {}) {
+  const id = normalizeInteger(payload.id, null);
+  const note = String(payload.note || '').trim();
+
+  if (!id) {
+    return { ok: false, message: 'Review item is required.' };
+  }
+
+  const transaction = connection.transaction(() => {
+    const existing = connection.prepare('SELECT * FROM editorial_extractions WHERE id = ?').get(id);
+
+    if (!existing) {
+      return { ok: false, message: 'Review item not found.' };
+    }
+
+    const provenance = parseJsonObject(existing.provenance_metadata);
+    const removalHistory = Array.isArray(provenance.review_removal_history) ? provenance.review_removal_history.slice(-19) : [];
+    removalHistory.push({
+      at: new Date().toISOString(),
+      from: existing.status,
+      note: note || null,
+      source_record_id: existing.source_record_id || null,
+      canon_mutation: false,
+      source_material_preserved: true
+    });
+
+    connection.prepare(`
+      UPDATE editorial_extractions
+      SET status = 'removed-from-review',
+        provenance_metadata = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(
+      JSON.stringify(normalizeFrameworkProvenance({
+        ...provenance,
+        review_removed: true,
+        review_removed_at: new Date().toISOString(),
+        review_removed_note: note || provenance.review_removed_note,
+        review_removal_history: removalHistory,
+        canon_mutation: false,
+        manual_review_only: true,
+        source_material_preserved: true
+      })),
+      id
+    );
+
+    if (existing.import_session_id) touchImportSession(existing.import_session_id);
+
+    return {
+      ok: true,
+      extraction: hydrateProvenanceRow(connection.prepare('SELECT * FROM editorial_extractions WHERE id = ?').get(id))
+    };
+  });
+
+  return transaction();
 }
 
 export function createImportSession(payload = {}) {
@@ -2484,9 +2627,18 @@ function normalizeCandidateStatus(value) {
 }
 
 function normalizeExtractionReviewStatus(value) {
-  const status = normalizeReviewToken(value, 'unresolved');
-  const allowed = new Set(['unresolved', 'in-review', 'pending-placement', 'rejected']);
-  return allowed.has(status) ? status : 'unresolved';
+  const aliases = {
+    unresolved: 'unreviewed',
+    'in-review': 'needs-review',
+    'pending-placement': 'accepted-for-placement',
+    accepted: 'accepted-for-placement',
+    reviewed: 'resolved',
+    rejected: 'deferred'
+  };
+  const status = normalizeReviewToken(value, 'unreviewed');
+  const canonical = aliases[status] || status;
+  const allowed = new Set(['unreviewed', 'needs-review', 'contradiction-risk', 'duplicate-risk', 'accepted-for-placement', 'deferred', 'resolved']);
+  return allowed.has(canonical) ? canonical : 'unreviewed';
 }
 
 function normalizeNarrativeFragmentStatus(value) {

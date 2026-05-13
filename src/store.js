@@ -609,6 +609,24 @@ export const useRevivalStore = create((set, get) => ({
     get().markSaved('Editorial review saved');
     return response;
   },
+  removeExtractionReviewItem: async (payload = {}) => {
+    const api = window.revival?.ingestion;
+    if (!api?.removeExtractionReview) {
+      get().markSaveFailed('Review API unavailable');
+      return { ok: false, message: 'Review API is unavailable. Restart the app and try again.' };
+    }
+
+    get().markSaving('Removing review item');
+    const response = await api.removeExtractionReview(payload);
+    if (!response?.ok) {
+      get().markSaveFailed(response?.message || 'Review item could not be removed');
+      return response;
+    }
+
+    await get().loadIngestionReviewSummary();
+    get().markSaved('Review item removed');
+    return response;
+  },
   createStagedSource: async (payload = {}) => {
     const api = window.revival?.ingestion;
     if (!api?.createSourceRecord) {

@@ -1,4 +1,4 @@
-import { ArrowLeft, CheckSquare, FilePlus2, FileText, Flag, GitCompareArrows, Layers3, Paperclip, Plus, ShieldCheck, Square, X } from 'lucide-react';
+import { ArrowLeft, CheckSquare, FilePlus2, FileText, Flag, GitCompareArrows, Layers3, Paperclip, Plus, ShieldCheck, Square, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRevivalStore } from '../store.js';
 import { formatCentralTime } from '../time.js';
@@ -71,6 +71,7 @@ export default function EditorialIngestion() {
   const [selectedExtractionIds, setSelectedExtractionIds] = useState([]);
   const [batchNote, setBatchNote] = useState('');
   const [expandedSourceIds, setExpandedSourceIds] = useState(['unassigned']);
+  const [removeReviewTarget, setRemoveReviewTarget] = useState(null);
   const sessionTitleRef = useRef(null);
   const sessionSelectRef = useRef(null);
   const sourceFileInputRef = useRef(null);
@@ -81,6 +82,7 @@ export default function EditorialIngestion() {
   const createStagedSource = useRevivalStore((state) => state.createStagedSource);
   const createManualExtractionCandidate = useRevivalStore((state) => state.createManualExtractionCandidate);
   const updateExtractionReviewTriage = useRevivalStore((state) => state.updateExtractionReviewTriage);
+  const removeExtractionReviewItem = useRevivalStore((state) => state.removeExtractionReviewItem);
   const sessions = ingestionReviewSummary.sessions || [];
   const sourceRecords = ingestionReviewSummary.sourceRecords || [];
   const selectedSourceDraftSources = sourceRecords.filter((source) => String(source.import_session_id || '') === String(sourceDraft.importSessionId || ''));
@@ -337,6 +339,31 @@ export default function EditorialIngestion() {
     setSelectedReviewStatusDraft(status);
     setSelectedReviewKey(selectedReviewItem.key);
     setMessage(`${formatReviewType(status)} saved for ${selectedReviewItem.title}. Canon remains unchanged.`);
+  };
+  const requestReviewRemoval = (item) => {
+    if (!item || item.kind !== 'Review Item') return;
+    setRemoveReviewTarget(item);
+  };
+  const cancelReviewRemoval = () => {
+    if (saving) return;
+    setRemoveReviewTarget(null);
+  };
+  const confirmReviewRemoval = async () => {
+    if (!removeReviewTarget || saving) return;
+    setSaving(true);
+    const response = await removeExtractionReviewItem({
+      id: removeReviewTarget.id,
+      note: 'Removed from Review Queue by editor. Source material and canon unchanged.'
+    });
+    setSaving(false);
+    if (!response?.ok) {
+      setMessage(response?.message || 'Review item could not be removed.');
+      return;
+    }
+    setSelectedExtractionIds((ids) => ids.filter((id) => String(id) !== String(removeReviewTarget.id)));
+    if (selectedReviewKey === removeReviewTarget.key) setSelectedReviewKey(null);
+    setRemoveReviewTarget(null);
+    setMessage('Review item removed from the Review Queue. Source material and canon are unchanged.');
   };
 
   const openNewSessionDraft = () => {
@@ -1111,6 +1138,16 @@ export default function EditorialIngestion() {
                               <span className="editorial-review-card-excerpt">{item.content || item.excerpt || item.meta}</span>
                             </span>
                           </button>
+                          <button
+                            aria-label={`Remove ${item.title} from Review Queue`}
+                            className="quiet-danger-button review-queue-remove-button"
+                            disabled={saving}
+                            onClick={() => requestReviewRemoval(item)}
+                            title="Remove from Review Queue"
+                            type="button"
+                          >
+                            <Trash2 size={14} />
+                          </button>
                         </div>
                         );
                       }) : null}
@@ -1129,9 +1166,17 @@ export default function EditorialIngestion() {
                       <ArrowLeft size={14} />
                       <span>Back to Queue</span>
                     </button>
-                    <button aria-label="Close review detail" className="icon-button" onClick={() => setSelectedReviewKey(null)} title="Close review detail" type="button">
-                      <X size={16} />
-                    </button>
+                    <div className="editorial-review-detail-action-group">
+                      {selectedReviewItem.kind === 'Review Item' ? (
+                        <button className="secondary-button editorial-ingestion-header-button quiet" disabled={saving} onClick={() => requestReviewRemoval(selectedReviewItem)} type="button">
+                          <Trash2 size={14} />
+                          <span>Remove from Review Queue</span>
+                        </button>
+                      ) : null}
+                      <button aria-label="Close review detail" className="icon-button" onClick={() => setSelectedReviewKey(null)} title="Close review detail" type="button">
+                        <X size={16} />
+                      </button>
+                    </div>
                   </div>
                   <div className="editorial-review-detail-header">
                     <div>
@@ -1206,6 +1251,31 @@ export default function EditorialIngestion() {
           </div>
         </section>
       </div>
+      {removeReviewTarget ? (
+        <div className="modal-backdrop">
+          <section aria-labelledby="review-remove-title" aria-modal="true" className="modal review-remove-modal" role="dialog">
+            <div className="review-remove-modal-header">
+              <div>
+                <div className="eyebrow">Remove from Review Queue</div>
+                <h2 id="review-remove-title">Remove this review item?</h2>
+              </div>
+              <button className="icon-button" disabled={saving} onClick={cancelReviewRemoval} title="Cancel removal" type="button">
+                <X size={16} />
+              </button>
+            </div>
+            <p>
+              This only removes <strong>{removeReviewTarget.title}</strong> from editorial review. Source material and canon are unchanged.
+            </p>
+            <div className="modal-actions">
+              <button className="secondary-button" disabled={saving} onClick={cancelReviewRemoval} type="button">Cancel</button>
+              <button className="secondary-button danger-button" disabled={saving} onClick={confirmReviewRemoval} type="button">
+                <Trash2 size={14} />
+                <span>{saving ? 'Removing...' : 'Remove from Review Queue'}</span>
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </section>
   );
 }
