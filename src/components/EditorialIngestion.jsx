@@ -71,6 +71,7 @@ export default function EditorialIngestion() {
   const [batchVisibleLimit, setBatchVisibleLimit] = useState(8);
   const [sourceSearchQuery, setSourceSearchQuery] = useState('');
   const [sourceSortOrder, setSourceSortOrder] = useState('newest');
+  const [sourceMaterialView, setSourceMaterialView] = useState('browse');
   const [storedSourceVisibleLimit, setStoredSourceVisibleLimit] = useState(12);
   const [selectedReviewStatusDraft, setSelectedReviewStatusDraft] = useState('unreviewed');
   const [selectedReviewNote, setSelectedReviewNote] = useState('');
@@ -103,8 +104,8 @@ export default function EditorialIngestion() {
     [sessions, sourceRecords]
   );
   const filteredBatches = useMemo(
-    () => filterSourceBatches(sourceBatches, batchSearchQuery),
-    [sourceBatches, batchSearchQuery]
+    () => filterSourceBatches(sourceBatches, batchSearchQuery, sourceRecords),
+    [sourceBatches, batchSearchQuery, sourceRecords]
   );
   const visibleBatches = filteredBatches.slice(0, batchVisibleLimit);
   const filteredStoredSources = useMemo(
@@ -331,8 +332,9 @@ export default function EditorialIngestion() {
     setSourceAttachmentMessage('');
     setSourceValidationMessage('');
   };
-  const showSourceMaterialStep = () => {
+  const showSourceMaterialStep = (view = 'browse') => {
     setActiveIntakeStep('source-material');
+    setSourceMaterialView(view);
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         const sourceSection = sourceMaterialSectionRef.current;
@@ -497,6 +499,98 @@ export default function EditorialIngestion() {
     setTimeout(() => sessionSelectRef.current?.focus(), 0);
   };
 
+  const chooseSourceBatchForNewSource = (importSessionId) => {
+    selectSourceBatchForMaterial(importSessionId);
+    showSourceMaterialStep('add');
+  };
+
+  const renderSourceBatchBrowser = (context = 'batch-step') => (
+    <div className="source-batch-browser" aria-label="Source batch list">
+      <div className="editorial-review-queue-heading stored-source-heading">
+        <strong>Source Batches</strong>
+        <small>
+          {sourceBatches.length
+            ? `${filteredBatches.length} of ${sourceBatches.length} source batch${sourceBatches.length === 1 ? '' : 'es'} ${batchSearchQuery.trim() ? 'matching this search' : 'stored for source material'}`
+            : '0 source batches'}
+        </small>
+      </div>
+      <div className="stored-source-tools">
+        <label>
+          <span>Find source batch</span>
+          <input
+            onChange={(event) => setBatchSearchQuery(event.target.value)}
+            placeholder="Search title, type, provenance, source, or notes"
+            value={batchSearchQuery}
+          />
+        </label>
+      </div>
+      {sourceBatches.length ? (
+        <>
+          {visibleBatches.length ? (
+            <div className="source-batch-list">
+              {visibleBatches.map((session) => {
+                const batchSearchContext = getSourceBatchSearchContext(session, batchSearchQuery, sourceRecords);
+                return (
+                  <article className="source-batch-row" key={`${context}-${session.id}`}>
+                    <div>
+                      <span className="source-batch-type-line">
+                        <span className="source-hierarchy-badge batch">Batch</span>
+                        <span className="source-hierarchy-badge session">Session</span>
+                        {batchSearchContext.directMatch ? <span className="source-hierarchy-badge matched">Matched batch/session</span> : null}
+                      </span>
+                      <strong>{session.title || `Source batch #${session.id}`}</strong>
+                      <small>{formatSourceType(session.source_type, session.provenance_metadata?.custom_source_label)} / {formatDate(session.created_at)}</small>
+                    </div>
+                    <p>{session.provenance_metadata?.source_note || session.notes || 'No provenance note recorded yet.'}</p>
+                    {batchSearchContext.sourceMatches.length ? (
+                      <div className="source-batch-match-list" aria-label="Matched stored sources in this batch">
+                        {batchSearchContext.sourceMatches.slice(0, 3).map((source) => {
+                          const sourceIdentity = getSourceIdentity(source);
+                          return (
+                            <span key={source.id}>
+                              <span className="source-hierarchy-badge stored-source">Stored Source</span>
+                              <span className="source-hierarchy-badge related-item">Related Source Item</span>
+                              <span>{sourceIdentity.primary}</span>
+                              <small>inside {session.title || `Source batch #${session.id}`}</small>
+                            </span>
+                          );
+                        })}
+                        {batchSearchContext.sourceMatches.length > 3 ? <small>{batchSearchContext.sourceMatches.length - 3} more related source item{batchSearchContext.sourceMatches.length - 3 === 1 ? '' : 's'} in this batch</small> : null}
+                      </div>
+                    ) : null}
+                    <div className="source-batch-row-footer">
+                      <small>{Number(session.source_count || 0)} active source{Number(session.source_count || 0) === 1 ? '' : 's'} / Archive and remove controls remain future review work.</small>
+                      {context === 'source-material' ? (
+                        <button className="secondary-button editorial-ingestion-header-button quiet" onClick={() => chooseSourceBatchForNewSource(session.id)} type="button">
+                          <span>Add Source Here</span>
+                        </button>
+                      ) : null}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="stored-source-empty-state" role="status">
+              <strong>No batches match this search.</strong>
+              <p>Clear or change the search to browse stored source batches again.</p>
+            </div>
+          )}
+          {filteredBatches.length > visibleBatches.length ? (
+            <button className="secondary-button stored-source-show-more" onClick={() => setBatchVisibleLimit((limit) => limit + 8)} type="button">
+              Show More Batches
+            </button>
+          ) : null}
+        </>
+      ) : (
+        <div className="stored-source-empty-state" role="status">
+          <strong>No source batches yet.</strong>
+          <p>Create a source batch above or attach source material to create one automatically. Canon stays unchanged.</p>
+        </div>
+      )}
+    </div>
+  );
+
   const saveSession = async (event) => {
     event.preventDefault();
     const missing = getMissingSessionFields(sessionDraft);
@@ -625,6 +719,7 @@ export default function EditorialIngestion() {
       sourceType: response.source.source_type || draftToSave.sourceType,
       sourceTypeLabel: response.source.provenance_metadata?.custom_source_label || draftToSave.sourceTypeLabel || ''
     });
+    setSourceMaterialView('browse');
     setCandidateDraft((draft) => ({
       ...draft,
       importSessionId: savedSessionId || draft.importSessionId || '',
@@ -827,7 +922,7 @@ export default function EditorialIngestion() {
                 aria-current={activeIntakeStep === step.key ? 'step' : undefined}
                 className={activeIntakeStep === step.key ? 'active' : ''}
                 key={step.key}
-                onClick={() => (step.key === 'source-material' ? showSourceMaterialStep() : setActiveIntakeStep(step.key))}
+                onClick={() => (step.key === 'source-material' ? showSourceMaterialStep('browse') : setActiveIntakeStep(step.key))}
                 type="button"
               >
                 <small>{index + 1}</small>
@@ -882,59 +977,7 @@ export default function EditorialIngestion() {
               </button>
               {sessionValidationMessage ? <p className="inline-validation" role="alert">{sessionValidationMessage}</p> : null}
             </form>
-            <div className="source-batch-browser" aria-label="Source batch list">
-              <div className="editorial-review-queue-heading stored-source-heading">
-                <strong>Source Batches</strong>
-                <small>
-                  {sourceBatches.length
-                    ? `${filteredBatches.length} of ${sourceBatches.length} source batch${sourceBatches.length === 1 ? '' : 'es'} ${batchSearchQuery.trim() ? 'matching this search' : 'stored for source material'}`
-                    : '0 source batches'}
-                </small>
-              </div>
-              <div className="stored-source-tools">
-                <label>
-                  <span>Find source batch</span>
-                  <input
-                    onChange={(event) => setBatchSearchQuery(event.target.value)}
-                    placeholder="Search title, type, provenance, or notes"
-                    value={batchSearchQuery}
-                  />
-                </label>
-              </div>
-              {sourceBatches.length ? (
-                <>
-                  {visibleBatches.length ? (
-                    <div className="source-batch-list">
-                      {visibleBatches.map((session) => (
-                        <article className="source-batch-row" key={session.id}>
-                          <div>
-                            <strong>{session.title || `Source batch #${session.id}`}</strong>
-                            <small>{formatSourceType(session.source_type, session.provenance_metadata?.custom_source_label)} / {formatDate(session.created_at)}</small>
-                          </div>
-                          <p>{session.provenance_metadata?.source_note || session.notes || 'No provenance note recorded yet.'}</p>
-                          <small>{Number(session.source_count || 0)} active source{Number(session.source_count || 0) === 1 ? '' : 's'} / Archive and remove controls remain future review work.</small>
-                        </article>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="stored-source-empty-state" role="status">
-                      <strong>No batches match this search.</strong>
-                      <p>Clear or change the search to browse stored source batches again.</p>
-                    </div>
-                  )}
-                  {filteredBatches.length > visibleBatches.length ? (
-                    <button className="secondary-button stored-source-show-more" onClick={() => setBatchVisibleLimit((limit) => limit + 8)} type="button">
-                      Show More Batches
-                    </button>
-                  ) : null}
-                </>
-              ) : (
-                <div className="stored-source-empty-state" role="status">
-                  <strong>No source batches yet.</strong>
-                  <p>Create a source batch above or attach source material to create one automatically. Canon stays unchanged.</p>
-                </div>
-              )}
-            </div>
+            {renderSourceBatchBrowser('batch-step')}
           </section>
 
           <section className={`editorial-ingestion-panel intake-step-panel source-material-step ${activeIntakeStep === 'source-material' ? 'active' : ''}`} aria-labelledby="staged-source-heading" hidden={activeIntakeStep !== 'source-material'} ref={sourceMaterialSectionRef} tabIndex={-1}>
@@ -942,11 +985,22 @@ export default function EditorialIngestion() {
               <Paperclip size={17} />
               <div>
                 <h2 id="staged-source-heading">Source Material</h2>
-                <span>Add a local source for review. Canon unchanged.</span>
+                <span>Browse stored sources or add a local source for review. Canon unchanged.</span>
               </div>
             </div>
+            <div className="source-material-subnav" aria-label="Source Material workflow">
+              <button aria-pressed={sourceMaterialView === 'browse'} className={sourceMaterialView === 'browse' ? 'active' : ''} onClick={() => setSourceMaterialView('browse')} type="button">
+                Browse Stored Sources
+              </button>
+              <button aria-pressed={sourceMaterialView === 'add'} className={sourceMaterialView === 'add' ? 'active' : ''} onClick={() => setSourceMaterialView('add')} type="button">
+                Add New Source
+              </button>
+              <button aria-pressed={sourceMaterialView === 'batches'} className={sourceMaterialView === 'batches' ? 'active' : ''} onClick={() => setSourceMaterialView('batches')} type="button">
+                Source Batches
+              </button>
+            </div>
 
-            <div className="session-source-list" aria-label="Stored source material">
+            {sourceMaterialView === 'browse' ? <div className="session-source-list" aria-label="Stored source material">
               <div className="editorial-review-queue-heading stored-source-heading">
                 <strong>Stored Source Material</strong>
                 <small>
@@ -955,6 +1009,16 @@ export default function EditorialIngestion() {
                     : '0 active stored sources'}
                 </small>
               </div>
+              {sourceAttachmentMessage ? <p className="candidate-message source-attachment-message" role="status">{sourceAttachmentMessage}</p> : null}
+              {lastSavedSourceSummary ? (
+                <div className="source-saved-summary" role="status">
+                  <strong>Last saved source</strong>
+                  <span>{lastSavedSourceSummary.label}</span>
+                  <small>
+                    Stored as source record #{lastSavedSourceSummary.id} / {lastSavedSourceSummary.sessionTitle} / {formatSourceType(lastSavedSourceSummary.sourceType, lastSavedSourceSummary.sourceTypeLabel)}
+                  </small>
+                </div>
+              ) : null}
               {activeSourceCount ? (
                 <>
                   <div className="stored-source-tools">
@@ -1022,12 +1086,16 @@ export default function EditorialIngestion() {
                 <div className="stored-source-empty-state" role="status">
                   <strong>No active stored sources yet.</strong>
                   <p>Attach source material on this page to begin this shelf. Search, Show More, and Remove appear after at least one active stored source exists.</p>
+                  <button className="secondary-button editorial-ingestion-header-button quiet" onClick={() => setSourceMaterialView('add')} type="button">
+                    <Plus size={14} />
+                    <span>Add New Source</span>
+                  </button>
                   <small>Review Queue notes can still keep preserved source history, but there is nothing active to browse or remove here right now.</small>
                 </div>
               )}
-            </div>
+            </div> : null}
 
-            <form className="editorial-ingestion-form source-material-attach-form" onSubmit={saveSource}>
+            {sourceMaterialView === 'add' ? <form className="editorial-ingestion-form source-material-attach-form" onSubmit={saveSource}>
               <div className="editorial-ingestion-grid">
                 <div className="editorial-session-picker-field">
                   <label>
@@ -1101,7 +1169,8 @@ export default function EditorialIngestion() {
                   </small>
                 </div>
               ) : null}
-            </form>
+            </form> : null}
+            {sourceMaterialView === 'batches' ? renderSourceBatchBrowser('source-material') : null}
           </section>
 
           <section className={`editorial-ingestion-panel intake-step-panel ${activeIntakeStep === 'story-detail' ? 'active' : ''}`} aria-labelledby="extraction-candidate-heading" hidden={activeIntakeStep !== 'story-detail'}>
@@ -1862,41 +1931,82 @@ function buildIndexedSourceBatches(sessions = [], sources = []) {
   return [...batchMap.values()].sort((a, b) => new Date(b.updated_at || b.created_at || 0).getTime() - new Date(a.updated_at || a.created_at || 0).getTime());
 }
 
-function filterSourceBatches(sessions = [], query = '') {
+function filterSourceBatches(sessions = [], query = '', sources = []) {
   const normalizedQuery = String(query || '').trim().toLowerCase();
   if (!normalizedQuery) return sessions;
 
-  return sessions.filter((session) => {
-    const provenance = session.provenance_metadata || {};
-    return [
-      session.label,
-      session.name,
-      session.title,
-      session.type,
-      session.source_type,
-      formatSourceType(session.source_type, provenance.custom_source_label),
-      session.source,
-      session.provenance,
-      session.mode,
-      session.status,
-      session.notes,
-      session.id ? `source batch ${session.id}` : '',
-      provenance.label,
-      provenance.name,
-      provenance.title,
-      provenance.type,
-      provenance.source,
-      provenance.provenance,
-      provenance.mode,
-      provenance.status,
-      provenance.source_note,
-      provenance.source_label,
-      provenance.source_type,
-      provenance.custom_source_label,
-      provenance.original_filename,
-      ...collectSearchableValues(provenance)
-    ].some((value) => String(value || '').toLowerCase().includes(normalizedQuery));
+  return sessions.filter((session) => (
+    sourceBatchMatchesQuery(session, normalizedQuery)
+    || getSourceMatchesForBatch(session, normalizedQuery, sources).length > 0
+  ));
+}
+
+function getSourceBatchSearchContext(session = {}, query = '', sources = []) {
+  const normalizedQuery = String(query || '').trim().toLowerCase();
+  if (!normalizedQuery) return { directMatch: false, sourceMatches: [] };
+  return {
+    directMatch: sourceBatchMatchesQuery(session, normalizedQuery),
+    sourceMatches: getSourceMatchesForBatch(session, normalizedQuery, sources)
+  };
+}
+
+function sourceBatchMatchesQuery(session = {}, normalizedQuery = '') {
+  const provenance = session.provenance_metadata || {};
+  return [
+    session.label,
+    session.name,
+    session.title,
+    session.type,
+    session.source_type,
+    formatSourceType(session.source_type, provenance.custom_source_label),
+    session.source,
+    session.provenance,
+    session.mode,
+    session.status,
+    session.notes,
+    session.id ? `source batch ${session.id}` : '',
+    session.id ? `session ${session.id}` : '',
+    provenance.label,
+    provenance.name,
+    provenance.title,
+    provenance.type,
+    provenance.source,
+    provenance.provenance,
+    provenance.mode,
+    provenance.status,
+    provenance.source_note,
+    provenance.source_label,
+    provenance.source_type,
+    provenance.custom_source_label,
+    provenance.original_filename,
+    ...collectSearchableValues(provenance)
+  ].some((value) => String(value || '').toLowerCase().includes(normalizedQuery));
+}
+
+function getSourceMatchesForBatch(session = {}, normalizedQuery = '', sources = []) {
+  if (!normalizedQuery) return [];
+  const batchId = String(session.id || '');
+  return sources.filter((source) => {
+    const sourceBatchId = String(source.import_session_id || source.provenance_metadata?.import_session_id || '');
+    return batchId && sourceBatchId === batchId && sourceRecordMatchesQuery(source, normalizedQuery);
   });
+}
+
+function sourceRecordMatchesQuery(source = {}, normalizedQuery = '') {
+  const provenance = source.provenance_metadata || {};
+  return [
+    source.source_label,
+    source.source_type,
+    source.session_title,
+    source.id ? `stored source ${source.id}` : '',
+    source.id ? `source record ${source.id}` : '',
+    provenance.source_label,
+    provenance.source_note,
+    provenance.original_filename,
+    provenance.custom_source_label,
+    provenance.file_preview_state,
+    ...collectSearchableValues(provenance)
+  ].some((value) => String(value || '').toLowerCase().includes(normalizedQuery));
 }
 
 function collectSearchableValues(value, seen = new Set()) {
