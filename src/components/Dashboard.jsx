@@ -10,7 +10,7 @@ const unresolvedDecisionStatuses = new Set(['proposed', 'accepted']);
 const continuityRiskTags = ['contradiction-risk', 'canon-risk', 'timeline', 'continuity'];
 
 export default function Dashboard() {
-  const [selectedReviewItem, setSelectedReviewItem] = useState(null);
+  const [selectedReviewKey, setSelectedReviewKey] = useState(null);
   const candidates = useRevivalStore((state) => state.candidates);
   const decisions = useRevivalStore((state) => state.decisions);
   const questions = useRevivalStore((state) => state.questions);
@@ -26,7 +26,6 @@ export default function Dashboard() {
   const selectQuestion = useRevivalStore((state) => state.selectQuestion);
   const selectAiSession = useRevivalStore((state) => state.selectAiSession);
   const setActiveView = useRevivalStore((state) => state.setActiveView);
-  const openIngestionReview = useRevivalStore((state) => state.openIngestionReview);
   const editorialCandidates = useMemo(() => candidates.filter((candidate) => !isInternalPhaseRecord(candidate, candidate.title)), [candidates]);
   const editorialDecisions = useMemo(() => decisions.filter((decision) => !isInternalPhaseRecord(decision, decision.title)), [decisions]);
   const editorialQuestions = useMemo(() => questions.filter((question) => !isInternalPhaseRecord(question, question.question)), [questions]);
@@ -71,8 +70,22 @@ export default function Dashboard() {
     [continuityRisks, ingestionReviewItems, weakConfidenceItems]
   );
   const activeReviewDetail = useMemo(
-    () => routedReviewItems.find((item) => item.key === selectedReviewItem?.key) || routedReviewItems[0] || null,
-    [routedReviewItems, selectedReviewItem]
+    () => {
+      if (!selectedReviewKey) return routedReviewItems[0] || null;
+      return routedReviewItems.find((item) => item.key === selectedReviewKey) || {
+        key: selectedReviewKey,
+        sectionLabel: 'Review Detail',
+        kindLabel: 'Missing Link',
+        rawTitle: 'Review detail unavailable',
+        status: 'Needs Review',
+        detailRows: [
+          { label: 'Selected key', value: selectedReviewKey },
+          { label: 'Next step', value: 'This Dashboard card no longer matches a loaded review detail. Refresh the review summary before routing.' }
+        ],
+        provenanceSummary: 'No matching review detail is currently loaded.'
+      };
+    },
+    [routedReviewItems, selectedReviewKey]
   );
   const recentActivity = useMemo(
     () => [
@@ -174,7 +187,7 @@ export default function Dashboard() {
                 title: risk.title,
                 meta: risk.meta,
                 status: risk.status,
-                onOpen: risk.reviewItem ? () => openIngestionReview(risk.reviewItem.key) : risk.onOpen || (() => setActiveView(risk.fallbackView))
+                onOpen: risk.reviewItem ? () => setSelectedReviewKey(risk.reviewItem.key) : risk.onOpen || (() => setActiveView(risk.fallbackView))
               }))}
               title="Continuity Review"
             />
@@ -186,7 +199,7 @@ export default function Dashboard() {
                 title: item.title,
                 meta: item.meta,
                 status: item.status,
-                onOpen: () => openIngestionReview(item.key)
+                onOpen: () => setSelectedReviewKey(item.key)
               }))}
               title="Source Review"
             />
@@ -198,7 +211,7 @@ export default function Dashboard() {
                 title: item.title,
                 meta: item.meta,
                 status: item.status,
-                onOpen: () => openIngestionReview(item.key)
+                onOpen: () => setSelectedReviewKey(item.key)
               }))}
               title="Ready to File"
             />
@@ -210,7 +223,7 @@ export default function Dashboard() {
                 title: item.title,
                 meta: item.meta,
                 status: item.status,
-                onOpen: () => openIngestionReview(item.key)
+                onOpen: () => setSelectedReviewKey(item.key)
               }))}
               title="Deferred Review"
             />
@@ -222,7 +235,7 @@ export default function Dashboard() {
                 title: item.title,
                 meta: item.meta,
                 status: item.status,
-                onOpen: () => openIngestionReview(item.reviewKey)
+                onOpen: item.reviewKey ? () => setSelectedReviewKey(item.reviewKey) : null
               }))}
               title="Source Progress"
             />
@@ -234,7 +247,7 @@ export default function Dashboard() {
                 title: item.title,
                 meta: item.meta,
                 status: item.status,
-                onOpen: () => openIngestionReview(item.key)
+                onOpen: () => setSelectedReviewKey(item.key)
               }))}
               title="Confidence Check"
             />
@@ -294,7 +307,7 @@ function DashboardQueue({ emptyText, icon, items, title }) {
       </div>
       <div className="dashboard-panel-list">
         {items.map((item) => (
-          <button className="dashboard-row" key={item.key} onClick={item.onOpen} type="button">
+          <button className="dashboard-row" disabled={!item.onOpen} key={item.key} onClick={item.onOpen || undefined} type="button">
             <span>
               <strong>{item.title}</strong>
               <small>{item.meta}</small>
@@ -324,8 +337,12 @@ function ReviewDetail({ item }) {
     <section className="dashboard-review-detail" aria-label="Review detail">
       <div className="dashboard-review-detail-heading">
         <div>
-          <span>{item.kindLabel}</span>
-          <strong>{item.rawTitle || item.title}</strong>
+          <span className="dashboard-review-detail-eyebrow">Review Detail</span>
+          <strong className="dashboard-review-detail-category">{item.sectionLabel || item.kindLabel || 'Editorial Review'}</strong>
+          {item.kindLabel && item.kindLabel !== item.sectionLabel ? (
+            <small className="dashboard-review-detail-type">{item.kindLabel}</small>
+          ) : null}
+          <b className="dashboard-review-detail-title">{item.rawTitle || item.title}</b>
         </div>
         {item.status ? <StatusBadge status={item.status} /> : null}
       </div>
@@ -470,14 +487,17 @@ function buildContinuityRisks({ candidates, questions, decisions, timelineEvents
     }));
 
   const routedReviews = (ingestionReviewSummary?.continuityReviews || [])
-    .map((item) => ({
-      key: `risk-continuity-review-${item.id}`,
-      title: item.title,
-      meta: `${formatReviewType(item.review_type)} / Updated ${formatDate(item.updated_at || item.created_at)}`,
-      status: item.confidence_state || item.risk_level || 'Review',
-      reviewItem: toContinuityReviewItem(item),
-      fallbackView: 'dashboard'
-    }));
+    .map((item) => {
+      const reviewItem = toContinuityReviewItem(item);
+      return {
+        key: reviewItem.key,
+        title: item.title,
+        meta: `${formatReviewType(item.review_type)} / Updated ${formatDate(item.updated_at || item.created_at)}`,
+        status: item.confidence_state || item.risk_level || 'Review',
+        reviewItem,
+        fallbackView: 'dashboard'
+      };
+    });
 
   return [...routedReviews, ...candidateRisks, ...blockedQuestions, ...blockedDecisions, ...timelineGaps];
 }
@@ -485,6 +505,7 @@ function buildContinuityRisks({ candidates, questions, decisions, timelineEvents
 function buildIngestionReviewItems(summary = {}) {
   const duplicates = (summary.duplicateReviews || []).map((item) => ({
     key: `duplicate-${item.id}`,
+    sectionLabel: 'Source Review',
     kindLabel: 'Duplicate Review',
     rawTitle: 'Possible duplicate',
     title: `Duplicate review: ${formatReviewEndpoint(item.left_type, item.left_id)} / ${formatReviewEndpoint(item.right_type, item.right_id)}`,
@@ -500,6 +521,7 @@ function buildIngestionReviewItems(summary = {}) {
   }));
   const extractions = (summary.unresolvedExtractions || []).map((item) => ({
     key: `extraction-${item.id}`,
+    sectionLabel: 'Source Review',
     kindLabel: 'Review Item',
     rawTitle: item.title,
     title: `${formatReviewType(normalizeExtractionTriageState(item.status))}: ${item.title}`,
@@ -518,6 +540,7 @@ function buildIngestionReviewItems(summary = {}) {
   }));
   const fragments = (summary.narrativeFragments || []).map((item) => ({
     key: `fragment-${item.id}`,
+    sectionLabel: 'Source Review',
     kindLabel: 'Narrative Fragment',
     rawTitle: item.title,
     title: `Story note: ${item.title}`,
@@ -544,6 +567,7 @@ function buildWeakConfidenceItems(summary = {}) {
     .filter((item) => weakStates.has(normalize(item.status)) || normalize(item.status).includes('weak') || normalize(item.status).includes('low'))
     .map((item) => ({
       ...item,
+      sectionLabel: 'Confidence Check',
       title: item.title.replace(/^(Review item|Story note|Continuity review): /i, '')
     }));
 }
@@ -578,6 +602,7 @@ function buildExtractionReviewStats(summary = {}) {
 function toContinuityReviewItem(item) {
   return {
     key: `continuity-${item.id}`,
+    sectionLabel: 'Continuity Review',
     kindLabel: 'Continuity Review',
     rawTitle: item.title,
     title: `Continuity review: ${item.title}`,

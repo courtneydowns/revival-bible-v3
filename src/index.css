@@ -587,7 +587,7 @@ h1 {
 .dashboard-home {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 18px;
+  gap: 14px;
   height: 100%;
   max-width: none;
   min-height: 0;
@@ -613,7 +613,7 @@ h1 {
 }
 
 .dashboard-focus {
-  padding: 20px;
+  padding: 18px;
 }
 
 .dashboard-section-heading,
@@ -675,7 +675,7 @@ h1 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-  margin-top: 18px;
+  margin-top: 14px;
 }
 
 .dashboard-continue-card,
@@ -691,10 +691,10 @@ h1 {
 .dashboard-continue-card {
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr) auto;
-  align-items: center;
+  align-items: start;
   gap: 12px;
   min-height: 76px;
-  padding: 14px;
+  padding: 12px;
 }
 
 .dashboard-continue-card:hover,
@@ -715,27 +715,39 @@ h1 {
   background: #151513;
 }
 
+.dashboard-continue-card > span:not(.dashboard-card-icon),
+.dashboard-row > span {
+  min-width: 0;
+}
+
 .dashboard-continue-card strong,
 .dashboard-row strong {
-  display: block;
+  display: -webkit-box;
   overflow: hidden;
   color: var(--text);
   font-size: 14px;
   line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .dashboard-continue-card small,
 .dashboard-row small {
-  display: block;
+  display: -webkit-box;
   margin-top: 5px;
   overflow: hidden;
   color: var(--text-muted);
   font-size: 12px;
   line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.dashboard-continue-card small,
+.dashboard-row small {
+  -webkit-line-clamp: 1;
 }
 
 .dashboard-panel {
@@ -752,14 +764,14 @@ h1 {
 .dashboard-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
+  align-items: start;
   gap: 10px;
   min-height: 58px;
-  padding: 10px 12px;
+  padding: 9px 10px;
 }
 
 .dashboard-row .status-badge {
-  max-width: 155px;
+  max-width: 118px;
   justify-self: end;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -767,6 +779,7 @@ h1 {
 }
 
 .dashboard-activity {
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -781,8 +794,8 @@ h1 {
 .dashboard-focus-queues {
   display: grid;
   flex: 1 1 auto;
-  gap: 10px;
-  margin-top: 14px;
+  gap: 8px;
+  margin-top: 12px;
   min-height: 180px;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -793,7 +806,7 @@ h1 {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--bg-panel);
-  padding: 12px;
+  padding: 10px;
 }
 
 .dashboard-queue .dashboard-panel-list {
@@ -844,8 +857,8 @@ h1 {
   display: grid;
   flex: 0 0 auto;
   gap: 10px;
-  margin-top: 12px;
-  max-height: 140px;
+  margin-top: 10px;
+  max-height: 124px;
   overflow-y: auto;
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -860,7 +873,7 @@ h1 {
   gap: 10px;
 }
 
-.dashboard-review-detail-heading span,
+.dashboard-review-detail-eyebrow,
 .dashboard-review-detail > div > small,
 .dashboard-review-detail > small,
 .dashboard-review-detail-body span {
@@ -868,18 +881,34 @@ h1 {
   font-size: 11px;
 }
 
-.dashboard-review-detail-heading span,
+.dashboard-review-detail-eyebrow,
 .dashboard-review-detail-body span {
   font-family: var(--font-mono);
   text-transform: uppercase;
 }
 
-.dashboard-review-detail-heading strong {
+.dashboard-review-detail-category {
   display: block;
   margin-top: 4px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.dashboard-review-detail-type {
+  display: block;
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
+.dashboard-review-detail-title {
+  display: block;
+  margin-top: 5px;
   overflow-wrap: anywhere;
   color: var(--text);
   font-size: 14px;
+  font-weight: 700;
   line-height: 1.35;
 }
 
