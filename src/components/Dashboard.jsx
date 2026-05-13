@@ -1,5 +1,5 @@
 import { ArrowRight, BookOpen, FileSearch, FileText, History, MapPin, MessageSquareText, Sparkles, TriangleAlert } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useRevivalStore } from '../store.js';
 import { formatCentralTime } from '../time.js';
 import StatusBadge from './StatusBadge.jsx';
@@ -10,7 +10,6 @@ const unresolvedDecisionStatuses = new Set(['proposed', 'accepted']);
 const continuityRiskTags = ['contradiction-risk', 'canon-risk', 'timeline', 'continuity'];
 
 export default function Dashboard() {
-  const [selectedReviewKey, setSelectedReviewKey] = useState(null);
   const candidates = useRevivalStore((state) => state.candidates);
   const decisions = useRevivalStore((state) => state.decisions);
   const questions = useRevivalStore((state) => state.questions);
@@ -26,6 +25,9 @@ export default function Dashboard() {
   const selectQuestion = useRevivalStore((state) => state.selectQuestion);
   const selectAiSession = useRevivalStore((state) => state.selectAiSession);
   const setActiveView = useRevivalStore((state) => state.setActiveView);
+  const openIngestionReview = useRevivalStore((state) => state.openIngestionReview);
+  const selectedReviewKey = useRevivalStore((state) => state.activeDashboardReviewKey);
+  const setSelectedReviewKey = useRevivalStore((state) => state.setActiveDashboardReviewKey);
   const editorialCandidates = useMemo(() => candidates.filter((candidate) => !isInternalPhaseRecord(candidate, candidate.title)), [candidates]);
   const editorialDecisions = useMemo(() => decisions.filter((decision) => !isInternalPhaseRecord(decision, decision.title)), [decisions]);
   const editorialQuestions = useMemo(() => questions.filter((question) => !isInternalPhaseRecord(question, question.question)), [questions]);
@@ -71,22 +73,14 @@ export default function Dashboard() {
   );
   const activeReviewDetail = useMemo(
     () => {
-      if (!selectedReviewKey) return routedReviewItems[0] || null;
-      return routedReviewItems.find((item) => item.key === selectedReviewKey) || {
-        key: selectedReviewKey,
-        sectionLabel: 'Review Detail',
-        kindLabel: 'Missing Link',
-        rawTitle: 'Review detail unavailable',
-        status: 'Needs Review',
-        detailRows: [
-          { label: 'Selected key', value: selectedReviewKey },
-          { label: 'Next step', value: 'This Dashboard card no longer matches a loaded review detail. Refresh the review summary before routing.' }
-        ],
-        provenanceSummary: 'No matching review detail is currently loaded.'
-      };
+      if (!selectedReviewKey) return null;
+      return routedReviewItems.find((item) => item.key === selectedReviewKey) || null;
     },
     [routedReviewItems, selectedReviewKey]
   );
+  const openSelectedReviewDetail = activeReviewDetail?.routeKey
+    ? () => openIngestionReview(activeReviewDetail.routeKey)
+    : null;
   const recentActivity = useMemo(
     () => [
       ...editorialCandidates.map((candidate) => toActivity('Candidate', candidate, candidate.title, candidate.status, () => selectCandidate(candidate.id))),
@@ -112,6 +106,12 @@ export default function Dashboard() {
     }),
     [activeAiSessionId, activeCandidateId, activeDecisionId, activeQuestionId, awaitingPlacement, editorialAiSessions, editorialCandidates, editorialDecisions, editorialQuestions, recentDecisions, selectAiSession, selectCandidate, selectDecision, selectQuestion, unresolvedQuestions]
   );
+
+  useEffect(() => {
+    if (selectedReviewKey && !routedReviewItems.some((item) => item.key === selectedReviewKey)) {
+      setSelectedReviewKey(null);
+    }
+  }, [routedReviewItems, selectedReviewKey, setSelectedReviewKey]);
 
   return (
     <section className="view dashboard-home">
@@ -288,7 +288,7 @@ export default function Dashboard() {
               title="Recent Decisions"
             />
           </div>
-          <ReviewDetail item={activeReviewDetail} />
+          <ReviewDetail item={activeReviewDetail} onOpen={openSelectedReviewDetail} />
         </aside>
       </div>
     </section>
@@ -321,10 +321,16 @@ function DashboardQueue({ emptyText, icon, items, title }) {
   );
 }
 
-function ReviewDetail({ item }) {
+function ReviewDetail({ item, onOpen }) {
+  const detailRef = useRef(null);
+
+  useEffect(() => {
+    detailRef.current?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [item?.key]);
+
   if (!item) {
     return (
-      <section className="dashboard-review-detail" aria-label="Review detail">
+      <section className="dashboard-review-detail" aria-label="Review detail" ref={detailRef}>
         <div>
           <strong>Review Detail</strong>
           <small>No editorial review item is selected.</small>
@@ -334,7 +340,7 @@ function ReviewDetail({ item }) {
   }
 
   return (
-    <section className="dashboard-review-detail" aria-label="Review detail">
+    <section className="dashboard-review-detail" aria-label="Review detail" ref={detailRef}>
       <div className="dashboard-review-detail-heading">
         <div>
           <span className="dashboard-review-detail-eyebrow">Review Detail</span>
@@ -344,7 +350,15 @@ function ReviewDetail({ item }) {
           ) : null}
           <b className="dashboard-review-detail-title">{item.rawTitle || item.title}</b>
         </div>
-        {item.status ? <StatusBadge status={item.status} /> : null}
+        <div className="dashboard-review-detail-actions">
+          {item.status ? <StatusBadge status={item.status} /> : null}
+          {onOpen ? (
+            <button className="secondary-button dashboard-review-open" onClick={onOpen} type="button">
+              <ArrowRight size={14} />
+              <span>View</span>
+            </button>
+          ) : null}
+        </div>
       </div>
       <div className="dashboard-review-detail-body">
         {item.detailRows.map((row) => (
@@ -505,6 +519,7 @@ function buildContinuityRisks({ candidates, questions, decisions, timelineEvents
 function buildIngestionReviewItems(summary = {}) {
   const duplicates = (summary.duplicateReviews || []).map((item) => ({
     key: `duplicate-${item.id}`,
+    routeKey: `duplicate-${item.id}`,
     sectionLabel: 'Source Review',
     kindLabel: 'Duplicate Review',
     rawTitle: 'Possible duplicate',
@@ -521,6 +536,7 @@ function buildIngestionReviewItems(summary = {}) {
   }));
   const extractions = (summary.unresolvedExtractions || []).map((item) => ({
     key: `extraction-${item.id}`,
+    routeKey: `extraction-${item.id}`,
     sectionLabel: 'Source Review',
     kindLabel: 'Review Item',
     rawTitle: item.title,
@@ -540,6 +556,7 @@ function buildIngestionReviewItems(summary = {}) {
   }));
   const fragments = (summary.narrativeFragments || []).map((item) => ({
     key: `fragment-${item.id}`,
+    routeKey: `fragment-${item.id}`,
     sectionLabel: 'Source Review',
     kindLabel: 'Narrative Fragment',
     rawTitle: item.title,
@@ -602,6 +619,7 @@ function buildExtractionReviewStats(summary = {}) {
 function toContinuityReviewItem(item) {
   return {
     key: `continuity-${item.id}`,
+    routeKey: `continuity-${item.id}`,
     sectionLabel: 'Continuity Review',
     kindLabel: 'Continuity Review',
     rawTitle: item.title,

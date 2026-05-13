@@ -69,6 +69,7 @@ export const useRevivalStore = create((set, get) => ({
     narrativeFragments: []
   },
   activeIngestionReviewKey: null,
+  activeDashboardReviewKey: null,
   recoverySnapshots: [],
   activeAiSessionId: getSavedActiveAiSessionId(),
   activeAiSession: null,
@@ -115,6 +116,7 @@ export const useRevivalStore = create((set, get) => ({
     navigationHistory: [createNavigationSnapshot(state), ...state.navigationHistory].slice(0, 20)
   })),
   clearActiveIngestionReviewKey: () => set({ activeIngestionReviewKey: null }),
+  setActiveDashboardReviewKey: (activeDashboardReviewKey) => set({ activeDashboardReviewKey: activeDashboardReviewKey || null }),
   setNavMode: (navMode) => {
     const normalizedMode = navMode === 'compact' ? 'compact' : 'expanded';
     if (typeof localStorage !== 'undefined') {

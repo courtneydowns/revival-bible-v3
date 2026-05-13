@@ -80,11 +80,14 @@ export default function EditorialIngestion() {
   const [expandedSourceIds, setExpandedSourceIds] = useState(['unassigned']);
   const [removeReviewTarget, setRemoveReviewTarget] = useState(null);
   const [removeSourceTarget, setRemoveSourceTarget] = useState(null);
+  const [pendingRoutedReviewKey, setPendingRoutedReviewKey] = useState(null);
   const sessionTitleRef = useRef(null);
   const sessionSelectRef = useRef(null);
   const sourceFileInputRef = useRef(null);
   const ingestionIntakeRef = useRef(null);
   const sourceMaterialSectionRef = useRef(null);
+  const reviewItemRefs = useRef(new Map());
+  const reviewDetailRef = useRef(null);
   const ingestionReviewSummary = useRevivalStore((state) => state.ingestionReviewSummary);
   const activeIngestionReviewKey = useRevivalStore((state) => state.activeIngestionReviewKey);
   const clearActiveIngestionReviewKey = useRevivalStore((state) => state.clearActiveIngestionReviewKey);
@@ -236,6 +239,46 @@ export default function EditorialIngestion() {
   const duplicateCount = visibleTriageCounts['duplicate-risk'] || 0;
   const removeSourceImpact = removeSourceTarget ? getSourceRemovalImpact(removeSourceTarget, ingestionReviewSummary) : null;
 
+  const scrollRoutedReviewTarget = (target) => {
+    if (!target) return;
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        window.setTimeout(() => {
+          const workspace = target.closest('.editorial-review-workspace');
+          if (workspace) {
+            const targetRect = target.getBoundingClientRect();
+            const workspaceRect = workspace.getBoundingClientRect();
+            workspace.scrollTo({
+              top: workspace.scrollTop + targetRect.top - workspaceRect.top - 12,
+              behavior: 'auto'
+            });
+          } else {
+            target.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'auto' });
+          }
+          (target.querySelector('.editorial-ingestion-item') || target).focus({ preventScroll: true });
+          setPendingRoutedReviewKey(null);
+        }, 0);
+      });
+    });
+  };
+
+  const scrollRoutedReviewTargetByKey = (reviewKey) => {
+    if (!reviewKey) return;
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        window.setTimeout(() => {
+          const target = reviewItemRefs.current.get(reviewKey)
+            || document.querySelector(`[data-review-key="${reviewKey}"]`)
+            || reviewDetailRef.current;
+          scrollRoutedReviewTarget(target);
+        }, 0);
+      });
+    });
+  };
+
+
   useEffect(() => {
     if (selectedReviewKey && !stagedItems.some((item) => item.key === selectedReviewKey)) {
       setSelectedReviewKey(stagedItems[0]?.key || null);
@@ -251,16 +294,33 @@ export default function EditorialIngestion() {
   useEffect(() => {
     if (!activeIngestionReviewKey) return;
     const routedItem = stagedItems.find((item) => item.key === activeIngestionReviewKey);
-    if (!routedItem) return;
+    if (!routedItem) {
+      setSelectedReviewKey(null);
+      setMessage('Review item is not currently loaded. Refresh the review summary before opening it.');
+      clearActiveIngestionReviewKey();
+      return;
+    }
 
     setReviewStateFilter('all');
     setRiskFilter('all');
     setSelectedReviewKey(routedItem.key);
+    setPendingRoutedReviewKey(routedItem.key);
     if (routedItem.sourceRecordId) {
       setExpandedSourceIds((ids) => [...new Set([...ids, String(routedItem.sourceRecordId)])]);
     }
+    scrollRoutedReviewTargetByKey(routedItem.key);
     clearActiveIngestionReviewKey();
   }, [activeIngestionReviewKey, clearActiveIngestionReviewKey, stagedItems]);
+
+  useEffect(() => {
+    if (!pendingRoutedReviewKey || selectedReviewKey !== pendingRoutedReviewKey) return;
+    const queuedTarget = reviewItemRefs.current.get(pendingRoutedReviewKey);
+    if (selectedReviewItem?.kind === 'Review Item' && !queuedTarget) return;
+    const target = queuedTarget || reviewDetailRef.current;
+    if (!target) return;
+
+    scrollRoutedReviewTarget(target);
+  }, [expandedSourceIds, pendingRoutedReviewKey, selectedReviewItem, selectedReviewKey, sourceClusters]);
 
   useEffect(() => {
     setExpandedSourceIds((ids) => {
@@ -1426,7 +1486,19 @@ export default function EditorialIngestion() {
                       {open ? cluster.items.map((item) => {
                         const isLatestStaged = lastStagedReview?.key === item.key;
                         return (
-                        <div className={`editorial-triage-row ${isLatestStaged ? 'latest-staged-review' : ''}`} key={item.key}>
+                        <div
+                          className={`editorial-triage-row ${isLatestStaged ? 'latest-staged-review' : ''}`}
+                          data-review-key={item.key}
+                          key={item.key}
+                          ref={(node) => {
+                            if (node) {
+                              reviewItemRefs.current.set(item.key, node);
+                              if (pendingRoutedReviewKey === item.key) scrollRoutedReviewTarget(node);
+                            } else {
+                              reviewItemRefs.current.delete(item.key);
+                            }
+                          }}
+                        >
                           <button aria-label="Select review item" className="icon-button" onClick={() => toggleExtractionSelection(item.id)} title="Select review item" type="button">
                             {selectedExtractionSet.has(String(item.id)) ? <CheckSquare size={15} /> : <Square size={15} />}
                           </button>
@@ -1467,7 +1539,7 @@ export default function EditorialIngestion() {
               </div>
             </nav>
 
-            <article className="editorial-review-detail" aria-live="polite">
+            <article className="editorial-review-detail" aria-live="polite" ref={reviewDetailRef} tabIndex={-1}>
               {selectedReviewItem ? (
                 <>
                   <div className="editorial-review-detail-actions">
