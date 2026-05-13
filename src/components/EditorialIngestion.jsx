@@ -954,7 +954,7 @@ export default function EditorialIngestion() {
 
             {activeSourceCount ? (
               <div className="session-source-list" aria-label="Stored source material">
-                <div className="editorial-review-queue-heading">
+                <div className="editorial-review-queue-heading stored-source-heading">
                   <strong>Stored Source Material</strong>
                   <small>{filteredStoredSources.length} of {activeSourceCount} active source{activeSourceCount === 1 ? '' : 's'} {storedSourceScopeLabel} / newest first</small>
                 </div>
