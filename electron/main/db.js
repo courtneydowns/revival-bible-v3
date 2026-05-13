@@ -996,11 +996,17 @@ export function promoteCandidate(id, payload = {}) {
 }
 
 export function getIngestionReviewSummary() {
+  const sourceActiveWhere = getActiveSourceMemoryRecordWhere('source_memory_records');
+  const sourceActiveWhereForSmr = getActiveSourceMemoryRecordWhere('smr');
   return {
     sessions: connection
       .prepare(`
         SELECT import_sessions.*,
-          COUNT(DISTINCT source_memory_records.id) AS source_count,
+          COUNT(DISTINCT CASE
+            WHEN ${sourceActiveWhere}
+            THEN source_memory_records.id
+            ELSE NULL
+          END) AS source_count,
           COUNT(DISTINCT editorial_extractions.id) AS extraction_count,
           SUM(CASE
             WHEN editorial_extractions.status IN ('unreviewed', 'needs-review', 'contradiction-risk', 'duplicate-risk', 'accepted-for-placement', 'deferred', 'unresolved', 'in-review', 'pending-placement')
@@ -1020,8 +1026,8 @@ export function getIngestionReviewSummary() {
         SELECT smr.*, import_sessions.title AS session_title
         FROM source_memory_records smr
         LEFT JOIN import_sessions ON import_sessions.id = smr.import_session_id
+        WHERE ${sourceActiveWhereForSmr}
         ORDER BY smr.created_at DESC, smr.id DESC
-        LIMIT 30
       `)
       .all()
       .map(hydrateProvenanceRow),
@@ -1207,6 +1213,181 @@ export function removeEditorialExtractionFromReview(payload = {}) {
   return transaction();
 }
 
+export function removeSourceMemoryRecord(payload = {}) {
+  const id = normalizeInteger(payload.id, null);
+  const note = String(payload.note || '').trim();
+
+  if (!id) {
+    return { ok: false, message: 'Source material is required.' };
+  }
+
+  const transaction = connection.transaction(() => {
+    const existing = connection.prepare('SELECT * FROM source_memory_records WHERE id = ?').get(id);
+
+    if (!existing) {
+      return { ok: false, message: 'Source material not found.' };
+    }
+
+    const sourceProvenance = parseJsonObject(existing.provenance_metadata);
+    const removedAt = new Date().toISOString();
+    const beforeActiveSourceCount = getActiveSourceMemoryRecordCount();
+    const linkedExtractions = connection
+      .prepare('SELECT * FROM editorial_extractions WHERE source_record_id = ?')
+      .all(id);
+    const linkedFragments = connection
+      .prepare('SELECT * FROM narrative_fragments WHERE source_record_id = ?')
+      .all(id);
+    const linkedDuplicates = connection
+      .prepare(`
+        SELECT *
+        FROM possible_duplicate_links
+        WHERE (left_type = 'source_memory_record' AND left_id = ?)
+          OR (right_type = 'source_memory_record' AND right_id = ?)
+      `)
+      .all(String(id), String(id));
+
+    const sourceRemovalMetadata = {
+      source_material_removed: true,
+      source_material_removed_at: removedAt,
+      source_material_active: false,
+      active: false,
+      removed_source_record_id: id,
+      removed_source_label: existing.source_label,
+      removed_source_type: existing.source_type,
+      source_record_removed_note: note || null,
+      source_record_removed_from_review_layer: true,
+      canon_mutation: false,
+      manual_review_only: true
+    };
+
+    const removedSourceProvenance = normalizeFrameworkProvenance({
+      ...sourceProvenance,
+      ...sourceRemovalMetadata,
+      preserved: false
+    });
+
+    connection.prepare(`
+      UPDATE source_memory_records
+      SET provenance_metadata = ?
+      WHERE id = ?
+    `).run(JSON.stringify(removedSourceProvenance), id);
+
+    const updateExtraction = connection.prepare(`
+      UPDATE editorial_extractions
+      SET source_record_id = NULL,
+        provenance_metadata = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+    for (const item of linkedExtractions) {
+      updateExtraction.run(
+        JSON.stringify(normalizeFrameworkProvenance({
+          ...parseJsonObject(item.provenance_metadata),
+          ...sourceRemovalMetadata,
+          review_item_preserved: true
+        })),
+        item.id
+      );
+    }
+
+    const updateFragment = connection.prepare(`
+      UPDATE narrative_fragments
+      SET source_record_id = NULL,
+        provenance_metadata = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+    for (const item of linkedFragments) {
+      updateFragment.run(
+        JSON.stringify(normalizeFrameworkProvenance({
+          ...parseJsonObject(item.provenance_metadata),
+          ...sourceRemovalMetadata,
+          review_item_preserved: true
+        })),
+        item.id
+      );
+    }
+
+    const updateDuplicate = connection.prepare(`
+      UPDATE possible_duplicate_links
+      SET status = 'rejected',
+        reason = ?,
+        provenance_metadata = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+    for (const item of linkedDuplicates) {
+      updateDuplicate.run(
+        note || item.reason || 'Source material was removed from review.',
+        JSON.stringify(normalizeFrameworkProvenance({
+          ...parseJsonObject(item.provenance_metadata),
+          ...sourceRemovalMetadata,
+          duplicate_review_removed: true
+        })),
+        item.id
+      );
+    }
+
+    let deleteResult = { changes: 0 };
+    let hardDeleted = false;
+    try {
+      deleteResult = connection.prepare('DELETE FROM source_memory_records WHERE id = ?').run(id);
+      hardDeleted = deleteResult.changes === 1 && !connection.prepare('SELECT id FROM source_memory_records WHERE id = ?').get(id);
+    } catch {
+      hardDeleted = false;
+    }
+
+    const afterActiveSourceCount = getActiveSourceMemoryRecordCount();
+    const removedSourceStillActive = Boolean(connection
+      .prepare(`
+        SELECT id
+        FROM source_memory_records
+        WHERE id = ?
+          AND ${getActiveSourceMemoryRecordWhere('source_memory_records')}
+      `)
+      .get(id));
+    const reloadedSourceIds = getActiveSourceMemoryRecordIds();
+    if (existing.import_session_id) touchImportSession(existing.import_session_id);
+
+    if (removedSourceStillActive || beforeActiveSourceCount - afterActiveSourceCount !== 1) {
+      return {
+        ok: false,
+        message: 'Source material removal did not persist. Restart the app and try again.',
+        sourceDeleteDiagnostics: {
+          requestedSourceId: id,
+          deleteChanges: deleteResult.changes,
+          hardDeleted,
+          beforeActiveSourceCount,
+          afterActiveSourceCount,
+          reloadedSourceIds
+        }
+      };
+    }
+
+    return {
+      ok: true,
+      removedSource: hydrateProvenanceRow({
+        ...existing,
+        provenance_metadata: JSON.stringify(sourceProvenance)
+      }),
+      linkedReviewItemsUnlinked: linkedExtractions.length + linkedFragments.length,
+      duplicateReviewsRemoved: linkedDuplicates.length,
+      hardDeleted,
+      sourceDeleteDiagnostics: {
+        requestedSourceId: id,
+        deleteChanges: deleteResult.changes,
+        hardDeleted,
+        beforeActiveSourceCount,
+        afterActiveSourceCount,
+        reloadedSourceIds
+      },
+      canonUnchanged: true
+    };
+  });
+
+  return transaction();
+}
+
 export function createImportSession(payload = {}) {
   const title = normalizeNullableText(payload.title);
   const provenanceMetadata = normalizeFrameworkProvenance(payload.provenanceMetadata);
@@ -1284,7 +1465,9 @@ export function createSourceMemoryRecord(payload = {}) {
       provenanceMetadata: JSON.stringify({
         ...provenanceMetadata,
         source_label: sourceLabel,
-        import_session_id: sessionId
+        import_session_id: sessionId,
+        source_material_active: true,
+        active: true
       })
     });
 
@@ -2779,12 +2962,53 @@ function normalizeExistingSourceRecordId(id) {
   return exists ? normalizedId : null;
 }
 
+function getActiveSourceMemoryRecordCount() {
+  return connection
+    .prepare(`
+      SELECT COUNT(*) AS count
+      FROM source_memory_records
+      WHERE ${getActiveSourceMemoryRecordWhere('source_memory_records')}
+    `)
+    .get().count;
+}
+
+function getActiveSourceMemoryRecordIds() {
+  return connection
+    .prepare(`
+      SELECT id
+      FROM source_memory_records
+      WHERE ${getActiveSourceMemoryRecordWhere('source_memory_records')}
+      ORDER BY created_at DESC, id DESC
+    `)
+    .all()
+    .map((row) => row.id);
+}
+
 function getStagedExtractionSource(id) {
   const normalizedId = normalizeExistingSourceRecordId(id);
   if (!normalizedId) return null;
+  const active = connection
+    .prepare(`
+      SELECT id
+      FROM source_memory_records
+      WHERE id = ?
+        AND ${getActiveSourceMemoryRecordWhere('source_memory_records')}
+    `)
+    .get(normalizedId);
+  if (!active) return null;
   const source = hydrateProvenanceRow(connection.prepare('SELECT * FROM source_memory_records WHERE id = ?').get(normalizedId));
   if (source.provenance_metadata?.memory_layer === 'editorial') return null;
   return source;
+}
+
+function getActiveSourceMemoryRecordWhere(alias = 'source_memory_records') {
+  const provenance = `${alias}.provenance_metadata`;
+  const jsonValue = (path) => `CASE WHEN json_valid(COALESCE(${provenance}, '{}')) THEN json_extract(${provenance}, '${path}') ELSE NULL END`;
+  return `
+    COALESCE(${jsonValue('$.source_material_removed')}, 0) = 0
+    AND COALESCE(${jsonValue('$.source_record_removed_from_review_layer')}, 0) = 0
+    AND COALESCE(${jsonValue('$.source_material_active')}, ${jsonValue('$.active')}, 1) != 0
+  `;
 }
 
 function getImportSessionIdForSource(sourceRecordId) {

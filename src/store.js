@@ -14,6 +14,7 @@ const getSavedNavMode = () => {
 
 const activeAiSessionStorageKey = 'revival-active-ai-session-id';
 const localCandidateStorageKey = 'revival-local-candidates';
+let ingestionSummaryLoadVersion = 0;
 
 const getSavedActiveAiSessionId = () => {
   if (typeof localStorage === 'undefined') return null;
@@ -451,9 +452,12 @@ export const useRevivalStore = create((set, get) => ({
     return candidates || [];
   },
   loadIngestionReviewSummary: async () => {
+    const requestVersion = ++ingestionSummaryLoadVersion;
     const summary = await window.revival?.ingestion?.getReviewSummary?.();
     const ingestionReviewSummary = normalizeIngestionReviewSummary(summary);
-    set({ ingestionReviewSummary });
+    if (requestVersion === ingestionSummaryLoadVersion) {
+      set({ ingestionReviewSummary });
+    }
     return ingestionReviewSummary;
   },
   loadRecoverySnapshots: async () => {
@@ -627,6 +631,37 @@ export const useRevivalStore = create((set, get) => ({
     get().markSaved('Review item removed');
     return response;
   },
+  removeStoredSourceMaterial: async (payload = {}) => {
+    const api = window.revival?.ingestion;
+    if (!api?.removeSourceRecord) {
+      get().markSaveFailed('Source API unavailable');
+      return { ok: false, message: 'Source material removal is unavailable. Restart the app and try again.' };
+    }
+
+    get().markSaving('Removing source material');
+    const response = await api.removeSourceRecord(payload);
+    if (!response?.ok) {
+      get().markSaveFailed(response?.message || 'Source material could not be removed');
+      return response;
+    }
+
+    const removedSourceId = String(response.removedSource?.id || payload.id || '');
+    const reloadedSummary = await get().loadIngestionReviewSummary();
+    const removedSourceStillLoaded = removedSourceId
+      ? reloadedSummary.sourceRecords.some((source) => String(source.id) === removedSourceId)
+      : false;
+    if (removedSourceStillLoaded) {
+      get().markSaveFailed('Source material removal did not persist');
+      return {
+        ok: false,
+        message: 'Source material still appears in the persisted source list after removal. Restart the app and try again.',
+        sourceDeleteDiagnostics: response.sourceDeleteDiagnostics
+      };
+    }
+
+    get().markSaved('Source material removed');
+    return { ...response, reloadedSourceRecords: reloadedSummary.sourceRecords };
+  },
   createStagedSource: async (payload = {}) => {
     const api = window.revival?.ingestion;
     if (!api?.createSourceRecord) {
@@ -647,7 +682,9 @@ export const useRevivalStore = create((set, get) => ({
       file_preview_state: payload.previewState,
       file_preview_note: payload.previewNote,
       memory_layer: 'source',
-      preserved: true
+      preserved: true,
+      source_material_active: true,
+      active: true
     };
     const response = await api.createSourceRecord({
       importSessionId: payload.importSessionId,
@@ -1025,6 +1062,7 @@ export const useRevivalStore = create((set, get) => ({
       return;
     }
 
+    const ingestionSummaryRequestVersion = ++ingestionSummaryLoadVersion;
     const [databaseInfo, nodeTree, episodes, characters, decisions, questions, contextPacks, aiSessions, candidates, ingestionReviewSummary, recoveryResponse, livingRows, timelineEvents, canonTags, entityTagLinks, characterRelationshipCount] = await Promise.all([
       api.app.getDatabaseInfo(),
       api.nodes.getTree(),
@@ -1049,6 +1087,7 @@ export const useRevivalStore = create((set, get) => ({
 
     const hydratedAiSession = getHydratedAiSession(aiSessions, get().activeAiSessionId);
 
+    const hydratedIngestionSummary = normalizeIngestionReviewSummary(ingestionReviewSummary);
     set({
       databaseInfo,
       nodeTree,
@@ -1059,7 +1098,9 @@ export const useRevivalStore = create((set, get) => ({
       contextPacks: contextPacks || [],
       aiSessions: aiSessions || [],
       candidates: candidates || [],
-      ingestionReviewSummary: normalizeIngestionReviewSummary(ingestionReviewSummary),
+      ingestionReviewSummary: ingestionSummaryRequestVersion === ingestionSummaryLoadVersion
+        ? hydratedIngestionSummary
+        : get().ingestionReviewSummary,
       recoverySnapshots: recoveryResponse?.snapshots || [],
       activeCandidateId: get().activeCandidateId || candidates?.[0]?.id || null,
       activeAiSessionId: hydratedAiSession?.id || null,
@@ -1103,12 +1144,20 @@ function groupEntityTags(rows) {
 function normalizeIngestionReviewSummary(summary = {}) {
   return {
     sessions: Array.isArray(summary?.sessions) ? summary.sessions : [],
-    sourceRecords: Array.isArray(summary?.sourceRecords) ? summary.sourceRecords : [],
+    sourceRecords: Array.isArray(summary?.sourceRecords) ? summary.sourceRecords.filter(isActiveSourceMaterial) : [],
     unresolvedExtractions: Array.isArray(summary?.unresolvedExtractions) ? summary.unresolvedExtractions : [],
     duplicateReviews: Array.isArray(summary?.duplicateReviews) ? summary.duplicateReviews : [],
     continuityReviews: Array.isArray(summary?.continuityReviews) ? summary.continuityReviews : [],
     narrativeFragments: Array.isArray(summary?.narrativeFragments) ? summary.narrativeFragments : []
   };
+}
+
+function isActiveSourceMaterial(source = {}) {
+  const provenance = source.provenance_metadata || {};
+  return provenance.source_material_removed !== true
+    && provenance.source_record_removed_from_review_layer !== true
+    && provenance.source_material_active !== false
+    && provenance.active !== false;
 }
 
 function applyEntityRecordUpdate(state, entityType, record) {

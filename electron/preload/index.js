@@ -97,6 +97,7 @@ contextBridge.exposeInMainWorld('revival', {
     createSession: (payload) => invoke('ingestion:create-session', payload),
     selectSourceFile: () => invoke('ingestion:select-source-file'),
     createSourceRecord: (payload) => invoke('ingestion:create-source-record', payload),
+    removeSourceRecord: (payload) => invoke('ingestion:remove-source-record', payload),
     createExtraction: (payload) => invoke('ingestion:create-extraction', payload),
     updateExtractionReview: (payload) => invoke('ingestion:update-extraction-review', payload),
     removeExtractionReview: (payload) => invoke('ingestion:remove-extraction-review', payload),

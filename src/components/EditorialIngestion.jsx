@@ -59,6 +59,7 @@ export default function EditorialIngestion() {
   const [sourceValidationMessage, setSourceValidationMessage] = useState('');
   const [candidateValidationMessage, setCandidateValidationMessage] = useState('');
   const [lastAttachedSourceId, setLastAttachedSourceId] = useState(null);
+  const [lastSavedSourceSummary, setLastSavedSourceSummary] = useState(null);
   const [lastStagedReview, setLastStagedReview] = useState(null);
   const [saving, setSaving] = useState(false);
   const [selectingSourceFile, setSelectingSourceFile] = useState(false);
@@ -66,15 +67,20 @@ export default function EditorialIngestion() {
   const [activeIntakeStep, setActiveIntakeStep] = useState('source-batch');
   const [reviewStateFilter, setReviewStateFilter] = useState('all');
   const [riskFilter, setRiskFilter] = useState('all');
+  const [sourceSearchQuery, setSourceSearchQuery] = useState('');
+  const [storedSourceVisibleLimit, setStoredSourceVisibleLimit] = useState(12);
   const [selectedReviewStatusDraft, setSelectedReviewStatusDraft] = useState('unreviewed');
   const [selectedReviewNote, setSelectedReviewNote] = useState('');
   const [selectedExtractionIds, setSelectedExtractionIds] = useState([]);
   const [batchNote, setBatchNote] = useState('');
   const [expandedSourceIds, setExpandedSourceIds] = useState(['unassigned']);
   const [removeReviewTarget, setRemoveReviewTarget] = useState(null);
+  const [removeSourceTarget, setRemoveSourceTarget] = useState(null);
   const sessionTitleRef = useRef(null);
   const sessionSelectRef = useRef(null);
   const sourceFileInputRef = useRef(null);
+  const ingestionIntakeRef = useRef(null);
+  const sourceMaterialSectionRef = useRef(null);
   const ingestionReviewSummary = useRevivalStore((state) => state.ingestionReviewSummary);
   const activeIngestionReviewKey = useRevivalStore((state) => state.activeIngestionReviewKey);
   const clearActiveIngestionReviewKey = useRevivalStore((state) => state.clearActiveIngestionReviewKey);
@@ -83,9 +89,18 @@ export default function EditorialIngestion() {
   const createManualExtractionCandidate = useRevivalStore((state) => state.createManualExtractionCandidate);
   const updateExtractionReviewTriage = useRevivalStore((state) => state.updateExtractionReviewTriage);
   const removeExtractionReviewItem = useRevivalStore((state) => state.removeExtractionReviewItem);
+  const removeStoredSourceMaterial = useRevivalStore((state) => state.removeStoredSourceMaterial);
+  const showToast = useRevivalStore((state) => state.showToast);
   const sessions = ingestionReviewSummary.sessions || [];
-  const sourceRecords = ingestionReviewSummary.sourceRecords || [];
+  const sourceRecords = (ingestionReviewSummary.sourceRecords || []).filter(isActiveSourceMaterial);
   const selectedSourceDraftSources = sourceRecords.filter((source) => String(source.import_session_id || '') === String(sourceDraft.importSessionId || ''));
+  const activeSourceCount = sourceRecords.length;
+  const filteredStoredSources = useMemo(
+    () => filterStoredSources(sourceRecords, sourceSearchQuery),
+    [sourceRecords, sourceSearchQuery]
+  );
+  const visibleStoredSources = filteredStoredSources.slice(0, storedSourceVisibleLimit);
+  const storedSourceScopeLabel = sourceSearchQuery.trim() ? 'matching this search' : 'stored across source batches';
   const selectedCandidateSessionSources = useMemo(() => {
     const candidateSessionId = String(candidateDraft.importSessionId || '');
     const selectedSourceId = String(candidateDraft.sourceRecordId || lastAttachedSourceId || '');
@@ -117,13 +132,13 @@ export default function EditorialIngestion() {
       sourceRecordId: item.source_record_id,
       kind: 'Review Item',
       title: item.title,
-      meta: `${formatReviewType(item.classification)} / ${item.source_label || 'Source preserved'}`,
+      meta: `${formatReviewType(item.classification)} / ${item.source_label || item.provenance_metadata?.source_label || item.provenance_metadata?.removed_source_label || 'Source preserved'}`,
       status: normalizeExtractionTriageState(item.status),
       confidence: item.confidence_state,
       classification: item.classification,
       timestamp: item.updated_at || item.created_at,
-      sourceLabel: item.source_label,
-      sourceType: item.source_type,
+      sourceLabel: item.source_label || item.provenance_metadata?.source_label || item.provenance_metadata?.removed_source_label,
+      sourceType: item.source_type || item.provenance_metadata?.source_type || item.provenance_metadata?.removed_source_type,
       sourceTypeLabel: item.provenance_metadata?.custom_source_label,
       excerpt: item.raw_content,
       content: item.content,
@@ -138,8 +153,8 @@ export default function EditorialIngestion() {
       meta: `${formatReviewType(item.fragment_type)} / Non-canon fragment`,
       status: item.confidence_state || item.status,
       timestamp: item.updated_at || item.created_at,
-      sourceLabel: item.source_label,
-      sourceType: item.source_type,
+      sourceLabel: item.source_label || item.provenance_metadata?.source_label || item.provenance_metadata?.removed_source_label,
+      sourceType: item.source_type || item.provenance_metadata?.source_type || item.provenance_metadata?.removed_source_type,
       sourceTypeLabel: item.provenance_metadata?.custom_source_label,
       excerpt: item.raw_content,
       content: item.content,
@@ -202,11 +217,11 @@ export default function EditorialIngestion() {
   const selectedReviewItem = stagedItems.find((item) => item.key === selectedReviewKey) || null;
   const selectedExtractionSet = useMemo(() => new Set(selectedExtractionIds.map(String)), [selectedExtractionIds]);
   const selectedExtractionCount = selectedExtractionIds.length;
-  const lastAttachedSource = sourceRecords.find((source) => String(source.id) === String(lastAttachedSourceId)) || null;
   const acceptedCount = visibleTriageCounts['accepted-for-placement'] || 0;
   const unresolvedCount = visibleReviewItems.filter((item) => !['resolved', 'deferred'].includes(item.status)).length;
   const contradictionCount = visibleTriageCounts['contradiction-risk'] || 0;
   const duplicateCount = visibleTriageCounts['duplicate-risk'] || 0;
+  const removeSourceImpact = removeSourceTarget ? getSourceRemovalImpact(removeSourceTarget, ingestionReviewSummary) : null;
 
   useEffect(() => {
     if (selectedReviewKey && !stagedItems.some((item) => item.key === selectedReviewKey)) {
@@ -260,6 +275,10 @@ export default function EditorialIngestion() {
     return () => sourceInput.removeEventListener('cancel', cancelSelection);
   }, []);
 
+  useEffect(() => {
+    setStoredSourceVisibleLimit(12);
+  }, [sourceSearchQuery, sourceDraft.importSessionId, activeSourceCount]);
+
   const updateSessionDraft = (field, value) => setSessionDraft((draft) => ({ ...draft, [field]: value }));
   const updateSourceDraft = (field, value) => setSourceDraft((draft) => ({ ...draft, [field]: value }));
   const updateCandidateDraft = (field, value) => setCandidateDraft((draft) => ({ ...draft, [field]: value }));
@@ -292,8 +311,30 @@ export default function EditorialIngestion() {
       rawContent: ''
     }));
     setLastAttachedSourceId(null);
+    setLastSavedSourceSummary(null);
     setSourceAttachmentMessage('');
     setSourceValidationMessage('');
+  };
+  const showSourceMaterialStep = () => {
+    setActiveIntakeStep('source-material');
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const sourceSection = sourceMaterialSectionRef.current;
+        const intakePanel = ingestionIntakeRef.current;
+        if (!sourceSection) return;
+
+        sourceSection.scrollTop = 0;
+        if (intakePanel) {
+          intakePanel.scrollTo({
+            top: Math.max(0, sourceSection.offsetTop - intakePanel.offsetTop),
+            behavior: 'smooth'
+          });
+        } else {
+          sourceSection.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        }
+        sourceSection.focus({ preventScroll: true });
+      });
+    });
   };
   const toggleCluster = (clusterKey) => {
     setExpandedSourceIds((ids) => ids.includes(clusterKey)
@@ -365,12 +406,68 @@ export default function EditorialIngestion() {
     setRemoveReviewTarget(null);
     setMessage(`Review item removed from the Review Queue. Source material remains stored: ${removeReviewTarget.sourceLabel || 'attached source'}. Canon unchanged.`);
   };
+  const requestSourceRemoval = (source) => {
+    if (!source?.id) return;
+    setRemoveSourceTarget(source);
+  };
+  const cancelSourceRemoval = () => {
+    if (saving) return;
+    setRemoveSourceTarget(null);
+  };
+  const confirmSourceRemoval = async () => {
+    if (!removeSourceTarget || saving) return;
+    setSaving(true);
+    const response = await removeStoredSourceMaterial({
+      id: removeSourceTarget.id,
+      note: 'Source material removed by editor. Linked review items preserved without this source. Accepted canon unchanged.'
+    });
+    setSaving(false);
+    if (!response?.ok) {
+      setMessage(response?.message || 'Source material could not be removed.');
+      return;
+    }
+    const removedSourceId = String(removeSourceTarget.id);
+    if (String(lastAttachedSourceId) === removedSourceId) setLastAttachedSourceId(null);
+    if (String(lastSavedSourceSummary?.id) === removedSourceId) setLastSavedSourceSummary(null);
+    setSourceDraft((draft) => {
+      const draftMatchesRemovedSource = String(lastAttachedSourceId) === removedSourceId
+        || String(draft.sourceLabel || '') === String(removeSourceTarget.source_label || '')
+        || String(draft.originalFilename || '') === String(removeSourceTarget.provenance_metadata?.original_filename || '');
+      if (!draftMatchesRemovedSource) return draft;
+      return {
+        ...initialSourceDraft,
+        importSessionId: draft.importSessionId,
+        sourceType: draft.sourceType,
+        sourceTypeLabel: draft.sourceTypeLabel
+      };
+    });
+    if (String(candidateDraft.sourceRecordId) === removedSourceId) {
+      setCandidateDraft((draft) => ({
+        ...draft,
+        sourceRecordId: '',
+        sourceLabel: '',
+        provenanceNote: '',
+        rawContent: ''
+      }));
+    }
+    setSelectedExtractionIds((ids) => ids.filter((id) => {
+      const item = extractionItems.find((reviewItem) => String(reviewItem.id) === String(id));
+      return String(item?.sourceRecordId || '') !== removedSourceId;
+    }));
+    setRemoveSourceTarget(null);
+    const removedSourceIdentity = getSourceIdentity(removeSourceTarget);
+    const confirmation = `${removedSourceIdentity.primary} (${removedSourceIdentity.recordLabel}) removed from Stored Source Material. Accepted canon unchanged.`;
+    setSourceAttachmentMessage(confirmation);
+    setMessage(`${confirmation} Linked review items remain in review without that source.`);
+    showToast(confirmation);
+  };
 
   const openNewSessionDraft = () => {
     setSessionDraft(initialSessionDraft);
     setSourceDraft(initialSourceDraft);
     setCandidateDraft(initialCandidateDraft);
     setLastAttachedSourceId(null);
+    setLastSavedSourceSummary(null);
     setSourceAttachmentMessage('');
     setSessionValidationMessage('');
     setSourceValidationMessage('');
@@ -497,16 +594,24 @@ export default function EditorialIngestion() {
     }
 
     setSourceValidationMessage('');
+    const savedSessionId = String(response.source.import_session_id || draftToSave.importSessionId || '');
     setSourceDraft((draft) => ({
-      ...draftToSave,
-      importSessionId: draftToSave.importSessionId || draft.importSessionId,
+      ...initialSourceDraft,
+      importSessionId: savedSessionId || draft.importSessionId,
       sourceType: draftToSave.sourceType || draft.sourceType,
       sourceTypeLabel: draftToSave.sourceTypeLabel || draft.sourceTypeLabel
     }));
     setLastAttachedSourceId(response.source.id);
+    setLastSavedSourceSummary({
+      id: response.source.id,
+      label: response.source.source_label || draftToSave.sourceLabel,
+      sessionTitle: response.source.session_title || sessions.find((session) => String(session.id) === savedSessionId)?.title || 'selected source batch',
+      sourceType: response.source.source_type || draftToSave.sourceType,
+      sourceTypeLabel: response.source.provenance_metadata?.custom_source_label || draftToSave.sourceTypeLabel || ''
+    });
     setCandidateDraft((draft) => ({
       ...draft,
-      importSessionId: String(response.source.import_session_id || draftToSave.importSessionId || draft.importSessionId || ''),
+      importSessionId: savedSessionId || draft.importSessionId || '',
       sourceRecordId: String(response.source.id),
       sourceLabel: response.source.source_label || draftToSave.sourceLabel,
       sourceType: response.source.source_type || draftToSave.sourceType,
@@ -514,7 +619,7 @@ export default function EditorialIngestion() {
       provenanceNote: response.source.provenance_metadata?.source_note || draftToSave.provenanceNote || '',
       rawContent: response.source.raw_content || draftToSave.rawContent || ''
     }));
-    setSourceAttachmentMessage('Source material saved for review. Nothing has been added to canon yet.');
+    setSourceAttachmentMessage('Source material saved. Current source preview cleared; stored sources are listed below.');
     setMessage('Source material saved to its batch. It remains review-only and non-canon.');
     return response;
   };
@@ -699,14 +804,14 @@ export default function EditorialIngestion() {
       </header>
 
       <div className="editorial-ingestion-layout">
-        <div className="editorial-ingestion-intake">
+        <div className="editorial-ingestion-intake" ref={ingestionIntakeRef}>
           <div className="editorial-intake-workflow" aria-label="Editorial intake workflow">
             {intakeSteps.map((step, index) => (
               <button
                 aria-current={activeIntakeStep === step.key ? 'step' : undefined}
                 className={activeIntakeStep === step.key ? 'active' : ''}
                 key={step.key}
-                onClick={() => setActiveIntakeStep(step.key)}
+                onClick={() => (step.key === 'source-material' ? showSourceMaterialStep() : setActiveIntakeStep(step.key))}
                 type="button"
               >
                 <small>{index + 1}</small>
@@ -763,7 +868,7 @@ export default function EditorialIngestion() {
             </form>
           </section>
 
-          <section className={`editorial-ingestion-panel intake-step-panel ${activeIntakeStep === 'source-material' ? 'active' : ''}`} aria-labelledby="staged-source-heading" hidden={activeIntakeStep !== 'source-material'}>
+          <section className={`editorial-ingestion-panel intake-step-panel ${activeIntakeStep === 'source-material' ? 'active' : ''}`} aria-labelledby="staged-source-heading" hidden={activeIntakeStep !== 'source-material'} ref={sourceMaterialSectionRef} tabIndex={-1}>
             <div className="editorial-ingestion-heading">
               <Paperclip size={17} />
               <div>
@@ -822,10 +927,10 @@ export default function EditorialIngestion() {
                 <RequiredLabel>Provenance note</RequiredLabel>
                 <input onChange={(event) => updateSourceDraft('provenanceNote', event.target.value)} placeholder="Where this file came from and why it is staged" value={sourceDraft.provenanceNote} />
               </label>
-              <div className="source-preview-card">
+              <div className="source-preview-card" aria-label="Current Source Material draft preview">
                 <div>
                   <FileText size={15} />
-                  <strong>{sourceDraft.originalFilename || 'No source selected'}</strong>
+                  <strong>{sourceDraft.originalFilename || 'Current Source Material draft'}</strong>
                   {sourceDraft.fileSize ? <small>{formatBytes(sourceDraft.fileSize)} / {formatReviewType(sourceDraft.previewState)}</small> : <small>TXT and MD preview lightly; binaries stay as placeholders.</small>}
                 </div>
                 <p>{sourceDraft.rawContent || 'Select a local source to file it in the current source batch.'}</p>
@@ -836,38 +941,70 @@ export default function EditorialIngestion() {
               </button>
               {sourceValidationMessage ? <p className="inline-validation" role="alert">{sourceValidationMessage}</p> : null}
               {sourceAttachmentMessage ? <p className="candidate-message source-attachment-message" role="status">{sourceAttachmentMessage}</p> : null}
-              <p className="source-storage-anchor">Attached sources live in Stored Source Material below. Review items are generated from stored source material and can be removed without removing the source.</p>
-              <div className="stored-source-inline-anchor" aria-label="Stored Source Material">
-                <strong>Stored Source Material</strong>
-                <span>{lastAttachedSource?.source_label || selectedSourceDraftSources[0]?.source_label || sourceDraft.sourceLabel || 'Attached sources appear here after saving.'}</span>
-                <small>Attached source preserved / Review items can be removed without removing the source</small>
-              </div>
-              {lastAttachedSource ? (
-                <div className="attached-source-confirmation" role="status">
-                  <strong>Source material remains stored</strong>
-                  <span>{lastAttachedSource.source_label}</span>
+              {lastSavedSourceSummary ? (
+                <div className="source-saved-summary" role="status">
+                  <strong>Last saved source</strong>
+                  <span>{lastSavedSourceSummary.label}</span>
                   <small>
-                    Saved to {lastAttachedSource.session_title || 'selected source batch'} / {lastAttachedSource.provenance_metadata?.original_filename || lastAttachedSource.source_label} / {formatSourceType(lastAttachedSource.source_type, lastAttachedSource.provenance_metadata?.custom_source_label)} / Source record #{lastAttachedSource.id}
+                    Stored below as source record #{lastSavedSourceSummary.id} / {lastSavedSourceSummary.sessionTitle} / {formatSourceType(lastSavedSourceSummary.sourceType, lastSavedSourceSummary.sourceTypeLabel)}
                   </small>
-                  <p>{lastAttachedSource.provenance_metadata?.source_note || 'Attached source preserved for editorial review.'}</p>
                 </div>
               ) : null}
             </form>
 
-            {selectedSourceDraftSources.length ? (
+            {activeSourceCount ? (
               <div className="session-source-list" aria-label="Stored source material">
                 <div className="editorial-review-queue-heading">
                   <strong>Stored Source Material</strong>
-                  <small>{selectedSourceDraftSources.length} attached source{selectedSourceDraftSources.length === 1 ? '' : 's'} stored in this batch</small>
+                  <small>{filteredStoredSources.length} of {activeSourceCount} active source{activeSourceCount === 1 ? '' : 's'} {storedSourceScopeLabel} / newest first</small>
+                </div>
+                <div className="stored-source-tools">
+                  <label>
+                    <span>Find source material</span>
+                    <input
+                      onChange={(event) => setSourceSearchQuery(event.target.value)}
+                      placeholder="Search title, filename, batch, type, or status"
+                      value={sourceSearchQuery}
+                    />
+                  </label>
+                  {sourceDraft.importSessionId ? <small>{selectedSourceDraftSources.length} active in selected batch</small> : null}
                 </div>
                 <p className="source-storage-anchor">Return here to find attached sources later. They persist independently of Review Queue items.</p>
-                {selectedSourceDraftSources.slice(0, 4).map((source) => (
+                {visibleStoredSources.length ? visibleStoredSources.map((source) => (
                   <article className={`session-source-row ${String(lastAttachedSourceId) === String(source.id) ? 'just-attached' : ''}`} key={source.id}>
-                    <span className="source-type-badge">{formatSourceType(source.source_type, source.provenance_metadata?.custom_source_label)}</span>
-                    <strong>{source.source_label}</strong>
-                    <small>{source.provenance_metadata?.original_filename || 'Manual source'} / Source record #{source.id} / {formatDate(source.created_at)} / {source.provenance_metadata?.file_preview_state || 'staged'}</small>
+                    {(() => {
+                      const sourceIdentity = getSourceIdentity(source);
+                      return (
+                        <>
+                          <span className="source-type-badge">{formatSourceType(source.source_type, source.provenance_metadata?.custom_source_label)}</span>
+                          <div className="session-source-row-main">
+                            <strong>{sourceIdentity.primary}</strong>
+                            <small>{sourceIdentity.detail} / {formatDate(source.created_at)} / {source.provenance_metadata?.file_preview_state || 'staged'}</small>
+                          </div>
+                          <div className="session-source-row-footer">
+                            <small>{sourceIdentity.recordLabel}</small>
+                            <button
+                              aria-label={`Remove stored source material ${sourceIdentity.primary} ${sourceIdentity.recordLabel}`}
+                              className="quiet-danger-button stored-source-remove-button"
+                              disabled={saving}
+                              onClick={() => requestSourceRemoval(source)}
+                              title="Remove stored source material"
+                              type="button"
+                            >
+                              <Trash2 size={14} />
+                              <span>Remove</span>
+                            </button>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </article>
-                ))}
+                )) : <p className="muted">No active source material matches this search.</p>}
+                {filteredStoredSources.length > visibleStoredSources.length ? (
+                  <button className="secondary-button stored-source-show-more" onClick={() => setStoredSourceVisibleLimit((limit) => limit + 12)} type="button">
+                    Show More Sources
+                  </button>
+                ) : null}
               </div>
             ) : null}
           </section>
@@ -1296,6 +1433,44 @@ export default function EditorialIngestion() {
           </section>
         </div>
       ) : null}
+      {removeSourceTarget ? (
+        <div className="modal-backdrop">
+          <section aria-labelledby="source-remove-title" aria-modal="true" className="modal review-remove-modal" role="dialog">
+            {(() => {
+              const sourceIdentity = getSourceIdentity(removeSourceTarget);
+              return (
+                <>
+            <div className="review-remove-modal-header">
+              <div>
+                <div className="eyebrow">Remove Stored Source Material</div>
+                <h2 id="source-remove-title">Remove {sourceIdentity.primary}?</h2>
+                <small className="source-remove-identity">{sourceIdentity.detail}</small>
+              </div>
+              <button className="icon-button" disabled={saving} onClick={cancelSourceRemoval} title="Cancel removal" type="button">
+                <X size={16} />
+              </button>
+            </div>
+            <p>
+              This removes <strong>{sourceIdentity.primary}</strong> ({sourceIdentity.recordLabel}) from active Stored Source Material only. Linked story details stay in Editorial Review with their source history preserved, but they will no longer point to this stored source record. Source-only duplicate checks leave the Review Queue. Accepted canon is unchanged.
+            </p>
+            <div className="review-layer-safety-note" aria-label="Source removal safety state">
+              <span>{formatLinkedReviewImpact(removeSourceImpact)}</span>
+              <span>Canon unchanged</span>
+              <span>{sourceIdentity.recordLabel}</span>
+            </div>
+            <div className="modal-actions">
+              <button className="secondary-button" disabled={saving} onClick={cancelSourceRemoval} type="button">Keep Source</button>
+              <button className="secondary-button danger-button" disabled={saving} onClick={confirmSourceRemoval} type="button">
+                <Trash2 size={14} />
+                <span>{saving ? 'Removing...' : 'Remove Source Material'}</span>
+              </button>
+            </div>
+                </>
+              );
+            })()}
+          </section>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -1486,6 +1661,78 @@ function getNextEditorialStep(item = {}) {
     return 'This item is waiting for later editorial judgment. Leave it deferred and out of canon until an editor deliberately reopens it.';
   }
   return 'This detail is waiting for editorial review. Read the source and trust note, then defer it, mark it reviewed, or mark it ready to file; none of those actions promotes canon.';
+}
+
+function getSourceRemovalImpact(source = {}, summary = {}) {
+  const sourceId = String(source.id || '');
+  const linkedReviewItems = [
+    ...(summary.unresolvedExtractions || []),
+    ...(summary.narrativeFragments || [])
+  ].filter((item) => String(item.source_record_id || item.provenance_metadata?.source_record_id || '') === sourceId).length;
+  const linkedDuplicateReviews = (summary.duplicateReviews || []).filter((item) => {
+    const sourceRecordIds = Array.isArray(item.provenance_metadata?.source_record_ids) ? item.provenance_metadata.source_record_ids.map(String) : [];
+    return sourceRecordIds.includes(sourceId)
+      || (item.left_type === 'source_memory_record' && String(item.left_id) === sourceId)
+      || (item.right_type === 'source_memory_record' && String(item.right_id) === sourceId);
+  }).length;
+
+  return { linkedReviewItems, linkedDuplicateReviews };
+}
+
+function getSourceIdentity(source = {}) {
+  const provenance = source.provenance_metadata || {};
+  const label = String(source.source_label || provenance.source_label || '').trim();
+  const filename = String(provenance.original_filename || '').trim();
+  const recordLabel = source.id ? `Source record #${source.id}` : 'Source record';
+  const primary = label || filename || recordLabel;
+  const detailParts = [
+    filename && filename !== primary ? `File: ${filename}` : '',
+    recordLabel,
+    source.session_title ? `Batch: ${source.session_title}` : ''
+  ].filter(Boolean);
+
+  return {
+    primary,
+    filename,
+    recordLabel,
+    detail: detailParts.join(' / ') || recordLabel
+  };
+}
+
+function isActiveSourceMaterial(source = {}) {
+  const provenance = source.provenance_metadata || {};
+  return provenance.source_material_removed !== true
+    && provenance.source_record_removed_from_review_layer !== true
+    && provenance.source_material_active !== false
+    && provenance.active !== false;
+}
+
+function filterStoredSources(sources = [], query = '') {
+  const normalizedQuery = String(query || '').trim().toLowerCase();
+  if (!normalizedQuery) return sources;
+
+  return sources.filter((source) => {
+    const provenance = source.provenance_metadata || {};
+    return [
+      source.source_label,
+      source.source_type,
+      source.session_title,
+      source.id ? `source record ${source.id}` : '',
+      provenance.source_label,
+      provenance.original_filename,
+      provenance.custom_source_label,
+      provenance.file_preview_state
+    ].some((value) => String(value || '').toLowerCase().includes(normalizedQuery));
+  });
+}
+
+function formatLinkedReviewImpact(impact = {}) {
+  const linkedReviewItems = Number(impact.linkedReviewItems || 0);
+  const linkedDuplicateReviews = Number(impact.linkedDuplicateReviews || 0);
+  if (!linkedReviewItems && !linkedDuplicateReviews) return 'No linked review items';
+  if (!linkedDuplicateReviews) return `${linkedReviewItems} story detail${linkedReviewItems === 1 ? '' : 's'} unlinked`;
+  if (!linkedReviewItems) return `${linkedDuplicateReviews} duplicate check${linkedDuplicateReviews === 1 ? '' : 's'} removed`;
+  return `${linkedReviewItems} story detail${linkedReviewItems === 1 ? '' : 's'} unlinked / ${linkedDuplicateReviews} duplicate check${linkedDuplicateReviews === 1 ? '' : 's'} removed`;
 }
 
 function normalizeExtractionTriageState(value) {
