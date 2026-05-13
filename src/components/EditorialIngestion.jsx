@@ -63,8 +63,11 @@ export default function EditorialIngestion() {
   const [saving, setSaving] = useState(false);
   const [selectingSourceFile, setSelectingSourceFile] = useState(false);
   const [selectedReviewKey, setSelectedReviewKey] = useState(null);
+  const [activeIntakeStep, setActiveIntakeStep] = useState('source-batch');
   const [reviewStateFilter, setReviewStateFilter] = useState('all');
   const [riskFilter, setRiskFilter] = useState('all');
+  const [selectedReviewStatusDraft, setSelectedReviewStatusDraft] = useState('unreviewed');
+  const [selectedReviewNote, setSelectedReviewNote] = useState('');
   const [selectedExtractionIds, setSelectedExtractionIds] = useState([]);
   const [batchNote, setBatchNote] = useState('');
   const [expandedSourceIds, setExpandedSourceIds] = useState(['unassigned']);
@@ -72,6 +75,8 @@ export default function EditorialIngestion() {
   const sessionSelectRef = useRef(null);
   const sourceFileInputRef = useRef(null);
   const ingestionReviewSummary = useRevivalStore((state) => state.ingestionReviewSummary);
+  const activeIngestionReviewKey = useRevivalStore((state) => state.activeIngestionReviewKey);
+  const clearActiveIngestionReviewKey = useRevivalStore((state) => state.clearActiveIngestionReviewKey);
   const createImportSession = useRevivalStore((state) => state.createImportSession);
   const createStagedSource = useRevivalStore((state) => state.createStagedSource);
   const createManualExtractionCandidate = useRevivalStore((state) => state.createManualExtractionCandidate);
@@ -79,31 +84,36 @@ export default function EditorialIngestion() {
   const sessions = ingestionReviewSummary.sessions || [];
   const sourceRecords = ingestionReviewSummary.sourceRecords || [];
   const selectedSourceDraftSources = sourceRecords.filter((source) => String(source.import_session_id || '') === String(sourceDraft.importSessionId || ''));
-  const selectedCandidateSessionSources = sourceRecords.filter((source) => (
-    String(source.import_session_id || '') === String(candidateDraft.importSessionId || '')
-    && source.provenance_metadata?.memory_layer !== 'editorial'
-  ));
+  const selectedCandidateSessionSources = useMemo(() => {
+    const candidateSessionId = String(candidateDraft.importSessionId || '');
+    const selectedSourceId = String(candidateDraft.sourceRecordId || lastAttachedSourceId || '');
+    return sourceRecords.filter((source) => {
+      if (source.provenance_metadata?.memory_layer === 'editorial') return false;
+      const sourceSessionId = String(source.import_session_id || source.provenance_metadata?.import_session_id || '');
+      return (candidateSessionId && sourceSessionId === candidateSessionId) || (selectedSourceId && String(source.id) === selectedSourceId);
+    });
+  }, [candidateDraft.importSessionId, candidateDraft.sourceRecordId, lastAttachedSourceId, sourceRecords]);
   const stagedItems = useMemo(() => [
     ...(ingestionReviewSummary.sourceRecords || []).map((item) => ({
       key: `source-${item.id}`,
       id: item.id,
-      kind: 'Staged Source',
+      kind: 'Source Material',
       title: item.source_label,
-      meta: `${formatSourceType(item.source_type, item.provenance_metadata?.custom_source_label)} / ${item.session_title || 'Session linked'}`,
+      meta: `${formatSourceType(item.source_type, item.provenance_metadata?.custom_source_label)} / ${item.session_title || 'Source batch linked'}`,
       status: item.provenance_metadata?.file_preview_state || 'staged',
       timestamp: item.created_at,
       sourceLabel: item.source_label,
       sourceType: item.source_type,
       sourceTypeLabel: item.provenance_metadata?.custom_source_label,
       excerpt: item.raw_content,
-      content: item.provenance_metadata?.file_preview_note || 'Source is staged and unreviewed.',
+      content: item.provenance_metadata?.file_preview_note || 'Source material is saved and awaiting review.',
       provenance: item.provenance_metadata
     })),
     ...(ingestionReviewSummary.unresolvedExtractions || []).map((item) => ({
       key: `extraction-${item.id}`,
       id: item.id,
       sourceRecordId: item.source_record_id,
-      kind: 'Extraction Candidate',
+      kind: 'Review Item',
       title: item.title,
       meta: `${formatReviewType(item.classification)} / ${item.source_label || 'Source preserved'}`,
       status: normalizeExtractionTriageState(item.status),
@@ -156,7 +166,7 @@ export default function EditorialIngestion() {
       provenance: item.provenance_metadata
     }))
   ].sort(compareReviewPriority), [ingestionReviewSummary]);
-  const extractionItems = useMemo(() => stagedItems.filter((item) => item.kind === 'Extraction Candidate'), [stagedItems]);
+  const extractionItems = useMemo(() => stagedItems.filter((item) => item.kind === 'Review Item'), [stagedItems]);
   const sourceClusters = useMemo(() => {
     const sourceLookup = new Map((ingestionReviewSummary.sourceRecords || []).map((source) => [String(source.id), source]));
     const grouped = new Map();
@@ -203,6 +213,26 @@ export default function EditorialIngestion() {
   }, [selectedReviewKey, stagedItems]);
 
   useEffect(() => {
+    if (selectedReviewItem?.kind !== 'Review Item') return;
+    setSelectedReviewStatusDraft(selectedReviewItem.status || 'unreviewed');
+    setSelectedReviewNote(selectedReviewItem.triageNote || '');
+  }, [selectedReviewItem]);
+
+  useEffect(() => {
+    if (!activeIngestionReviewKey) return;
+    const routedItem = stagedItems.find((item) => item.key === activeIngestionReviewKey);
+    if (!routedItem) return;
+
+    setReviewStateFilter('all');
+    setRiskFilter('all');
+    setSelectedReviewKey(routedItem.key);
+    if (routedItem.sourceRecordId) {
+      setExpandedSourceIds((ids) => [...new Set([...ids, String(routedItem.sourceRecordId)])]);
+    }
+    clearActiveIngestionReviewKey();
+  }, [activeIngestionReviewKey, clearActiveIngestionReviewKey, stagedItems]);
+
+  useEffect(() => {
     setExpandedSourceIds((ids) => {
       const visibleKeys = sourceClusters.map((cluster) => cluster.key);
       return [...new Set([...ids, ...visibleKeys])];
@@ -244,6 +274,25 @@ export default function EditorialIngestion() {
       rawContent: source?.raw_content || ''
     }));
   };
+  const selectSourceBatchForMaterial = (importSessionId) => {
+    setSourceDraft((draft) => ({
+      ...initialSourceDraft,
+      importSessionId,
+      sourceType: draft.sourceType,
+      sourceTypeLabel: draft.sourceTypeLabel
+    }));
+    setCandidateDraft((draft) => ({
+      ...draft,
+      importSessionId,
+      sourceRecordId: '',
+      sourceLabel: '',
+      provenanceNote: '',
+      rawContent: ''
+    }));
+    setLastAttachedSourceId(null);
+    setSourceAttachmentMessage('');
+    setSourceValidationMessage('');
+  };
   const toggleCluster = (clusterKey) => {
     setExpandedSourceIds((ids) => ids.includes(clusterKey)
       ? ids.filter((id) => id !== clusterKey)
@@ -267,17 +316,40 @@ export default function EditorialIngestion() {
     const response = await updateExtractionReviewTriage({ ids: selectedExtractionIds, status, note: batchNote });
     setSaving(false);
     if (!response?.ok) {
-      setMessage(response?.message || 'Review triage could not be saved.');
+      setMessage(response?.message || 'Editorial review could not be saved.');
       return;
     }
     setSelectedExtractionIds([]);
     setBatchNote('');
     setMessage(`${formatReviewType(status)} saved for selected review items.`);
   };
+  const applySelectedReviewTriage = async (status = selectedReviewStatusDraft) => {
+    if (!selectedReviewItem || selectedReviewItem.kind !== 'Review Item') return;
+    setSaving(true);
+    const response = await updateExtractionReviewTriage({ id: selectedReviewItem.id, status, note: selectedReviewNote });
+    setSaving(false);
+    if (!response?.ok) {
+      setMessage(response?.message || 'Editorial review could not be saved.');
+      return;
+    }
+    setReviewStateFilter('all');
+    setRiskFilter('all');
+    setSelectedReviewStatusDraft(status);
+    setSelectedReviewKey(selectedReviewItem.key);
+    setMessage(`${formatReviewType(status)} saved for ${selectedReviewItem.title}. Canon remains unchanged.`);
+  };
 
   const openNewSessionDraft = () => {
     setSessionDraft(initialSessionDraft);
-    setMessage('New editorial staging session ready. Add provenance before saving.');
+    setSourceDraft(initialSourceDraft);
+    setCandidateDraft(initialCandidateDraft);
+    setLastAttachedSourceId(null);
+    setSourceAttachmentMessage('');
+    setSessionValidationMessage('');
+    setSourceValidationMessage('');
+    setCandidateValidationMessage('');
+    setActiveIntakeStep('source-batch');
+    setMessage('New source batch ready. Add provenance before saving.');
     setTimeout(() => sessionTitleRef.current?.focus(), 0);
   };
 
@@ -289,8 +361,8 @@ export default function EditorialIngestion() {
     event.preventDefault();
     const missing = getMissingSessionFields(sessionDraft);
     if (missing.length) {
-      setSessionValidationMessage(`Before creating a session, add ${formatMissingFields(missing)}.`);
-      setMessage('Session title and provenance note are required.');
+      setSessionValidationMessage(`Before creating a source batch, add ${formatMissingFields(missing)}.`);
+      setMessage('Batch title and provenance note are required.');
       return;
     }
 
@@ -310,7 +382,7 @@ export default function EditorialIngestion() {
     setSaving(false);
 
     if (!response?.ok) {
-      setMessage(response?.message || 'Import session could not be saved.');
+      setMessage(response?.message || 'Source batch could not be saved.');
       return;
     }
 
@@ -318,7 +390,7 @@ export default function EditorialIngestion() {
     setCandidateDraft((draft) => ({ ...draft, importSessionId: String(response.session.id) }));
     setSourceDraft((draft) => ({ ...draft, importSessionId: String(response.session.id) }));
     setSessionDraft(initialSessionDraft);
-    setMessage('Import session saved. Staged material remains non-canon.');
+    setMessage('Source batch saved. Nothing has been added to canon yet.');
   };
 
   const getSourceProvenanceNote = (draft = sourceDraft) => {
@@ -341,7 +413,7 @@ export default function EditorialIngestion() {
     const response = await createImportSession({
       title,
       sourceType: draftToSave.sourceType,
-      notes: 'Auto-created when a source file was staged.',
+      notes: 'Created when a source file was added for review.',
       provenanceMetadata: {
         workflow: 'Editorial Ingestion',
         source_note: provenanceNote,
@@ -355,7 +427,7 @@ export default function EditorialIngestion() {
     setSaving(false);
 
     if (!response?.ok || !response.session) {
-      setMessage(response?.message || 'Import session could not be created for this source.');
+      setMessage(response?.message || 'Source batch could not be prepared for this material.');
       setSourceAttachmentMessage(response?.message || 'Source selected, but not saved yet.');
       return { ok: false };
     }
@@ -380,7 +452,7 @@ export default function EditorialIngestion() {
         setSourceAttachmentMessage('Source selected, but not saved yet.');
         return { ok: false };
       }
-      setMessage('Session, source file, source label, and provenance note are required.');
+      setMessage('Source batch, source file, source label, and provenance note are required.');
       return { ok: false };
     }
 
@@ -392,7 +464,7 @@ export default function EditorialIngestion() {
     setSaving(false);
 
     if (!response?.ok) {
-      setMessage(response?.message || 'Staged source could not be saved.');
+      setMessage(response?.message || 'Source material could not be saved.');
       setSourceAttachmentMessage(response?.message || 'Source could not be attached.');
       return response;
     }
@@ -405,8 +477,18 @@ export default function EditorialIngestion() {
       sourceTypeLabel: draftToSave.sourceTypeLabel || draft.sourceTypeLabel
     }));
     setLastAttachedSourceId(response.source.id);
-    setSourceAttachmentMessage('Source staged safely. Canon remains unchanged.');
-    setMessage('Source attached to session. It remains staged and non-canon.');
+    setCandidateDraft((draft) => ({
+      ...draft,
+      importSessionId: String(response.source.import_session_id || draftToSave.importSessionId || draft.importSessionId || ''),
+      sourceRecordId: String(response.source.id),
+      sourceLabel: response.source.source_label || draftToSave.sourceLabel,
+      sourceType: response.source.source_type || draftToSave.sourceType,
+      sourceTypeLabel: response.source.provenance_metadata?.custom_source_label || draftToSave.sourceTypeLabel || '',
+      provenanceNote: response.source.provenance_metadata?.source_note || draftToSave.provenanceNote || '',
+      rawContent: response.source.raw_content || draftToSave.rawContent || ''
+    }));
+    setSourceAttachmentMessage('Source material saved for review. Nothing has been added to canon yet.');
+    setMessage('Source material saved to its batch. It remains review-only and non-canon.');
     return response;
   };
 
@@ -431,9 +513,9 @@ export default function EditorialIngestion() {
     const readable = isReadablePreview(extension);
     const baseDraft = {
       ...sourceDraft,
-      sourceLabel: sourceDraft.sourceLabel || file.name,
+      sourceLabel: file.name,
       sourceType: detectedType,
-      provenanceNote: sourceDraft.provenanceNote || buildAutoProvenanceNote(file.name),
+      provenanceNote: buildAutoProvenanceNote(file.name),
       originalFilename: file.name,
       fileExtension: extension || 'unknown',
       fileSize: file.size || 0,
@@ -529,8 +611,8 @@ export default function EditorialIngestion() {
     event.preventDefault();
     const missing = getMissingCandidateFields(candidateDraft);
     if (missing.length) {
-      setCandidateValidationMessage(`Before staging for review, add ${formatMissingFields(missing)}.`);
-      setMessage('Session, staged source, provenance note, source text, candidate title, candidate content, and trust note are required.');
+      setCandidateValidationMessage(`Before adding this item to the Review Queue, add ${formatMissingFields(missing)}.`);
+      setMessage('Source batch, source material, provenance note, source text, story detail title, story note, and trust note are required.');
       return;
     }
 
@@ -539,7 +621,7 @@ export default function EditorialIngestion() {
     setSaving(false);
 
     if (!response?.ok) {
-      setMessage(response?.message || 'Staged material could not be saved.');
+      setMessage(response?.message || 'Review item could not be saved.');
       return;
     }
 
@@ -550,7 +632,7 @@ export default function EditorialIngestion() {
       key: reviewKey,
       title: response.review?.title || candidateDraft.title,
       sourceLabel: candidateDraft.sourceLabel || 'selected source',
-      location: reviewKey ? 'Review Workspace / Review List' : 'Review Workspace',
+      location: reviewKey ? 'Editorial Review / Review Queue' : 'Editorial Review',
       status: formatReviewType(response.review?.status || candidateDraft.reviewStatus)
     });
     setReviewStateFilter('all');
@@ -563,27 +645,27 @@ export default function EditorialIngestion() {
       sourceType: draft.sourceType,
       sourceTypeLabel: draft.sourceTypeLabel
     }));
-    setMessage('Review item staged. It now appears in the Review Workspace list for editorial review. Canon counts are untouched.');
+    setMessage('Review item added to the Review Queue. Nothing has been added to canon yet.');
   };
 
   return (
     <section className="view editorial-ingestion-view">
       <header className="candidate-header">
         <div>
-          <div className="eyebrow">Editorial Ingestion</div>
-          <h1>Stage source material safely</h1>
+          <div className="eyebrow">Editorial Intake</div>
+          <h1>Review source material safely</h1>
           <p className="dashboard-lede">
-            Create manual import sessions, preserve provenance, and route uncertainty into review before any real document ingestion.
+            File source material with provenance, turn useful notes into review items, and keep every detail out of canon until it is deliberately accepted later.
           </p>
         </div>
         <div className="editorial-ingestion-header-actions" aria-label="Editorial ingestion session actions">
           <button className="secondary-button editorial-ingestion-header-button" onClick={openNewSessionDraft} type="button">
             <Plus size={14} />
-            <span>New Session</span>
+            <span>New Source Batch</span>
           </button>
           {sessions.length ? (
             <button className="secondary-button editorial-ingestion-header-button quiet" onClick={reviewSessions} type="button">
-              <span>Review Sessions</span>
+              <span>Review Batches</span>
             </button>
           ) : null}
         </div>
@@ -591,19 +673,37 @@ export default function EditorialIngestion() {
 
       <div className="editorial-ingestion-layout">
         <div className="editorial-ingestion-intake">
-          <section className="editorial-ingestion-panel" aria-labelledby="import-session-heading">
+          <div className="editorial-intake-workflow" aria-label="Editorial intake workflow">
+            {intakeSteps.map((step, index) => (
+              <button
+                aria-current={activeIntakeStep === step.key ? 'step' : undefined}
+                className={activeIntakeStep === step.key ? 'active' : ''}
+                key={step.key}
+                onClick={() => setActiveIntakeStep(step.key)}
+                type="button"
+              >
+                <small>{index + 1}</small>
+                <span>{step.label}</span>
+              </button>
+            ))}
+          </div>
+          <p className="editorial-intake-guidance">
+            Create or select a source batch, attach source material, then add story details to review. Canon stays unchanged.
+          </p>
+
+          <section className={`editorial-ingestion-panel intake-step-panel ${activeIntakeStep === 'source-batch' ? 'active' : ''}`} aria-labelledby="import-session-heading" hidden={activeIntakeStep !== 'source-batch'}>
             <div className="editorial-ingestion-heading">
               <FilePlus2 size={17} />
               <div>
-                <h2 id="import-session-heading">Import Session</h2>
-                <span>Source memory first. Canon stays unchanged.</span>
+                <h2 id="import-session-heading">Source Batch</h2>
+                <span>A quiet filing group for source material. Canon stays unchanged.</span>
               </div>
             </div>
             <form className="editorial-ingestion-form" onSubmit={saveSession}>
               <label>
-                <RequiredLabel>Session title</RequiredLabel>
-                <input ref={sessionTitleRef} onChange={(event) => updateSessionDraft('title', event.target.value)} placeholder="Manual extraction test" value={sessionDraft.title} />
-                {sessionValidationMessage && !sessionDraft.title.trim() ? <small className="field-validation">Session title is required.</small> : null}
+                <RequiredLabel>Batch title</RequiredLabel>
+                <input ref={sessionTitleRef} onChange={(event) => updateSessionDraft('title', event.target.value)} placeholder="Chapter notes, May pass" value={sessionDraft.title} />
+                {sessionValidationMessage && !sessionDraft.title.trim() ? <small className="field-validation">Batch title is required.</small> : null}
               </label>
               <div className="editorial-ingestion-grid">
                 <label>
@@ -621,36 +721,36 @@ export default function EditorialIngestion() {
               </div>
               <label>
                 <RequiredLabel>Provenance note</RequiredLabel>
-                <input onChange={(event) => updateSessionDraft('provenanceNote', event.target.value)} placeholder="Where this test source came from" value={sessionDraft.provenanceNote} />
+                <input onChange={(event) => updateSessionDraft('provenanceNote', event.target.value)} placeholder="Where this source material came from" value={sessionDraft.provenanceNote} />
                 {sessionValidationMessage && !sessionDraft.provenanceNote.trim() ? <small className="field-validation">Provenance note is required.</small> : null}
               </label>
               <label>
-                <span>Session notes</span>
+                <span>Batch notes</span>
                 <textarea onChange={(event) => updateSessionDraft('notes', event.target.value)} placeholder="Optional editorial context" value={sessionDraft.notes} />
               </label>
               <button className="primary-button" disabled={saving} type="submit">
                 <Plus size={14} />
-                <span>Create Session</span>
+                <span>Create Source Batch</span>
               </button>
               {sessionValidationMessage ? <p className="inline-validation" role="alert">{sessionValidationMessage}</p> : null}
             </form>
           </section>
 
-          <section className="editorial-ingestion-panel" aria-labelledby="staged-source-heading">
+          <section className={`editorial-ingestion-panel intake-step-panel ${activeIntakeStep === 'source-material' ? 'active' : ''}`} aria-labelledby="staged-source-heading" hidden={activeIntakeStep !== 'source-material'}>
             <div className="editorial-ingestion-heading">
               <Paperclip size={17} />
               <div>
-                <h2 id="staged-source-heading">Staged Source</h2>
-                <span>Attach a local source without extraction or promotion.</span>
+                <h2 id="staged-source-heading">Source Material</h2>
+                <span>Add a local source for review without changing canon.</span>
               </div>
             </div>
             <form className="editorial-ingestion-form" onSubmit={saveSource}>
               <div className="editorial-ingestion-grid">
                 <div className="editorial-session-picker-field">
                   <label>
-                    <RequiredLabel>Session</RequiredLabel>
-                    <select onChange={(event) => updateSourceDraft('importSessionId', event.target.value)} value={sourceDraft.importSessionId}>
-                      <option value="">Choose a session</option>
+                    <RequiredLabel>Source batch</RequiredLabel>
+                    <select onChange={(event) => selectSourceBatchForMaterial(event.target.value)} value={sourceDraft.importSessionId}>
+                      <option value="">Choose a source batch</option>
                       {sessions.map((session) => (
                         <option key={session.id} value={session.id}>{formatSessionOption(session)}</option>
                       ))}
@@ -658,7 +758,7 @@ export default function EditorialIngestion() {
                   </label>
                   <button className="secondary-button editorial-ingestion-header-button quiet" onClick={openNewSessionDraft} type="button">
                     <Plus size={14} />
-                    <span>New Session</span>
+                    <span>New Batch</span>
                   </button>
                 </div>
                 <label>
@@ -701,7 +801,7 @@ export default function EditorialIngestion() {
                   <strong>{sourceDraft.originalFilename || 'No source selected'}</strong>
                   {sourceDraft.fileSize ? <small>{formatBytes(sourceDraft.fileSize)} / {formatReviewType(sourceDraft.previewState)}</small> : <small>TXT and MD preview lightly; binaries stay as placeholders.</small>}
                 </div>
-                <p>{sourceDraft.rawContent || 'Select a local source to stage it inside the current intake session.'}</p>
+                <p>{sourceDraft.rawContent || 'Select a local source to file it in the current source batch.'}</p>
               </div>
               <button className="primary-button" disabled={saving || selectingSourceFile} onClick={openSourceFilePicker} type="button">
                 <ShieldCheck size={14} />
@@ -711,10 +811,10 @@ export default function EditorialIngestion() {
               {sourceAttachmentMessage ? <p className="candidate-message source-attachment-message" role="status">{sourceAttachmentMessage}</p> : null}
               {lastAttachedSource ? (
                 <div className="attached-source-confirmation" role="status">
-                  <strong>Attached source saved</strong>
+                  <strong>Source material saved</strong>
                   <span>{lastAttachedSource.source_label}</span>
                   <small>
-                    Saved to {lastAttachedSource.session_title || 'selected import session'} / {formatSourceType(lastAttachedSource.source_type, lastAttachedSource.provenance_metadata?.custom_source_label)} / Source record #{lastAttachedSource.id}
+                    Saved to {lastAttachedSource.session_title || 'selected source batch'} / {lastAttachedSource.provenance_metadata?.original_filename || lastAttachedSource.source_label} / {formatSourceType(lastAttachedSource.source_type, lastAttachedSource.provenance_metadata?.custom_source_label)} / Source record #{lastAttachedSource.id}
                   </small>
                   <p>{lastAttachedSource.provenance_metadata?.source_note || 'Source provenance is preserved on the saved record.'}</p>
                 </div>
@@ -724,32 +824,32 @@ export default function EditorialIngestion() {
             {selectedSourceDraftSources.length ? (
               <div className="session-source-list" aria-label="Attached sources">
                 <div className="editorial-review-queue-heading">
-                  <strong>Saved Attached Sources</strong>
-                  <small>{selectedSourceDraftSources.length} saved to this session</small>
+                  <strong>Saved Source Material</strong>
+                  <small>{selectedSourceDraftSources.length} saved to this batch</small>
                 </div>
                 {selectedSourceDraftSources.slice(0, 4).map((source) => (
                   <article className={`session-source-row ${String(lastAttachedSourceId) === String(source.id) ? 'just-attached' : ''}`} key={source.id}>
                     <span className="source-type-badge">{formatSourceType(source.source_type, source.provenance_metadata?.custom_source_label)}</span>
                     <strong>{source.source_label}</strong>
-                    <small>Source record #{source.id} / {formatDate(source.created_at)} / {source.provenance_metadata?.file_preview_state || 'staged'}</small>
+                    <small>{source.provenance_metadata?.original_filename || 'Manual source'} / Source record #{source.id} / {formatDate(source.created_at)} / {source.provenance_metadata?.file_preview_state || 'staged'}</small>
                   </article>
                 ))}
               </div>
             ) : null}
           </section>
 
-          <section className="editorial-ingestion-panel" aria-labelledby="extraction-candidate-heading">
+          <section className={`editorial-ingestion-panel intake-step-panel ${activeIntakeStep === 'story-detail' ? 'active' : ''}`} aria-labelledby="extraction-candidate-heading" hidden={activeIntakeStep !== 'story-detail'}>
             <div className="editorial-ingestion-heading">
               <Layers3 size={17} />
               <div>
-                <h2 id="extraction-candidate-heading">Extraction Candidate</h2>
-                <span>Manual staging only. Review routes stay explicit.</span>
+                <h2 id="extraction-candidate-heading">Story Detail</h2>
+                <span>Add a note to editorial review. Canon stays unchanged.</span>
               </div>
             </div>
             <form className="editorial-ingestion-form" onSubmit={saveCandidate}>
             <div className="editorial-ingestion-grid">
               <label>
-                <RequiredLabel>Session</RequiredLabel>
+                <RequiredLabel>Source batch</RequiredLabel>
                 <select
                   ref={sessionSelectRef}
                   onChange={(event) => setCandidateDraft((draft) => ({
@@ -764,28 +864,28 @@ export default function EditorialIngestion() {
                   }))}
                   value={candidateDraft.importSessionId}
                 >
-                  <option value="">Choose a session</option>
+                  <option value="">Choose a source batch</option>
                   {sessions.map((session) => (
                     <option key={session.id} value={session.id}>{formatSessionOption(session)}</option>
                   ))}
                 </select>
-                {candidateValidationMessage && !candidateDraft.importSessionId ? <small className="field-validation">Choose a session.</small> : null}
+                {candidateValidationMessage && !candidateDraft.importSessionId ? <small className="field-validation">Choose a source batch.</small> : null}
               </label>
               <label>
-                <RequiredLabel>Staged source</RequiredLabel>
+                <RequiredLabel>Source material</RequiredLabel>
                 <select onChange={(event) => selectCandidateSource(event.target.value)} value={candidateDraft.sourceRecordId}>
-                  <option value="">Choose a staged source</option>
+                  <option value="">Choose source material</option>
                   {selectedCandidateSessionSources.map((source) => (
-                    <option key={source.id} value={source.id}>{source.source_label}</option>
+                    <option key={source.id} value={source.id}>{formatSourceOption(source)}</option>
                   ))}
                 </select>
-                {candidateValidationMessage && !candidateDraft.sourceRecordId ? <small className="field-validation">Choose a staged source.</small> : null}
+                {candidateValidationMessage && !candidateDraft.sourceRecordId ? <small className="field-validation">Choose saved source material.</small> : null}
               </label>
             </div>
             <div className="editorial-ingestion-grid">
               <label>
                 <span>Source label</span>
-                <input readOnly placeholder="Choose a staged source first" value={candidateDraft.sourceLabel} />
+                <input readOnly placeholder="Choose source material first" value={candidateDraft.sourceLabel} />
               </label>
               <label>
                 <span>Source preset</span>
@@ -804,13 +904,13 @@ export default function EditorialIngestion() {
               <label>
                 <span>Classification</span>
                 <select onChange={(event) => updateCandidateDraft('classification', event.target.value)} value={candidateDraft.classification}>
-                  <option value="candidate">Candidate</option>
+                  <option value="candidate">Story detail</option>
                   <option value="unresolved-question">Unresolved question</option>
                   <option value="possible-duplicate">Possible duplicate</option>
-                  <option value="continuity-risk">Continuity risk</option>
-                  <option value="contradiction">Contradiction</option>
-                  <option value="narrative-fragment">Narrative fragment</option>
-                  <option value="pending-placement">Pending placement</option>
+                  <option value="continuity-risk">Continuity concern</option>
+                  <option value="contradiction">Continuity conflict</option>
+                  <option value="narrative-fragment">Story note</option>
+                  <option value="pending-placement">Ready to file</option>
                 </select>
               </label>
             </div>
@@ -838,23 +938,23 @@ export default function EditorialIngestion() {
             </div>
             <label>
               <RequiredLabel>Source provenance note</RequiredLabel>
-              <input onChange={(event) => updateCandidateDraft('provenanceNote', event.target.value)} placeholder="Where this excerpt came from and why it is being staged" value={candidateDraft.provenanceNote} />
+              <input onChange={(event) => updateCandidateDraft('provenanceNote', event.target.value)} placeholder="Where this excerpt came from and why it belongs in review" value={candidateDraft.provenanceNote} />
               {candidateValidationMessage && !candidateDraft.provenanceNote.trim() ? <small className="field-validation">Source provenance is required.</small> : null}
             </label>
             <label>
               <RequiredLabel>Raw source excerpt</RequiredLabel>
-              <textarea readOnly placeholder="Choose a staged source to carry forward its preserved text" value={candidateDraft.rawContent} />
-              {candidateValidationMessage && !candidateDraft.rawContent.trim() ? <small className="field-validation">Choose a staged source to load the excerpt.</small> : null}
+              <textarea readOnly placeholder="Choose source material to carry forward its preserved text" value={candidateDraft.rawContent} />
+              {candidateValidationMessage && !candidateDraft.rawContent.trim() ? <small className="field-validation">Choose source material to load the excerpt.</small> : null}
             </label>
             <label>
-              <RequiredLabel>Candidate title</RequiredLabel>
+              <RequiredLabel>Story detail title</RequiredLabel>
               <input onChange={(event) => updateCandidateDraft('title', event.target.value)} placeholder="Short review title" value={candidateDraft.title} />
-              {candidateValidationMessage && !candidateDraft.title.trim() ? <small className="field-validation">Candidate title is required.</small> : null}
+              {candidateValidationMessage && !candidateDraft.title.trim() ? <small className="field-validation">Story detail title is required.</small> : null}
             </label>
             <label>
-              <RequiredLabel>Candidate content</RequiredLabel>
-              <textarea onChange={(event) => updateCandidateDraft('content', event.target.value)} placeholder="Manually extracted claim, note, or fragment" value={candidateDraft.content} />
-              {candidateValidationMessage && !candidateDraft.content.trim() ? <small className="field-validation">Candidate content is required.</small> : null}
+              <RequiredLabel>Story note</RequiredLabel>
+              <textarea onChange={(event) => updateCandidateDraft('content', event.target.value)} placeholder="Claim, note, or fragment to review" value={candidateDraft.content} />
+              {candidateValidationMessage && !candidateDraft.content.trim() ? <small className="field-validation">Story note is required.</small> : null}
             </label>
             <label>
               <RequiredLabel>Trust note</RequiredLabel>
@@ -864,14 +964,14 @@ export default function EditorialIngestion() {
             <div className="editorial-routing-options">
               <label>
                 <input checked={candidateDraft.flagDuplicate} onChange={(event) => updateCandidateDraft('flagDuplicate', event.target.checked)} type="checkbox" />
-                <span><GitCompareArrows size={14} /> Route duplicate uncertainty</span>
+                <span><GitCompareArrows size={14} /> Mark possible duplicate</span>
               </label>
               {candidateDraft.flagDuplicate ? (
                 <input onChange={(event) => updateCandidateDraft('duplicateReason', event.target.value)} placeholder="Duplicate review note" value={candidateDraft.duplicateReason} />
               ) : null}
               <label>
                 <input checked={candidateDraft.flagContradiction} onChange={(event) => updateCandidateDraft('flagContradiction', event.target.checked)} type="checkbox" />
-                <span><Flag size={14} /> Route contradiction</span>
+                <span><Flag size={14} /> Mark continuity concern</span>
               </label>
               {candidateDraft.flagContradiction ? (
                 <input onChange={(event) => updateCandidateDraft('contradictionClaim', event.target.value)} placeholder="Existing claim to compare against" value={candidateDraft.contradictionClaim} />
@@ -879,17 +979,17 @@ export default function EditorialIngestion() {
             </div>
             <button className="primary-button" disabled={saving} type="submit">
               <ShieldCheck size={14} />
-              <span>Stage for Review</span>
+              <span>Add to Review Queue</span>
             </button>
           </form>
           {candidateValidationMessage ? <p className="inline-validation" role="alert">{candidateValidationMessage}</p> : null}
           {lastStagedReview ? (
             <div className="staged-review-confirmation" role="status">
-              <strong>Review item staged</strong>
+              <strong>Review item added</strong>
               <span>{lastStagedReview.title}</span>
               <small>{lastStagedReview.location} / {lastStagedReview.sourceLabel} / {lastStagedReview.status}</small>
-              <p>The item is selected in the Review Workspace list. Open it there to inspect provenance, notes, and placement readiness. Canon is unchanged.</p>
-              <p>Next: review this item, then Accept, Defer, or mark for placement. Canon remains unchanged.</p>
+              <p>The item is selected in Editorial Review. Open it there to inspect provenance, notes, and filing readiness. Nothing has been added to canon yet.</p>
+              <p>Next: review this item, then defer it, mark it reviewed, or mark it ready to file.</p>
             </div>
           ) : null}
           {message ? <p className="candidate-message" role="status">{message}</p> : null}
@@ -900,8 +1000,8 @@ export default function EditorialIngestion() {
           <div className="editorial-ingestion-heading">
             <ShieldCheck size={17} />
             <div>
-              <h2 id="staged-review-heading">Review Workspace</h2>
-              <span>Inspectable, recoverable, and non-canon.</span>
+              <h2 id="staged-review-heading">Editorial Review</h2>
+              <span>Review-only story details. Canon stays unchanged.</span>
             </div>
           </div>
           <div className="editorial-ingestion-safety">
@@ -910,28 +1010,28 @@ export default function EditorialIngestion() {
             <span>No canon mutation</span>
           </div>
           <div className="editorial-state-legend" aria-label="Editorial state legend">
-            <StateBadge state="staged-source" label="Staged Source" />
-            <StateBadge state="extracted-candidate" label="Extracted Candidate" />
-            <StateBadge state="contradiction-risk" label="Contradiction Risk" />
-            <StateBadge state="duplicate-risk" label="Duplicate Risk" />
-            <StateBadge state="accepted-placement" label="Accepted for Placement" />
+            <StateBadge state="staged-source" label="Source Material" />
+            <StateBadge state="extracted-candidate" label="Review Item" />
+            <StateBadge state="contradiction-risk" label="Continuity Concern" />
+            <StateBadge state="duplicate-risk" label="Possible Duplicate" />
+            <StateBadge state="accepted-placement" label="Ready to File" />
             <StateBadge state="promoted-canon" label="Promoted Canon" />
           </div>
           {lastStagedReview ? (
             <div className="review-workspace-guidance" role="status">
-              <strong>Latest staged item is ready for editorial review</strong>
+              <strong>Latest review item is ready</strong>
               <span>{lastStagedReview.title}</span>
-              <small>Selected below in the Review List / Canon remains unchanged</small>
-              <p>Next: review this item, then Accept, Defer, or mark for placement. Canon remains unchanged.</p>
+              <small>Selected below in the Review Queue / Nothing has been added to canon yet</small>
+              <p>Next: review this item, then defer it, mark it reviewed, or mark it ready to file.</p>
             </div>
           ) : (
-            <p className="review-workspace-guidance subtle">Review items staged from sources appear here. Select an item to inspect provenance, resolve risks, or mark it ready for future placement.</p>
+            <p className="review-workspace-guidance subtle">Review items from source material appear here. Select an item to inspect provenance, check continuity, or mark it ready for future filing.</p>
           )}
-          <div className="editorial-triage-overview" aria-label="Extraction review overview for visible list">
+          <div className="editorial-triage-overview" aria-label="Editorial review overview for visible list">
             <ReviewFact label="Awaiting review" scope="in the list below" value={unresolvedCount} />
             <ReviewFact label="Continuity flags" scope="in the list below" value={contradictionCount} />
-            <ReviewFact label="Duplicate checks" scope="in the list below" value={duplicateCount} />
-            <ReviewFact label="Ready to place" scope="in the list below" value={acceptedCount} />
+            <ReviewFact label="Possible duplicates" scope="in the list below" value={duplicateCount} />
+            <ReviewFact label="Ready to file" scope="in the list below" value={acceptedCount} />
           </div>
           <div className="editorial-review-controls" aria-label="Review filters and batch actions">
             <label>
@@ -947,9 +1047,9 @@ export default function EditorialIngestion() {
               <span>Risk</span>
               <select onChange={(event) => setRiskFilter(event.target.value)} value={riskFilter}>
                 <option value="all">All review items</option>
-                <option value="contradiction-risk">Contradiction risk</option>
-                <option value="duplicate-risk">Duplicate risk</option>
-                <option value="accepted-for-placement">Accepted for placement</option>
+                <option value="contradiction-risk">Continuity concern</option>
+                <option value="duplicate-risk">Possible duplicate</option>
+                <option value="accepted-for-placement">Ready to file</option>
               </select>
             </label>
             <label className="editorial-batch-note">
@@ -959,16 +1059,16 @@ export default function EditorialIngestion() {
             <div className="editorial-batch-actions">
               <small>{selectedExtractionCount} selected</small>
               <button className="secondary-button editorial-ingestion-header-button quiet" disabled={!selectedExtractionCount || saving} onClick={() => applyBatchTriage('deferred')} type="button">Defer</button>
-              <button className="secondary-button editorial-ingestion-header-button quiet" disabled={!selectedExtractionCount || saving} onClick={() => applyBatchTriage('resolved')} type="button">Resolve</button>
-              <button className="secondary-button editorial-ingestion-header-button quiet" disabled={!selectedExtractionCount || saving} onClick={() => applyBatchTriage('accepted-for-placement')} type="button">Accept</button>
+              <button className="secondary-button editorial-ingestion-header-button quiet" disabled={!selectedExtractionCount || saving} onClick={() => applyBatchTriage('resolved')} type="button">Mark Reviewed</button>
+              <button className="secondary-button editorial-ingestion-header-button quiet" disabled={!selectedExtractionCount || saving} onClick={() => applyBatchTriage('accepted-for-placement')} type="button">Ready to File</button>
             </div>
           </div>
 
           <div className="editorial-review-split">
             <nav className="editorial-review-queue" aria-label="Review queue">
               <div className="editorial-review-queue-heading">
-                <strong>Review List</strong>
-                <small>Staged review items awaiting editorial review</small>
+                <strong>Review Queue</strong>
+                <small>Review-only story details waiting for an editor</small>
               </div>
               <div className="editorial-ingestion-list">
                 {sourceClusters.map((cluster) => {
@@ -981,7 +1081,7 @@ export default function EditorialIngestion() {
                       <div className="editorial-source-cluster-heading">
                         <button className="editorial-source-toggle" onClick={() => toggleCluster(cluster.key)} type="button">
                           <strong>{cluster.title}</strong>
-                          <small>{cluster.meta} / {sourceUnresolved} unresolved / {sourceAccepted} placement ready</small>
+                          <small>{cluster.meta} / {sourceUnresolved} awaiting review / {sourceAccepted} ready to file</small>
                         </button>
                         <button aria-label="Select source cluster" className="icon-button" onClick={() => toggleClusterSelection(cluster.items)} title="Select source cluster" type="button">
                           {allSelected ? <CheckSquare size={15} /> : <Square size={15} />}
@@ -991,7 +1091,7 @@ export default function EditorialIngestion() {
                         const isLatestStaged = lastStagedReview?.key === item.key;
                         return (
                         <div className={`editorial-triage-row ${isLatestStaged ? 'latest-staged-review' : ''}`} key={item.key}>
-                          <button aria-label="Select extraction review item" className="icon-button" onClick={() => toggleExtractionSelection(item.id)} title="Select review item" type="button">
+                          <button aria-label="Select review item" className="icon-button" onClick={() => toggleExtractionSelection(item.id)} title="Select review item" type="button">
                             {selectedExtractionSet.has(String(item.id)) ? <CheckSquare size={15} /> : <Square size={15} />}
                           </button>
                           <button
@@ -1000,13 +1100,16 @@ export default function EditorialIngestion() {
                             onClick={() => setSelectedReviewKey(item.key)}
                             type="button"
                           >
-                            <span>
-                              <StateBadge state={getReviewStateKey(item)} label={getReviewStateLabel(item)} />
-                              {isLatestStaged ? <em className="latest-staged-label">Newly staged</em> : null}
+                            <span className="editorial-review-card-main">
+                              <span className="editorial-review-card-badges">
+                                <StateBadge state={getReviewStateKey(item)} label={getReviewStateLabel(item)} />
+                                <StatusBadge status={formatReviewType(item.status)} />
+                                {isLatestStaged ? <em className="latest-staged-label">Newly staged</em> : null}
+                              </span>
                               <strong>{item.title}</strong>
-                              <small>{item.kind} / {formatDate(item.timestamp)}</small>
+                              <small>{item.sourceLabel || 'Source preserved'} / {formatDate(item.timestamp)}</small>
+                              <span className="editorial-review-card-excerpt">{item.content || item.excerpt || item.meta}</span>
                             </span>
-                            <StatusBadge status={formatReviewType(item.status)} />
                           </button>
                         </div>
                         );
@@ -1014,7 +1117,7 @@ export default function EditorialIngestion() {
                     </section>
                   );
                 })}
-                {!sourceClusters.length ? <p className="muted">No staged review items are visible for these filters yet. Attached sources are saved above first; once you stage an extraction candidate, it appears here for editorial review.</p> : null}
+                {!sourceClusters.length ? <p className="muted">No review items are visible for these filters yet. Add source material above first; once you add a story detail to the Review Queue, it appears here for editorial review.</p> : null}
               </div>
             </nav>
 
@@ -1040,7 +1143,7 @@ export default function EditorialIngestion() {
                   <div className="editorial-review-meta-grid">
                     <ReviewFact label="Source" value={selectedReviewItem.sourceLabel || selectedReviewItem.provenance?.source_label || 'Source preserved'} />
                     <ReviewFact label="Type" value={formatSourceType(selectedReviewItem.sourceType, selectedReviewItem.sourceTypeLabel || selectedReviewItem.provenance?.custom_source_label)} />
-                    <ReviewFact label="Triage" value={formatReviewType(selectedReviewItem.status)} />
+                    <ReviewFact label="Review state" value={formatReviewType(selectedReviewItem.status)} />
                     <ReviewFact label="Confidence" value={formatConfidence(selectedReviewItem.confidence)} />
                     <ReviewFact label="Updated" value={formatDate(selectedReviewItem.timestamp)} />
                   </div>
@@ -1048,26 +1151,55 @@ export default function EditorialIngestion() {
                     <ReviewFact label="Original file" value={selectedReviewItem.provenance?.original_filename || 'Manual source'} />
                     <ReviewFact label="Imported" value={selectedReviewItem.provenance?.imported_at_central || formatDate(selectedReviewItem.provenance?.imported_at)} />
                     <ReviewFact label="Layer" value={formatReviewType(selectedReviewItem.provenance?.memory_layer || 'source')} />
-                    <ReviewFact label="Canon" value={selectedReviewItem.provenance?.canon_mutation ? 'Changed' : 'Unchanged'} />
+                    <ReviewFact label="Canon" value={selectedReviewItem.provenance?.canon_mutation ? 'Changed' : 'Not added'} />
                   </div>
                   {selectedReviewItem.conflict ? (
                     <ReviewBlock label="Continuity context" value={selectedReviewItem.conflict} />
                   ) : null}
                   {selectedReviewItem.status === 'accepted-for-placement' ? (
-                    <ReviewBlock label="Promotion readiness" value="Accepted for placement, still non-canon. Manual placement remains required before any canon record changes." />
+                    <ReviewBlock label="Filing readiness" value="Ready to file, still non-canon. Manual placement remains required before any canon record changes." />
                   ) : null}
                   {selectedReviewItem.status === 'contradiction-risk' ? (
-                    <ReviewBlock label="Placement blocker" value="Contradiction risk is surfaced for review only. Resolve the continuity question before future canon placement." />
+                    <ReviewBlock label="Filing blocker" value="Continuity concern is surfaced for review only. Resolve the continuity question before future canon placement." />
+                  ) : null}
+                  {selectedReviewItem.status === 'duplicate-risk' ? (
+                    <ReviewBlock label="Duplicate concern" value={selectedReviewItem.trustReason || selectedReviewItem.triageNote || 'Possible duplicate is surfaced for manual comparison before any future filing.'} />
+                  ) : null}
+                  {selectedReviewItem.kind === 'Review Item' ? (
+                    <section className="selected-review-controls" aria-label="Selected review item status controls">
+                      <div>
+                        <label>
+                          <span>Review status</span>
+                          <select onChange={(event) => setSelectedReviewStatusDraft(event.target.value)} value={selectedReviewStatusDraft}>
+                            {extractionReviewStates.map((state) => (
+                              <option key={state.value} value={state.value}>{state.label}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          <span>Review note</span>
+                          <input onChange={(event) => setSelectedReviewNote(event.target.value)} placeholder="Optional status note" value={selectedReviewNote} />
+                        </label>
+                      </div>
+                      <div className="selected-review-actions">
+                        <button className="secondary-button editorial-ingestion-header-button quiet" disabled={saving} onClick={() => applySelectedReviewTriage('deferred')} type="button">Defer</button>
+                        <button className="secondary-button editorial-ingestion-header-button quiet" disabled={saving} onClick={() => applySelectedReviewTriage('resolved')} type="button">Mark Reviewed</button>
+                        <button className="secondary-button editorial-ingestion-header-button quiet" disabled={saving} onClick={() => applySelectedReviewTriage('accepted-for-placement')} type="button">Ready to File</button>
+                        <button className="primary-button editorial-ingestion-header-button" disabled={saving} onClick={() => applySelectedReviewTriage()} type="button">Save Status</button>
+                      </div>
+                      <small>These controls update editorial review state only. They do not promote, merge, or mutate canon.</small>
+                    </section>
                   ) : null}
                   <ReviewBlock label="Review material" value={selectedReviewItem.content || selectedReviewItem.meta} />
                   <ReviewBlock label="Raw source excerpt" value={selectedReviewItem.excerpt || selectedReviewItem.provenance?.source_note || 'No raw excerpt is attached to this review item.'} />
                   <ReviewBlock label="Editorial note" value={selectedReviewItem.triageNote || selectedReviewItem.trustReason || selectedReviewItem.provenance?.source_note || 'No editorial note recorded.'} />
+                  <ReviewBlock label="Next editorial step" value={getNextEditorialStep(selectedReviewItem)} />
                 </>
               ) : (
                 <div className="editorial-review-empty">
                   <ShieldCheck size={20} />
                   <strong>Select a review item</strong>
-                  <span>Use the queue to inspect provenance, excerpts, contradictions, duplicates, and editorial notes.</span>
+                  <span>Choose a story detail in the Review Queue to see its source, provenance, excerpt, review state, duplicate or continuity concerns, and the next editorial step. Nothing here changes canon.</span>
                 </div>
               )}
             </article>
@@ -1093,6 +1225,12 @@ const sourceTypePresets = [
   { value: 'unknown', label: 'Unknown' }
 ];
 
+const intakeSteps = [
+  { key: 'source-batch', label: 'Source Batch' },
+  { key: 'source-material', label: 'Source Material' },
+  { key: 'story-detail', label: 'Story Detail' }
+];
+
 const confidencePresets = [
   { value: 'confirmed', label: 'Confirmed', definition: 'Directly supported by source material or prior canon.' },
   { value: 'strong', label: 'Strong', definition: 'Well supported, but still waiting for final editorial placement.' },
@@ -1102,13 +1240,13 @@ const confidencePresets = [
 ];
 
 const extractionReviewStates = [
-  { value: 'unreviewed', label: 'Unreviewed' },
+  { value: 'unreviewed', label: 'Awaiting Review' },
   { value: 'needs-review', label: 'Needs Review' },
-  { value: 'contradiction-risk', label: 'Contradiction Risk' },
-  { value: 'duplicate-risk', label: 'Duplicate Risk' },
-  { value: 'accepted-for-placement', label: 'Accepted for Placement' },
+  { value: 'contradiction-risk', label: 'Continuity Concern' },
+  { value: 'duplicate-risk', label: 'Possible Duplicate' },
+  { value: 'accepted-for-placement', label: 'Ready to File' },
   { value: 'deferred', label: 'Deferred' },
-  { value: 'resolved', label: 'Resolved' }
+  { value: 'resolved', label: 'Reviewed' }
 ];
 
 function StateBadge({ state, label }) {
@@ -1156,6 +1294,17 @@ function formatDate(value) {
 }
 
 function formatReviewType(value) {
+  const editorialLabels = {
+    'accepted-for-placement': 'Ready to File',
+    'pending-placement': 'Ready to File',
+    'contradiction-risk': 'Continuity Concern',
+    'duplicate-risk': 'Possible Duplicate',
+    'needs-review': 'Needs Review',
+    unreviewed: 'Awaiting Review',
+    resolved: 'Reviewed'
+  };
+  const normalized = String(value || 'review').trim().toLowerCase().replace(/[_\s/]+/g, '-');
+  if (editorialLabels[normalized]) return editorialLabels[normalized];
   return String(value || 'review')
     .replace(/[-_]+/g, ' ')
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -1169,14 +1318,14 @@ function formatMissingFields(fields) {
 
 function getMissingSessionFields(draft) {
   return [
-    !draft.title?.trim() ? 'a session title' : '',
+    !draft.title?.trim() ? 'a batch title' : '',
     !draft.provenanceNote?.trim() ? 'a provenance note' : ''
   ].filter(Boolean);
 }
 
 function getMissingSourceFields(draft, provenanceNote) {
   return [
-    !draft.importSessionId ? 'a session' : '',
+    !draft.importSessionId ? 'a source batch' : '',
     !draft.rawContent?.trim() ? 'a source file' : '',
     !draft.sourceLabel?.trim() ? 'a source label' : '',
     !provenanceNote ? 'a provenance note' : ''
@@ -1185,12 +1334,12 @@ function getMissingSourceFields(draft, provenanceNote) {
 
 function getMissingCandidateFields(draft) {
   return [
-    !draft.importSessionId ? 'a session' : '',
-    !draft.sourceRecordId ? 'a staged source' : '',
+    !draft.importSessionId ? 'a source batch' : '',
+    !draft.sourceRecordId ? 'source material' : '',
     !draft.provenanceNote?.trim() ? 'a source provenance note' : '',
     !draft.rawContent?.trim() ? 'a raw source excerpt' : '',
-    !draft.title?.trim() ? 'a candidate title' : '',
-    !draft.content?.trim() ? 'candidate content' : '',
+    !draft.title?.trim() ? 'a story detail title' : '',
+    !draft.content?.trim() ? 'a story note' : '',
     !draft.trustReason?.trim() ? 'a trust note' : ''
   ].filter(Boolean);
 }
@@ -1210,21 +1359,43 @@ function formatConfidence(value) {
 
 function getReviewStateKey(item = {}) {
   if (item.provenance?.promotions?.length || item.status === 'Promoted') return 'promoted-canon';
-  if (item.kind === 'Staged Source') return 'staged-source';
+  if (item.kind === 'Source Material') return 'staged-source';
   if (item.status === 'accepted-for-placement' || item.status === 'pending-placement') return 'accepted-placement';
   if (item.status === 'contradiction-risk') return 'contradiction-risk';
   if (item.status === 'duplicate-risk') return 'duplicate-risk';
-  if (item.kind === 'Extraction Candidate' || item.kind === 'Narrative Fragment') return 'extracted-candidate';
+  if (item.kind === 'Review Item' || item.kind === 'Narrative Fragment') return 'extracted-candidate';
   return 'extracted-candidate';
 }
 
 function getReviewStateLabel(item = {}) {
-  if (item.kind === 'Staged Source') return 'Staged Source';
-  if (item.status === 'accepted-for-placement' || item.status === 'pending-placement') return 'Accepted for Placement';
-  if (item.status === 'contradiction-risk') return 'Contradiction Risk';
-  if (item.status === 'duplicate-risk') return 'Duplicate Risk';
+  if (item.kind === 'Source Material') return 'Source Material';
+  if (item.status === 'accepted-for-placement' || item.status === 'pending-placement') return 'Ready to File';
+  if (item.status === 'contradiction-risk') return 'Continuity Concern';
+  if (item.status === 'duplicate-risk') return 'Possible Duplicate';
   if (item.provenance?.promotions?.length || item.status === 'Promoted') return 'Promoted Canon';
-  return item.kind === 'Narrative Fragment' ? 'Extracted Fragment' : 'Extracted Candidate';
+  return item.kind === 'Narrative Fragment' ? 'Story Note' : 'Review Item';
+}
+
+function getNextEditorialStep(item = {}) {
+  if (item.kind === 'Source Material') {
+    return 'This source is waiting for an editor to extract story details into the Review Queue. Keep it review-only; canon stays unchanged.';
+  }
+  if (item.status === 'accepted-for-placement' || item.status === 'pending-placement') {
+    return 'This detail is waiting for manual placement. Use it as ready-to-file material only when the canon placement workflow exists; it is still non-canon now.';
+  }
+  if (item.status === 'contradiction-risk') {
+    return 'This detail is waiting on continuity review. Compare the claims and resolve the concern before marking it reviewed or ready to file; canon stays unchanged.';
+  }
+  if (item.status === 'duplicate-risk') {
+    return 'This detail is waiting for duplicate comparison. Check it against existing material before marking it reviewed or ready to file; do not merge automatically.';
+  }
+  if (item.status === 'resolved') {
+    return 'This item has been reviewed and preserved in the editorial layer. No next canon action is implied, and canon remains unchanged.';
+  }
+  if (item.status === 'deferred') {
+    return 'This item is waiting for later editorial judgment. Leave it deferred and out of canon until an editor deliberately reopens it.';
+  }
+  return 'This detail is waiting for editorial review. Read the source and trust note, then defer it, mark it reviewed, or mark it ready to file; none of those actions promotes canon.';
 }
 
 function normalizeExtractionTriageState(value) {
@@ -1276,10 +1447,19 @@ function formatSessionOption(session) {
   return count ? `${session.title} (${count} source${count === 1 ? '' : 's'})` : session.title;
 }
 
+function formatSourceOption(source) {
+  return [
+    source.source_label || 'Untitled source',
+    source.session_title || `Batch #${source.import_session_id || source.provenance_metadata?.import_session_id || 'unknown'}`,
+    `Source #${source.id}`,
+    formatSourceType(source.source_type, source.provenance_metadata?.custom_source_label)
+  ].filter(Boolean).join(' / ');
+}
+
 function buildAutoSessionTitle(filename) {
   const cleanName = String(filename || '').trim();
-  if (cleanName) return `Intake: ${cleanName}`;
-  return `Intake: ${new Date().toLocaleString()}`;
+  if (cleanName) return `Source batch: ${cleanName}`;
+  return `Source batch: ${new Date().toLocaleString()}`;
 }
 
 function buildAutoProvenanceNote(filename) {
@@ -1315,11 +1495,11 @@ function buildTextPreview(text) {
 
 function buildPlaceholderPreview(file, extension) {
   return [
-    `[Staged source placeholder]`,
+    `[Source material placeholder]`,
     `Original filename: ${file?.name || 'Unknown file'}`,
     `Source type: ${extension || 'unknown'}`,
     `Size: ${formatBytes(file?.size || 0)}`,
-    `Preview: unavailable in this safe staging pass.`
+    `Preview: unavailable in this safe review pass.`
   ].join('\n');
 }
 

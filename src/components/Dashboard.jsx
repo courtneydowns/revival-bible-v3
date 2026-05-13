@@ -1,4 +1,4 @@
-import { ArrowRight, BookOpen, FileSearch, History, MapPin, MessageSquareText, Sparkles, TriangleAlert } from 'lucide-react';
+import { ArrowRight, BookOpen, FileSearch, FileText, History, MapPin, MessageSquareText, Sparkles, TriangleAlert } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useRevivalStore } from '../store.js';
 import { formatCentralTime } from '../time.js';
@@ -26,6 +26,7 @@ export default function Dashboard() {
   const selectQuestion = useRevivalStore((state) => state.selectQuestion);
   const selectAiSession = useRevivalStore((state) => state.selectAiSession);
   const setActiveView = useRevivalStore((state) => state.setActiveView);
+  const openIngestionReview = useRevivalStore((state) => state.openIngestionReview);
   const editorialCandidates = useMemo(() => candidates.filter((candidate) => !isInternalPhaseRecord(candidate, candidate.title)), [candidates]);
   const editorialDecisions = useMemo(() => decisions.filter((decision) => !isInternalPhaseRecord(decision, decision.title)), [decisions]);
   const editorialQuestions = useMemo(() => questions.filter((question) => !isInternalPhaseRecord(question, question.question)), [questions]);
@@ -55,6 +56,10 @@ export default function Dashboard() {
   );
   const ingestionReviewItems = useMemo(
     () => buildIngestionReviewItems(ingestionReviewSummary).slice(0, 6),
+    [ingestionReviewSummary]
+  );
+  const extractionReviewStats = useMemo(
+    () => buildExtractionReviewStats(ingestionReviewSummary),
     [ingestionReviewSummary]
   );
   const weakConfidenceItems = useMemo(
@@ -169,7 +174,7 @@ export default function Dashboard() {
                 title: risk.title,
                 meta: risk.meta,
                 status: risk.status,
-                onOpen: risk.reviewItem ? () => setSelectedReviewItem(risk.reviewItem) : risk.onOpen || (() => setActiveView(risk.fallbackView))
+                onOpen: risk.reviewItem ? () => openIngestionReview(risk.reviewItem.key) : risk.onOpen || (() => setActiveView(risk.fallbackView))
               }))}
               title="Continuity Review"
             />
@@ -181,9 +186,45 @@ export default function Dashboard() {
                 title: item.title,
                 meta: item.meta,
                 status: item.status,
-                onOpen: () => setSelectedReviewItem(item)
+                onOpen: () => openIngestionReview(item.key)
               }))}
               title="Source Review"
+            />
+            <DashboardQueue
+              emptyText="No review items are marked ready to file."
+              icon={<MapPin size={15} />}
+              items={extractionReviewStats.acceptedItems.map((item) => ({
+                key: item.key,
+                title: item.title,
+                meta: item.meta,
+                status: item.status,
+                onOpen: () => openIngestionReview(item.key)
+              }))}
+              title="Ready to File"
+            />
+            <DashboardQueue
+              emptyText="No deferred review items are currently surfaced."
+              icon={<History size={15} />}
+              items={extractionReviewStats.deferredItems.map((item) => ({
+                key: item.key,
+                title: item.title,
+                meta: item.meta,
+                status: item.status,
+                onOpen: () => openIngestionReview(item.key)
+              }))}
+              title="Deferred Review"
+            />
+            <DashboardQueue
+              emptyText="No source review progress is currently loaded."
+              icon={<FileText size={15} />}
+              items={extractionReviewStats.sourceProgress.map((item) => ({
+                key: item.key,
+                title: item.title,
+                meta: item.meta,
+                status: item.status,
+                onOpen: () => openIngestionReview(item.reviewKey)
+              }))}
+              title="Source Progress"
             />
             <DashboardQueue
               emptyText="No weak-confidence material is currently waiting."
@@ -193,12 +234,12 @@ export default function Dashboard() {
                 title: item.title,
                 meta: item.meta,
                 status: item.status,
-                onOpen: () => setSelectedReviewItem(item)
+                onOpen: () => openIngestionReview(item.key)
               }))}
               title="Confidence Check"
             />
             <DashboardQueue
-              emptyText="No pending placement work is currently loaded."
+              emptyText="No pending filing work is currently loaded."
               icon={<MapPin size={15} />}
               items={awaitingPlacement.map((candidate) => ({
                 key: `candidate-${candidate.id}`,
@@ -207,7 +248,7 @@ export default function Dashboard() {
                 status: getCandidateSource(candidate),
                 onOpen: () => selectCandidate(candidate.id)
               }))}
-              title="Pending Placement"
+              title="Ready to Place"
             />
             <DashboardQueue
               emptyText="No unresolved questions are currently loaded."
@@ -273,7 +314,7 @@ function ReviewDetail({ item }) {
       <section className="dashboard-review-detail" aria-label="Review detail">
         <div>
           <strong>Review Detail</strong>
-          <small>No import or extraction review item is selected.</small>
+          <small>No editorial review item is selected.</small>
         </div>
       </section>
     );
@@ -459,17 +500,19 @@ function buildIngestionReviewItems(summary = {}) {
   }));
   const extractions = (summary.unresolvedExtractions || []).map((item) => ({
     key: `extraction-${item.id}`,
-    kindLabel: 'Extraction Review',
+    kindLabel: 'Review Item',
     rawTitle: item.title,
-    title: `Unresolved extraction: ${item.title}`,
+    title: `${formatReviewType(normalizeExtractionTriageState(item.status))}: ${item.title}`,
     meta: `${formatReviewType(item.classification)} / ${item.source_label || 'Source preserved'} / Updated ${formatDate(item.updated_at || item.created_at)}`,
-    status: item.confidence_state || item.status,
+    status: formatReviewType(normalizeExtractionTriageState(item.status)),
     timestamp: item.updated_at || item.created_at,
+    priorityState: normalizeExtractionTriageState(item.status),
     provenanceSummary: formatFrameworkProvenance(item.provenance_metadata),
     detailRows: [
       { label: 'Source', value: item.source_label || 'Source preserved' },
+      { label: 'Review state', value: formatReviewType(normalizeExtractionTriageState(item.status)) },
       { label: 'Classification', value: formatReviewType(item.classification) },
-      { label: 'Content', value: item.content || 'No extracted content.' },
+      { label: 'Story note', value: item.content || 'No story note recorded.' },
       { label: 'Trust', value: item.trust_reason || 'Needs review' }
     ]
   }));
@@ -477,7 +520,7 @@ function buildIngestionReviewItems(summary = {}) {
     key: `fragment-${item.id}`,
     kindLabel: 'Narrative Fragment',
     rawTitle: item.title,
-    title: `Narrative fragment: ${item.title}`,
+    title: `Story note: ${item.title}`,
     meta: `${formatReviewType(item.fragment_type)} / ${item.source_label || 'Source preserved'} / Updated ${formatDate(item.updated_at || item.created_at)}`,
     status: item.confidence_state || item.status,
     timestamp: item.updated_at || item.created_at,
@@ -486,13 +529,13 @@ function buildIngestionReviewItems(summary = {}) {
       { label: 'Source', value: item.source_label || 'Source preserved' },
       { label: 'Type', value: formatReviewType(item.fragment_type) },
       { label: 'Content', value: item.content || 'No fragment content.' },
-      { label: 'Canon state', value: 'Non-canon until promoted' }
+      { label: 'Canon state', value: 'Not added to canon yet' }
     ]
   }));
   const continuity = (summary.continuityReviews || []).map(toContinuityReviewItem);
 
   return [...continuity, ...duplicates, ...extractions, ...fragments]
-    .sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
+    .sort(compareReviewPriority);
 }
 
 function buildWeakConfidenceItems(summary = {}) {
@@ -501,8 +544,35 @@ function buildWeakConfidenceItems(summary = {}) {
     .filter((item) => weakStates.has(normalize(item.status)) || normalize(item.status).includes('weak') || normalize(item.status).includes('low'))
     .map((item) => ({
       ...item,
-      title: item.title.replace(/^(Unresolved extraction|Narrative fragment|Continuity review): /, '')
+      title: item.title.replace(/^(Review item|Story note|Continuity review): /i, '')
     }));
+}
+
+function buildExtractionReviewStats(summary = {}) {
+  const reviewItems = buildIngestionReviewItems(summary).filter((item) => item.key.startsWith('extraction-'));
+  const acceptedItems = reviewItems.filter((item) => item.priorityState === 'accepted-for-placement').slice(0, 4);
+  const deferredItems = reviewItems.filter((item) => item.priorityState === 'deferred').slice(0, 4);
+  const sourceRecords = summary.sourceRecords || [];
+  const extractions = summary.unresolvedExtractions || [];
+  const sourceProgress = sourceRecords
+    .map((source) => {
+      const sourceExtractions = extractions.filter((item) => String(item.source_record_id) === String(source.id));
+      const unresolved = sourceExtractions.filter((item) => !['resolved', 'deferred'].includes(normalizeExtractionTriageState(item.status))).length;
+      if (!sourceExtractions.length) return null;
+      const firstExtraction = [...sourceExtractions].sort(compareReviewPriority)[0];
+      return {
+        key: `source-progress-${source.id}`,
+        title: source.source_label,
+        meta: `${sourceExtractions.length} review item${sourceExtractions.length === 1 ? '' : 's'} / ${unresolved} awaiting review`,
+        status: unresolved ? 'Needs Review' : 'Reviewed',
+        reviewKey: firstExtraction ? `extraction-${firstExtraction.id}` : null
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => Number(b.status === 'Needs Review') - Number(a.status === 'Needs Review'))
+    .slice(0, 4);
+
+  return { acceptedItems, deferredItems, sourceProgress };
 }
 
 function toContinuityReviewItem(item) {
@@ -542,6 +612,22 @@ function compareActivityRecent(a, b) {
   return new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime();
 }
 
+function compareReviewPriority(a = {}, b = {}) {
+  const priority = {
+    'contradiction-risk': 0,
+    'duplicate-risk': 1,
+    'needs-review': 2,
+    unreviewed: 3,
+    'accepted-for-placement': 4,
+    deferred: 5,
+    resolved: 6
+  };
+  const aPriority = priority[a.priorityState || normalizeExtractionTriageState(a.status)] ?? 3;
+  const bPriority = priority[b.priorityState || normalizeExtractionTriageState(b.status)] ?? 3;
+  if (aPriority !== bPriority) return aPriority - bPriority;
+  return new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime();
+}
+
 function getTime(record) {
   return new Date(record?.updated_at || record?.created_at || 0).getTime();
 }
@@ -573,6 +659,21 @@ function normalizeCandidateStatus(status) {
   return status || 'New';
 }
 
+function normalizeExtractionTriageState(value) {
+  const normalized = normalize(value).replace(/[_\s/]+/g, '-');
+  const aliases = {
+    unresolved: 'unreviewed',
+    'in-review': 'needs-review',
+    'pending-placement': 'accepted-for-placement',
+    accepted: 'accepted-for-placement',
+    reviewed: 'resolved',
+    rejected: 'deferred'
+  };
+  const canonical = aliases[normalized] || normalized || 'unreviewed';
+  const allowed = new Set(['unreviewed', 'needs-review', 'contradiction-risk', 'duplicate-risk', 'accepted-for-placement', 'deferred', 'resolved']);
+  return allowed.has(canonical) ? canonical : 'unreviewed';
+}
+
 function getCandidateTags(candidate) {
   const tags = candidate?.provenance_metadata?.tags;
   return Array.isArray(tags) ? tags.map((tag) => String(tag).toLowerCase()) : [];
@@ -588,6 +689,17 @@ function getSessionTitle(session) {
 }
 
 function formatReviewType(value) {
+  const editorialLabels = {
+    'accepted-for-placement': 'Ready to File',
+    'pending-placement': 'Ready to File',
+    'contradiction-risk': 'Continuity Concern',
+    'duplicate-risk': 'Possible Duplicate',
+    'needs-review': 'Needs Review',
+    unreviewed: 'Awaiting Review',
+    resolved: 'Reviewed'
+  };
+  const normalized = String(value || 'review').trim().toLowerCase().replace(/[_\s/]+/g, '-');
+  if (editorialLabels[normalized]) return editorialLabels[normalized];
   return String(value || 'review')
     .replace(/[-_]+/g, ' ')
     .replace(/\b\w/g, (letter) => letter.toUpperCase());

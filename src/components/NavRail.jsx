@@ -11,7 +11,7 @@ const items = [
   ['characters', 'Characters', Users],
   ['context-packs', 'Context Packs', Boxes],
   ['candidates', 'Candidates Inbox', Inbox],
-  ['ingestion', 'Editorial Ingestion', FilePlus2],
+  ['ingestion', 'Editorial Intake', FilePlus2],
   ['decisions', 'Decisions', GitBranch],
   ['questions', 'Questions', CircleHelp],
   ['session', 'AI Sessions', MessageSquareText],

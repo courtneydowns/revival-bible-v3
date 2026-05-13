@@ -67,6 +67,7 @@ export const useRevivalStore = create((set, get) => ({
     continuityReviews: [],
     narrativeFragments: []
   },
+  activeIngestionReviewKey: null,
   recoverySnapshots: [],
   activeAiSessionId: getSavedActiveAiSessionId(),
   activeAiSession: null,
@@ -107,6 +108,12 @@ export const useRevivalStore = create((set, get) => ({
       navigationHistory: [createNavigationSnapshot(state), ...state.navigationHistory].slice(0, 20)
     };
   }),
+  openIngestionReview: (reviewKey) => set((state) => ({
+    activeView: 'ingestion',
+    activeIngestionReviewKey: reviewKey || null,
+    navigationHistory: [createNavigationSnapshot(state), ...state.navigationHistory].slice(0, 20)
+  })),
+  clearActiveIngestionReviewKey: () => set({ activeIngestionReviewKey: null }),
   setNavMode: (navMode) => {
     const normalizedMode = navMode === 'compact' ? 'compact' : 'expanded';
     if (typeof localStorage !== 'undefined') {
@@ -482,14 +489,14 @@ export const useRevivalStore = create((set, get) => ({
     return response;
   },
   createImportSession: async (payload) => {
-    get().markSaving('Saving import session');
+    get().markSaving('Saving source batch');
     const response = await window.revival?.ingestion?.createSession?.(payload);
     if (!response?.ok || !response.session) {
-      get().markSaveFailed(response?.message || 'Import session save failed');
+      get().markSaveFailed(response?.message || 'Source batch save failed');
       return response;
     }
     await get().loadIngestionReviewSummary();
-    get().markSaved('Import session saved');
+    get().markSaved('Source batch saved');
     return response;
   },
   createManualExtractionCandidate: async (payload = {}) => {
@@ -500,11 +507,11 @@ export const useRevivalStore = create((set, get) => ({
     }
     const sourceRecord = get().ingestionReviewSummary.sourceRecords.find((source) => String(source.id) === String(payload.sourceRecordId));
     if (!sourceRecord || sourceRecord.provenance_metadata?.memory_layer === 'editorial') {
-      get().markSaveFailed('Staged source required');
-      return { ok: false, message: 'Choose an existing staged source before extracting a candidate.' };
+      get().markSaveFailed('Source material required');
+      return { ok: false, message: 'Choose saved source material before adding a review item.' };
     }
 
-    get().markSaving('Saving staged material');
+    get().markSaving('Saving review item');
     const sourceProvenance = sourceRecord.provenance_metadata || {};
     const provenanceMetadata = {
       ...sourceProvenance,
@@ -527,7 +534,7 @@ export const useRevivalStore = create((set, get) => ({
         content: payload.content,
         fragmentType: payload.fragmentType || 'story-material',
         confidenceState: payload.confidenceState || 'speculative',
-        status: payload.reviewStatus === 'pending-placement' ? 'pending-placement' : 'unplaced',
+        status: payload.reviewStatus === 'accepted-for-placement' ? 'pending-placement' : 'unplaced',
         provenanceMetadata
       });
     } else {
@@ -581,8 +588,26 @@ export const useRevivalStore = create((set, get) => ({
     }
 
     await get().loadIngestionReviewSummary();
-    get().markSaved('Staged material saved');
+    get().markSaved('Review item saved');
     return { ok: true, source: sourceRecord, review: reviewRecord };
+  },
+  updateExtractionReviewTriage: async (payload = {}) => {
+    const api = window.revival?.ingestion;
+    if (!api?.updateExtractionReview) {
+      get().markSaveFailed('Review API unavailable');
+      return { ok: false, message: 'Review API is unavailable. Restart the app and try again.' };
+    }
+
+    get().markSaving('Saving editorial review');
+    const response = await api.updateExtractionReview(payload);
+    if (!response?.ok) {
+      get().markSaveFailed(response?.message || 'Editorial review save failed');
+      return response;
+    }
+
+    await get().loadIngestionReviewSummary();
+    get().markSaved('Editorial review saved');
+    return response;
   },
   createStagedSource: async (payload = {}) => {
     const api = window.revival?.ingestion;
@@ -591,7 +616,7 @@ export const useRevivalStore = create((set, get) => ({
       return { ok: false, message: 'Ingestion API is unavailable. Restart the app and try again.' };
     }
 
-    get().markSaving('Saving staged source');
+    get().markSaving('Saving source material');
     const provenanceMetadata = {
       workflow: 'Editorial Ingestion',
       source_label: payload.sourceLabel,
@@ -616,12 +641,12 @@ export const useRevivalStore = create((set, get) => ({
     });
 
     if (!response?.ok || !response.source) {
-      get().markSaveFailed(response?.message || 'Staged source save failed');
+      get().markSaveFailed(response?.message || 'Source material save failed');
       return response;
     }
 
     await get().loadIngestionReviewSummary();
-    get().markSaved('Staged source saved');
+    get().markSaved('Source material saved');
     return response;
   },
   selectCandidate: async (candidateId) => {
