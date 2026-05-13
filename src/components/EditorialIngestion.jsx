@@ -363,7 +363,7 @@ export default function EditorialIngestion() {
     setSelectedExtractionIds((ids) => ids.filter((id) => String(id) !== String(removeReviewTarget.id)));
     if (selectedReviewKey === removeReviewTarget.key) setSelectedReviewKey(null);
     setRemoveReviewTarget(null);
-    setMessage('Review item removed from the Review Queue. Source material and canon are unchanged.');
+    setMessage(`Review item removed from the Review Queue. Source material remains stored: ${removeReviewTarget.sourceLabel || 'attached source'}. Canon unchanged.`);
   };
 
   const openNewSessionDraft = () => {
@@ -768,7 +768,7 @@ export default function EditorialIngestion() {
               <Paperclip size={17} />
               <div>
                 <h2 id="staged-source-heading">Source Material</h2>
-                <span>Add a local source for review without changing canon.</span>
+                <span>Add a local source for review. Canon unchanged.</span>
               </div>
             </div>
             <form className="editorial-ingestion-form" onSubmit={saveSource}>
@@ -836,24 +836,31 @@ export default function EditorialIngestion() {
               </button>
               {sourceValidationMessage ? <p className="inline-validation" role="alert">{sourceValidationMessage}</p> : null}
               {sourceAttachmentMessage ? <p className="candidate-message source-attachment-message" role="status">{sourceAttachmentMessage}</p> : null}
+              <p className="source-storage-anchor">Attached sources live in Stored Source Material below. Review items are generated from stored source material and can be removed without removing the source.</p>
+              <div className="stored-source-inline-anchor" aria-label="Stored Source Material">
+                <strong>Stored Source Material</strong>
+                <span>{lastAttachedSource?.source_label || selectedSourceDraftSources[0]?.source_label || sourceDraft.sourceLabel || 'Attached sources appear here after saving.'}</span>
+                <small>Attached source preserved / Review items can be removed without removing the source</small>
+              </div>
               {lastAttachedSource ? (
                 <div className="attached-source-confirmation" role="status">
-                  <strong>Source material saved</strong>
+                  <strong>Source material remains stored</strong>
                   <span>{lastAttachedSource.source_label}</span>
                   <small>
                     Saved to {lastAttachedSource.session_title || 'selected source batch'} / {lastAttachedSource.provenance_metadata?.original_filename || lastAttachedSource.source_label} / {formatSourceType(lastAttachedSource.source_type, lastAttachedSource.provenance_metadata?.custom_source_label)} / Source record #{lastAttachedSource.id}
                   </small>
-                  <p>{lastAttachedSource.provenance_metadata?.source_note || 'Source provenance is preserved on the saved record.'}</p>
+                  <p>{lastAttachedSource.provenance_metadata?.source_note || 'Attached source preserved for editorial review.'}</p>
                 </div>
               ) : null}
             </form>
 
             {selectedSourceDraftSources.length ? (
-              <div className="session-source-list" aria-label="Attached sources">
+              <div className="session-source-list" aria-label="Stored source material">
                 <div className="editorial-review-queue-heading">
-                  <strong>Saved Source Material</strong>
-                  <small>{selectedSourceDraftSources.length} saved to this batch</small>
+                  <strong>Stored Source Material</strong>
+                  <small>{selectedSourceDraftSources.length} attached source{selectedSourceDraftSources.length === 1 ? '' : 's'} stored in this batch</small>
                 </div>
+                <p className="source-storage-anchor">Return here to find attached sources later. They persist independently of Review Queue items.</p>
                 {selectedSourceDraftSources.slice(0, 4).map((source) => (
                   <article className={`session-source-row ${String(lastAttachedSourceId) === String(source.id) ? 'just-attached' : ''}`} key={source.id}>
                     <span className="source-type-badge">{formatSourceType(source.source_type, source.provenance_metadata?.custom_source_label)}</span>
@@ -870,7 +877,7 @@ export default function EditorialIngestion() {
               <Layers3 size={17} />
               <div>
                 <h2 id="extraction-candidate-heading">Story Detail</h2>
-                <span>Add a note to editorial review. Canon stays unchanged.</span>
+                <span>Add a note to editorial review. Canon unchanged.</span>
               </div>
             </div>
             <form className="editorial-ingestion-form" onSubmit={saveCandidate}>
@@ -1028,13 +1035,13 @@ export default function EditorialIngestion() {
             <ShieldCheck size={17} />
             <div>
               <h2 id="staged-review-heading">Editorial Review</h2>
-              <span>Review-only story details. Canon stays unchanged.</span>
+              <span>Review-only story details. Canon unchanged.</span>
             </div>
           </div>
           <div className="editorial-ingestion-safety">
-            <span>Provenance required</span>
-            <span>No automatic merge</span>
-            <span>No canon mutation</span>
+            <span>Editorial review only</span>
+            <span>Source material remains stored</span>
+            <span>Canon unchanged</span>
           </div>
           <div className="editorial-state-legend" aria-label="Editorial state legend">
             <StateBadge state="staged-source" label="Source Material" />
@@ -1048,7 +1055,7 @@ export default function EditorialIngestion() {
             <div className="review-workspace-guidance" role="status">
               <strong>Latest review item is ready</strong>
               <span>{lastStagedReview.title}</span>
-              <small>Selected below in the Review Queue / Nothing has been added to canon yet</small>
+              <small>Selected below in the Review Queue / Source material remains stored / Canon unchanged</small>
               <p>Next: review this item, then defer it, mark it reviewed, or mark it ready to file.</p>
             </div>
           ) : (
@@ -1059,6 +1066,7 @@ export default function EditorialIngestion() {
             <ReviewFact label="Continuity flags" scope="in the list below" value={contradictionCount} />
             <ReviewFact label="Possible duplicates" scope="in the list below" value={duplicateCount} />
             <ReviewFact label="Ready to file" scope="in the list below" value={acceptedCount} />
+            <ReviewFact label="Canon safety" scope="with these review actions" value="Canon unchanged" />
           </div>
           <div className="editorial-review-controls" aria-label="Review filters and batch actions">
             <label>
@@ -1095,7 +1103,7 @@ export default function EditorialIngestion() {
             <nav className="editorial-review-queue" aria-label="Review queue">
               <div className="editorial-review-queue-heading">
                 <strong>Review Queue</strong>
-                <small>Review-only story details waiting for an editor</small>
+                <small>Editorial review only / Canon unchanged</small>
               </div>
               <div className="editorial-ingestion-list">
                 {sourceClusters.map((cluster) => {
@@ -1108,7 +1116,7 @@ export default function EditorialIngestion() {
                       <div className="editorial-source-cluster-heading">
                         <button className="editorial-source-toggle" onClick={() => toggleCluster(cluster.key)} type="button">
                           <strong>{cluster.title}</strong>
-                          <small>{cluster.meta} / {sourceUnresolved} awaiting review / {sourceAccepted} ready to file</small>
+                          <small>{cluster.meta} / Source material remains stored / {sourceUnresolved} awaiting review / {sourceAccepted} ready to file</small>
                         </button>
                         <button aria-label="Select source cluster" className="icon-button" onClick={() => toggleClusterSelection(cluster.items)} title="Select source cluster" type="button">
                           {allSelected ? <CheckSquare size={15} /> : <Square size={15} />}
@@ -1134,7 +1142,7 @@ export default function EditorialIngestion() {
                                 {isLatestStaged ? <em className="latest-staged-label">Newly staged</em> : null}
                               </span>
                               <strong>{item.title}</strong>
-                              <small>{item.sourceLabel || 'Source preserved'} / {formatDate(item.timestamp)}</small>
+                              <small>{item.sourceLabel || 'Source material remains stored'} / Canon unchanged / {formatDate(item.timestamp)}</small>
                               <span className="editorial-review-card-excerpt">{item.content || item.excerpt || item.meta}</span>
                             </span>
                           </button>
@@ -1196,8 +1204,15 @@ export default function EditorialIngestion() {
                     <ReviewFact label="Original file" value={selectedReviewItem.provenance?.original_filename || 'Manual source'} />
                     <ReviewFact label="Imported" value={selectedReviewItem.provenance?.imported_at_central || formatDate(selectedReviewItem.provenance?.imported_at)} />
                     <ReviewFact label="Layer" value={formatReviewType(selectedReviewItem.provenance?.memory_layer || 'source')} />
-                    <ReviewFact label="Canon" value={selectedReviewItem.provenance?.canon_mutation ? 'Changed' : 'Not added'} />
+                    <ReviewFact label="Canon" value={selectedReviewItem.provenance?.canon_mutation ? 'Changed' : 'Canon unchanged'} />
                   </div>
+                  {selectedReviewItem.kind === 'Review Item' ? (
+                    <div className="review-layer-safety-note" aria-label="Review safety state">
+                      <span>Source material remains stored</span>
+                      <span>Accepted canon unchanged</span>
+                      <span>Editorial review only</span>
+                    </div>
+                  ) : null}
                   {selectedReviewItem.conflict ? (
                     <ReviewBlock label="Continuity context" value={selectedReviewItem.conflict} />
                   ) : null}
@@ -1232,7 +1247,7 @@ export default function EditorialIngestion() {
                         <button className="secondary-button editorial-ingestion-header-button quiet" disabled={saving} onClick={() => applySelectedReviewTriage('accepted-for-placement')} type="button">Ready to File</button>
                         <button className="primary-button editorial-ingestion-header-button" disabled={saving} onClick={() => applySelectedReviewTriage()} type="button">Save Status</button>
                       </div>
-                      <small>These controls update editorial review state only. They do not promote, merge, or mutate canon.</small>
+                      <small>These controls update editorial review state only. Accepted canon unchanged.</small>
                     </section>
                   ) : null}
                   <ReviewBlock label="Review material" value={selectedReviewItem.content || selectedReviewItem.meta} />
@@ -1264,8 +1279,13 @@ export default function EditorialIngestion() {
               </button>
             </div>
             <p>
-              This only removes <strong>{removeReviewTarget.title}</strong> from editorial review. Source material and canon are unchanged.
+              This only removes <strong>{removeReviewTarget.title}</strong> from editorial review. Source material remains stored. Accepted canon unchanged.
             </p>
+            <div className="review-layer-safety-note" aria-label="Review removal safety state">
+              <span>Source material remains stored</span>
+              <span>Canon unchanged</span>
+              <span>Editorial review only</span>
+            </div>
             <div className="modal-actions">
               <button className="secondary-button" disabled={saving} onClick={cancelReviewRemoval} type="button">Cancel</button>
               <button className="secondary-button danger-button" disabled={saving} onClick={confirmReviewRemoval} type="button">
