@@ -952,61 +952,73 @@ export default function EditorialIngestion() {
               ) : null}
             </form>
 
-            {activeSourceCount ? (
-              <div className="session-source-list" aria-label="Stored source material">
-                <div className="editorial-review-queue-heading stored-source-heading">
-                  <strong>Stored Source Material</strong>
-                  <small>{filteredStoredSources.length} of {activeSourceCount} active source{activeSourceCount === 1 ? '' : 's'} {storedSourceScopeLabel} / newest first</small>
-                </div>
-                <div className="stored-source-tools">
-                  <label>
-                    <span>Find source material</span>
-                    <input
-                      onChange={(event) => setSourceSearchQuery(event.target.value)}
-                      placeholder="Search title, filename, batch, type, or status"
-                      value={sourceSearchQuery}
-                    />
-                  </label>
-                  {sourceDraft.importSessionId ? <small>{selectedSourceDraftSources.length} active in selected batch</small> : null}
-                </div>
-                <p className="source-storage-anchor">Return here to find attached sources later. They persist independently of Review Queue items.</p>
-                {visibleStoredSources.length ? visibleStoredSources.map((source) => (
-                  <article className={`session-source-row ${String(lastAttachedSourceId) === String(source.id) ? 'just-attached' : ''}`} key={source.id}>
-                    {(() => {
-                      const sourceIdentity = getSourceIdentity(source);
-                      return (
-                        <>
-                          <span className="source-type-badge">{formatSourceType(source.source_type, source.provenance_metadata?.custom_source_label)}</span>
-                          <div className="session-source-row-main">
-                            <strong>{sourceIdentity.primary}</strong>
-                            <small>{sourceIdentity.detail} / {formatDate(source.created_at)} / {source.provenance_metadata?.file_preview_state || 'staged'}</small>
-                          </div>
-                          <div className="session-source-row-footer">
-                            <small>{sourceIdentity.recordLabel}</small>
-                            <button
-                              aria-label={`Remove stored source material ${sourceIdentity.primary} ${sourceIdentity.recordLabel}`}
-                              className="quiet-danger-button stored-source-remove-button"
-                              disabled={saving}
-                              onClick={() => requestSourceRemoval(source)}
-                              title="Remove stored source material"
-                              type="button"
-                            >
-                              <Trash2 size={14} />
-                              <span>Remove</span>
-                            </button>
-                          </div>
-                        </>
-                      );
-                    })()}
-                  </article>
-                )) : <p className="muted">No active source material matches this search.</p>}
-                {filteredStoredSources.length > visibleStoredSources.length ? (
-                  <button className="secondary-button stored-source-show-more" onClick={() => setStoredSourceVisibleLimit((limit) => limit + 12)} type="button">
-                    Show More Sources
-                  </button>
-                ) : null}
+            <div className="session-source-list" aria-label="Stored source material">
+              <div className="editorial-review-queue-heading stored-source-heading">
+                <strong>Stored Source Material</strong>
+                <small>
+                  {activeSourceCount
+                    ? `${filteredStoredSources.length} of ${activeSourceCount} active stored source${activeSourceCount === 1 ? '' : 's'} ${storedSourceScopeLabel} / newest first`
+                    : '0 active stored sources'}
+                </small>
               </div>
-            ) : null}
+              {activeSourceCount ? (
+                <>
+                  <div className="stored-source-tools">
+                    <label>
+                      <span>Find source material</span>
+                      <input
+                        onChange={(event) => setSourceSearchQuery(event.target.value)}
+                        placeholder="Search title, filename, batch, type, or status"
+                        value={sourceSearchQuery}
+                      />
+                    </label>
+                    {sourceDraft.importSessionId ? <small>{selectedSourceDraftSources.length} active in selected batch</small> : null}
+                  </div>
+                  <p className="source-storage-anchor">Return here to find attached sources later. They persist independently of Review Queue items.</p>
+                  {visibleStoredSources.length ? visibleStoredSources.map((source) => (
+                    <article className={`session-source-row ${String(lastAttachedSourceId) === String(source.id) ? 'just-attached' : ''}`} key={source.id}>
+                      {(() => {
+                        const sourceIdentity = getSourceIdentity(source);
+                        return (
+                          <>
+                            <span className="source-type-badge">{formatSourceType(source.source_type, source.provenance_metadata?.custom_source_label)}</span>
+                            <div className="session-source-row-main">
+                              <strong>{sourceIdentity.primary}</strong>
+                              <small>{sourceIdentity.detail} / {formatDate(source.created_at)} / {source.provenance_metadata?.file_preview_state || 'staged'}</small>
+                            </div>
+                            <div className="session-source-row-footer">
+                              <small>{sourceIdentity.recordLabel}</small>
+                              <button
+                                aria-label={`Remove stored source material ${sourceIdentity.primary} ${sourceIdentity.recordLabel}`}
+                                className="quiet-danger-button stored-source-remove-button"
+                                disabled={saving}
+                                onClick={() => requestSourceRemoval(source)}
+                                title="Remove stored source material"
+                                type="button"
+                              >
+                                <Trash2 size={14} />
+                                <span>Remove</span>
+                              </button>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </article>
+                  )) : <p className="muted">No active source material matches this search.</p>}
+                  {filteredStoredSources.length > visibleStoredSources.length ? (
+                    <button className="secondary-button stored-source-show-more" onClick={() => setStoredSourceVisibleLimit((limit) => limit + 12)} type="button">
+                      Show More Sources
+                    </button>
+                  ) : null}
+                </>
+              ) : (
+                <div className="stored-source-empty-state" role="status">
+                  <strong>No active stored sources yet.</strong>
+                  <p>Attach source material above to begin this shelf. Search, Show More, and Remove appear after at least one active stored source exists.</p>
+                  <small>Review Queue notes can still keep preserved source history, but there is nothing active to browse or remove here right now.</small>
+                </div>
+              )}
+            </div>
           </section>
 
           <section className={`editorial-ingestion-panel intake-step-panel ${activeIntakeStep === 'story-detail' ? 'active' : ''}`} aria-labelledby="extraction-candidate-heading" hidden={activeIntakeStep !== 'story-detail'}>
