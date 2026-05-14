@@ -4630,6 +4630,15 @@ button.editorial-ingestion-item.selected {
   padding: 8px 9px;
 }
 
+.editorial-review-queue .editorial-review-card-main {
+  gap: 4px;
+}
+
+.editorial-review-queue .editorial-review-card-badges {
+  gap: 4px 5px;
+  margin-bottom: 1px;
+}
+
 .editorial-review-queue .editorial-review-card-badges .editorial-state-badge,
 .editorial-review-queue .editorial-review-card-badges .latest-staged-label {
   padding: 3px 6px;
@@ -4669,6 +4678,14 @@ button.editorial-ingestion-item.selected {
   overflow-wrap: anywhere;
   text-transform: uppercase;
   white-space: normal;
+}
+
+.editorial-review-queue .editorial-review-card-main > small {
+  display: -webkit-box;
+  line-height: 1.36;
+  overflow-wrap: break-word;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .editorial-review-card-excerpt {

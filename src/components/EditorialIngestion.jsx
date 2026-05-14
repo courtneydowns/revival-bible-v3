@@ -117,6 +117,10 @@ export default function EditorialIngestion() {
   );
   const visibleStoredSources = filteredStoredSources.slice(0, storedSourceVisibleLimit);
   const storedSourceScopeLabel = sourceSearchQuery.trim() ? 'matching this search' : 'stored across source batches';
+  const reviewFlagLookup = useMemo(
+    () => buildReviewFlagLookup(ingestionReviewSummary),
+    [ingestionReviewSummary]
+  );
   const selectedCandidateSessionSources = useMemo(() => {
     const candidateSessionId = String(candidateDraft.importSessionId || '');
     const selectedSourceId = String(candidateDraft.sourceRecordId || lastAttachedSourceId || '');
@@ -160,6 +164,7 @@ export default function EditorialIngestion() {
       content: item.content,
       trustReason: item.trust_reason,
       triageNote: item.provenance_metadata?.triage_note,
+      flags: reviewFlagLookup.get(String(item.id)) || [],
       provenance: item.provenance_metadata
     })),
     ...(ingestionReviewSummary.narrativeFragments || []).map((item) => ({
@@ -198,7 +203,7 @@ export default function EditorialIngestion() {
       conflict: item.claim_a,
       provenance: item.provenance_metadata
     }))
-  ].sort(compareReviewPriority), [ingestionReviewSummary]);
+  ].sort(compareReviewPriority), [ingestionReviewSummary, reviewFlagLookup]);
   const extractionItems = useMemo(() => stagedItems.filter((item) => item.kind === 'Review Item'), [stagedItems]);
   const sourceClusters = useMemo(() => {
     const sourceLookup = new Map((ingestionReviewSummary.sourceRecords || []).map((source) => [String(source.id), source]));
@@ -1534,6 +1539,9 @@ export default function EditorialIngestion() {
                             <span className="editorial-review-card-main">
                               <span className="editorial-review-card-badges">
                                 <StateBadge state={getReviewStateKey(item)} label={getReviewCardStateLabel(item)} />
+                                {getReviewCardFlags(item).map((flag) => (
+                                  <StateBadge key={flag.state} state={flag.state} label={flag.label} />
+                                ))}
                                 {isLatestStaged ? <em className="latest-staged-label">Newly staged</em> : null}
                               </span>
                               <strong>{item.title}</strong>
@@ -1921,6 +1929,52 @@ function getReviewStateLabel(item = {}) {
 function getReviewCardStateLabel(item = {}) {
   if (item.status === 'unreviewed') return 'Queued';
   return getReviewStateLabel(item);
+}
+
+function getReviewCardFlags(item = {}) {
+  const visibleState = getReviewStateKey(item);
+  return (item.flags || []).filter((flag) => flag.state !== visibleState);
+}
+
+function buildReviewFlagLookup(summary = {}) {
+  const lookup = new Map();
+  const addFlag = (review, flag) => {
+    const reviewIds = getLinkedExtractionReviewIds(review);
+    for (const reviewId of reviewIds) {
+      const existing = lookup.get(reviewId) || [];
+      if (!existing.some((item) => item.state === flag.state)) {
+        lookup.set(reviewId, [...existing, flag]);
+      }
+    }
+  };
+
+  for (const review of summary.continuityReviews || []) {
+    addFlag(review, { state: 'contradiction-risk', label: 'Continuity Concern' });
+  }
+
+  for (const review of summary.duplicateReviews || []) {
+    addFlag(review, { state: 'duplicate-risk', label: 'Possible Duplicate' });
+  }
+
+  return lookup;
+}
+
+function getLinkedExtractionReviewIds(review = {}) {
+  const ids = [];
+  const addIfExtraction = (type, id) => {
+    if (normalizeReviewRecordType(type) === 'editorial-extraction' && id != null) {
+      ids.push(String(id));
+    }
+  };
+  const provenance = review.provenance_metadata || {};
+  addIfExtraction(provenance.review_record_type, provenance.review_record_id);
+  addIfExtraction(review.left_type, review.left_id);
+  addIfExtraction(review.right_type, review.right_id);
+  return [...new Set(ids)];
+}
+
+function normalizeReviewRecordType(value) {
+  return String(value || '').trim().toLowerCase().replace(/[_\s/]+/g, '-');
 }
 
 function getNextEditorialStep(item = {}) {
