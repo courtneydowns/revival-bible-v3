@@ -233,6 +233,7 @@ export default function EditorialIngestion() {
   const selectedReviewItem = stagedItems.find((item) => item.key === selectedReviewKey) || null;
   const selectedExtractionSet = useMemo(() => new Set(selectedExtractionIds.map(String)), [selectedExtractionIds]);
   const selectedExtractionCount = selectedExtractionIds.length;
+  const visibleReviewItemCount = visibleReviewItems.length;
   const acceptedCount = visibleTriageCounts['accepted-for-placement'] || 0;
   const unresolvedCount = visibleReviewItems.filter((item) => !['resolved', 'deferred'].includes(item.status)).length;
   const contradictionCount = visibleTriageCounts['contradiction-risk'] || 0;
@@ -1422,12 +1423,14 @@ export default function EditorialIngestion() {
           ) : (
             <p className="review-workspace-guidance subtle">Review items from source material appear here. Select an item to inspect provenance, check continuity, or mark it ready for future filing.</p>
           )}
-          <div className="editorial-triage-overview" aria-label="Editorial review overview for visible list">
-            <ReviewFact label="Awaiting review" scope="in the list below" value={unresolvedCount} />
-            <ReviewFact label="Continuity flags" scope="in the list below" value={contradictionCount} />
-            <ReviewFact label="Possible duplicates" scope="in the list below" value={duplicateCount} />
-            <ReviewFact label="Ready to file" scope="in the list below" value={acceptedCount} />
-            <ReviewFact label="Canon safety" scope="with these review actions" value="Canon unchanged" />
+          <div className="editorial-triage-overview" aria-label="Editorial review overview for visible Review Queue">
+            {/* TODO: Future status/tag polish should revisit whether "Review Item" and "Awaiting Review" are redundant, and whether Awaiting Review should become New, Unreviewed, or Needs Review with distinct status coloring. */}
+            <ReviewFact label="Visible queue" value={visibleReviewItemCount} />
+            <ReviewFact label="Awaiting" value={unresolvedCount} />
+            <ReviewFact label="Continuity" value={contradictionCount} />
+            <ReviewFact label="Duplicates" value={duplicateCount} />
+            <ReviewFact label="Ready to file" value={acceptedCount} />
+            <ReviewFact label="Canon safety" value="Canon unchanged" />
           </div>
           <div className="editorial-review-controls" aria-label="Review filters and batch actions">
             <label>
@@ -1477,7 +1480,7 @@ export default function EditorialIngestion() {
                       <div className="editorial-source-cluster-heading">
                         <button className="editorial-source-toggle" onClick={() => toggleCluster(cluster.key)} type="button">
                           <strong>{cluster.title}</strong>
-                          <small>{cluster.meta} / Source material remains stored / {sourceUnresolved} awaiting review / {sourceAccepted} ready to file</small>
+                          <small>{cluster.meta} / Visible Review Queue items in this group: {cluster.items.length} / {sourceUnresolved} awaiting review / {sourceAccepted} ready to file</small>
                         </button>
                         <button aria-label="Select source cluster" className="icon-button" onClick={() => toggleClusterSelection(cluster.items)} title="Select source cluster" type="button">
                           {allSelected ? <CheckSquare size={15} /> : <Square size={15} />}
@@ -1535,7 +1538,7 @@ export default function EditorialIngestion() {
                     </section>
                   );
                 })}
-                {!sourceClusters.length ? <p className="muted">No review items are visible for these filters yet. Add source material above first; once you add a story detail to the Review Queue, it appears here for editorial review.</p> : null}
+                {!sourceClusters.length ? <p className="muted">0 Visible Review Queue items for the current filters. Attached source material does not create review items until a story detail is added.</p> : null}
               </div>
             </nav>
 
