@@ -1545,8 +1545,6 @@ export default function EditorialIngestion() {
                                 {isLatestStaged ? <em className="latest-staged-label">Newly staged</em> : null}
                               </span>
                               <strong>{item.title}</strong>
-                              <small>{item.sourceLabel || 'Source material remains stored'} / Updated {formatDate(item.timestamp)}</small>
-                              <span className="editorial-review-card-excerpt">{item.content || item.excerpt || item.meta}</span>
                             </span>
                           </button>
                         </div>
