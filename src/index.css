@@ -4869,6 +4869,15 @@ button.editorial-ingestion-item.selected {
   gap: 12px;
 }
 
+.editorial-review-detail-header > div {
+  min-width: 0;
+}
+
+.editorial-review-detail-header .editorial-state-badge {
+  flex: 0 0 auto;
+  max-width: none;
+}
+
 .editorial-review-detail-action-group {
   display: flex;
   flex-wrap: wrap;

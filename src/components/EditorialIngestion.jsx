@@ -1538,7 +1538,7 @@ export default function EditorialIngestion() {
                           >
                             <span className="editorial-review-card-main">
                               <span className="editorial-review-card-badges">
-                                <StateBadge state={getReviewStateKey(item)} label={getReviewCardStateLabel(item)} />
+                                <StateBadge state={getReviewStateKey(item)} label={getReviewStateLabel(item)} />
                                 {getReviewCardFlags(item).map((flag) => (
                                   <StateBadge key={flag.state} state={flag.state} label={flag.label} />
                                 ))}
@@ -1578,7 +1578,7 @@ export default function EditorialIngestion() {
                       <small>{selectedReviewItem.kind}</small>
                       <h3>{selectedReviewItem.title}</h3>
                     </div>
-                    <StateBadge state={getReviewStateKey(selectedReviewItem)} label={getReviewStateLabel(selectedReviewItem)} />
+                    <StateBadge state={getReviewStateKey(selectedReviewItem)} label={getReviewDetailStateLabel(selectedReviewItem)} />
                   </div>
                   <div className="editorial-review-meta-grid">
                     <ReviewFact label="Source" value={selectedReviewItem.sourceLabel || selectedReviewItem.provenance?.source_label || 'Source preserved'} />
@@ -1926,8 +1926,8 @@ function getReviewStateLabel(item = {}) {
   return item.kind === 'Narrative Fragment' ? 'Story Note' : 'Review Item';
 }
 
-function getReviewCardStateLabel(item = {}) {
-  if (item.status === 'unreviewed') return 'Queued';
+function getReviewDetailStateLabel(item = {}) {
+  if (item.kind === 'Review Item') return formatReviewType(normalizeExtractionTriageState(item.status));
   return getReviewStateLabel(item);
 }
 
