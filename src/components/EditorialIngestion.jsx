@@ -2,7 +2,6 @@ import { ArrowLeft, CheckSquare, FilePlus2, FileText, Flag, GitCompareArrows, La
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRevivalStore } from '../store.js';
 import { formatCentralTime } from '../time.js';
-import StatusBadge from './StatusBadge.jsx';
 
 const initialSessionDraft = {
   title: '',
@@ -1514,23 +1513,12 @@ export default function EditorialIngestion() {
                             <span className="editorial-review-card-main">
                               <span className="editorial-review-card-badges">
                                 <StateBadge state={getReviewStateKey(item)} label={getReviewStateLabel(item)} />
-                                <StatusBadge status={formatReviewType(item.status)} />
                                 {isLatestStaged ? <em className="latest-staged-label">Newly staged</em> : null}
                               </span>
                               <strong>{item.title}</strong>
                               <small>{item.sourceLabel || 'Source material remains stored'} / Canon unchanged / {formatDate(item.timestamp)}</small>
                               <span className="editorial-review-card-excerpt">{item.content || item.excerpt || item.meta}</span>
                             </span>
-                          </button>
-                          <button
-                            aria-label={`Remove ${item.title} from Review Queue`}
-                            className="quiet-danger-button review-queue-remove-button"
-                            disabled={saving}
-                            onClick={() => requestReviewRemoval(item)}
-                            title="Remove from Review Queue"
-                            type="button"
-                          >
-                            <Trash2 size={14} />
                           </button>
                         </div>
                         );
@@ -1551,12 +1539,6 @@ export default function EditorialIngestion() {
                       <span>Back to Queue</span>
                     </button>
                     <div className="editorial-review-detail-action-group">
-                      {selectedReviewItem.kind === 'Review Item' ? (
-                        <button className="secondary-button editorial-ingestion-header-button quiet" disabled={saving} onClick={() => requestReviewRemoval(selectedReviewItem)} type="button">
-                          <Trash2 size={14} />
-                          <span>Remove from Review Queue</span>
-                        </button>
-                      ) : null}
                       <button aria-label="Close review detail" className="icon-button" onClick={() => setSelectedReviewKey(null)} title="Close review detail" type="button">
                         <X size={16} />
                       </button>
@@ -1867,6 +1849,7 @@ function getReviewStateKey(item = {}) {
   if (item.status === 'accepted-for-placement' || item.status === 'pending-placement') return 'accepted-placement';
   if (item.status === 'contradiction-risk') return 'contradiction-risk';
   if (item.status === 'duplicate-risk') return 'duplicate-risk';
+  if (['unreviewed', 'needs-review', 'resolved', 'deferred'].includes(item.status)) return item.status;
   if (item.kind === 'Review Item' || item.kind === 'Narrative Fragment') return 'extracted-candidate';
   return 'extracted-candidate';
 }
@@ -1877,6 +1860,10 @@ function getReviewStateLabel(item = {}) {
   if (item.status === 'contradiction-risk') return 'Continuity Concern';
   if (item.status === 'duplicate-risk') return 'Possible Duplicate';
   if (item.provenance?.promotions?.length || item.status === 'Promoted') return 'Promoted Canon';
+  if (item.status === 'needs-review') return 'Needs Review';
+  if (item.status === 'resolved') return 'Reviewed';
+  if (item.status === 'deferred') return 'Deferred';
+  if (item.status === 'unreviewed') return 'Awaiting Review';
   return item.kind === 'Narrative Fragment' ? 'Story Note' : 'Review Item';
 }
 

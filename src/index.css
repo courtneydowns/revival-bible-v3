@@ -4280,6 +4280,18 @@ button.candidate-filter-pill {
   color: #d4bd86;
 }
 
+.editorial-state-badge.unreviewed {
+  border-color: rgb(160 149 130 / 45%);
+  background: rgb(160 149 130 / 12%);
+  color: #c8bda8;
+}
+
+.editorial-state-badge.needs-review {
+  border-color: rgb(216 180 95 / 45%);
+  background: rgb(216 180 95 / 13%);
+  color: #e1c27a;
+}
+
 .editorial-state-badge.accepted-placement {
   border-color: rgb(139 174 139 / 45%);
   background: rgb(139 174 139 / 13%);
@@ -4302,6 +4314,18 @@ button.candidate-filter-pill {
   border-color: rgb(179 141 109 / 48%);
   background: rgb(179 141 109 / 14%);
   color: #d6ad8a;
+}
+
+.editorial-state-badge.resolved {
+  border-color: rgb(126 163 134 / 42%);
+  background: rgb(126 163 134 / 11%);
+  color: #abcaa9;
+}
+
+.editorial-state-badge.deferred {
+  border-color: rgb(142 139 132 / 42%);
+  background: rgb(142 139 132 / 11%);
+  color: #b9b2a7;
 }
 
 .editorial-triage-overview {
@@ -4630,16 +4654,12 @@ button.editorial-ingestion-item.selected {
 .editorial-triage-row {
   display: grid;
   scroll-margin: 12px 0;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   gap: 7px;
   align-items: start;
 }
 
 .editorial-triage-row > .icon-button {
-  margin-top: 8px;
-}
-
-.review-queue-remove-button {
   margin-top: 8px;
 }
 
