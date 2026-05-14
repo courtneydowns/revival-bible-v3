@@ -25,9 +25,9 @@ const initialCandidateDraft = {
   confidenceState: 'weak',
   reviewStatus: 'unreviewed',
   trustReason: '',
-  flagDuplicate: false,
+  flagDuplicate: true,
   duplicateReason: '',
-  flagContradiction: false,
+  flagContradiction: true,
   contradictionClaim: ''
 };
 
@@ -60,6 +60,7 @@ export default function EditorialIngestion() {
   const [lastAttachedSourceId, setLastAttachedSourceId] = useState(null);
   const [lastSavedSourceSummary, setLastSavedSourceSummary] = useState(null);
   const [lastStagedReview, setLastStagedReview] = useState(null);
+  const [confirmFlaggedCandidate, setConfirmFlaggedCandidate] = useState(false);
   const [saving, setSaving] = useState(false);
   const [selectingSourceFile, setSelectingSourceFile] = useState(false);
   const [selectedReviewKey, setSelectedReviewKey] = useState(null);
@@ -910,15 +911,7 @@ export default function EditorialIngestion() {
     await persistSourceDraft(sourceDraft);
   };
 
-  const saveCandidate = async (event) => {
-    event.preventDefault();
-    const missing = getMissingCandidateFields(candidateDraft);
-    if (missing.length) {
-      setCandidateValidationMessage(`Before adding this item to the Review Queue, add ${formatMissingFields(missing)}.`);
-      setMessage('Source batch, source material, provenance note, source text, story detail title, story note, and trust note are required.');
-      return;
-    }
-
+  const persistCandidateDraft = async () => {
     setSaving(true);
     const response = await createManualExtractionCandidate(candidateDraft);
     setSaving(false);
@@ -948,7 +941,35 @@ export default function EditorialIngestion() {
       sourceType: draft.sourceType,
       sourceTypeLabel: draft.sourceTypeLabel
     }));
+    setConfirmFlaggedCandidate(false);
     setMessage('Review item added to the Review Queue. Nothing has been added to canon yet.');
+  };
+
+  const saveCandidate = async (event) => {
+    event.preventDefault();
+    const missing = getMissingCandidateFields(candidateDraft);
+    if (missing.length) {
+      setCandidateValidationMessage(`Before adding this item to the Review Queue, add ${formatMissingFields(missing)}.`);
+      setMessage('Source batch, source material, provenance note, source text, story detail title, story note, and trust note are required.');
+      return;
+    }
+
+    if (candidateDraft.flagDuplicate && candidateDraft.flagContradiction) {
+      setCandidateValidationMessage('');
+      setMessage('');
+      setConfirmFlaggedCandidate(true);
+      return;
+    }
+
+    await persistCandidateDraft();
+  };
+
+  const cancelFlaggedCandidateConfirmation = () => {
+    setConfirmFlaggedCandidate(false);
+  };
+
+  const confirmFlaggedCandidateSave = async () => {
+    await persistCandidateDraft();
   };
 
   return (
@@ -1422,14 +1443,14 @@ export default function EditorialIngestion() {
           ) : (
             <p className="review-workspace-guidance subtle">Review items from source material appear here. Select an item to inspect provenance, check continuity, or mark it ready for future filing.</p>
           )}
-          <div className="editorial-triage-overview" aria-label="Editorial review overview for visible Review Queue">
+          <div className="editorial-triage-overview editorial-review-counters" aria-label="Editorial review overview for Visible Review Queue">
             {/* TODO: Future status/tag polish should revisit whether "Review Item" and "Awaiting Review" are redundant, and whether Awaiting Review should become New, Unreviewed, or Needs Review with distinct status coloring. */}
-            <ReviewFact label="Visible queue" value={visibleReviewItemCount} />
+            <ReviewFact label="Visible Queue" value={visibleReviewItemCount} />
             <ReviewFact label="Awaiting" value={unresolvedCount} />
             <ReviewFact label="Continuity" value={contradictionCount} />
             <ReviewFact label="Duplicates" value={duplicateCount} />
-            <ReviewFact label="Ready to file" value={acceptedCount} />
-            <ReviewFact label="Canon safety" value="Canon unchanged" />
+            <ReviewFact label="Ready" value={acceptedCount} />
+            <ReviewFact label="Canon" value="Unchanged" />
           </div>
           <div className="editorial-review-controls" aria-label="Review filters and batch actions">
             <label>
@@ -1649,6 +1670,36 @@ export default function EditorialIngestion() {
               <button className="secondary-button danger-button" disabled={saving} onClick={confirmReviewRemoval} type="button">
                 <Trash2 size={14} />
                 <span>{saving ? 'Removing...' : 'Remove from Review Queue'}</span>
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+      {confirmFlaggedCandidate ? (
+        <div className="modal-backdrop">
+          <section aria-labelledby="flagged-candidate-title" aria-modal="true" className="modal review-remove-modal flagged-candidate-modal" role="dialog">
+            <div className="review-remove-modal-header">
+              <div>
+                <div className="eyebrow">Add Flagged Review Item</div>
+                <h2 id="flagged-candidate-title">Add with safety flags?</h2>
+              </div>
+              <button className="icon-button" disabled={saving} onClick={cancelFlaggedCandidateConfirmation} title="Cancel add" type="button">
+                <X size={16} />
+              </button>
+            </div>
+            <p>
+              This adds <strong>{candidateDraft.title || 'this story detail'}</strong> as a review item flagged for duplicate and continuity review. Canon remains unchanged.
+            </p>
+            <div className="review-layer-safety-note" aria-label="Flagged review item safety state">
+              <span>Possible duplicate</span>
+              <span>Continuity concern</span>
+              <span>Canon unchanged</span>
+            </div>
+            <div className="modal-actions">
+              <button className="secondary-button" disabled={saving} onClick={cancelFlaggedCandidateConfirmation} type="button">Cancel</button>
+              <button className="primary-button" disabled={saving} onClick={confirmFlaggedCandidateSave} type="button">
+                <ShieldCheck size={14} />
+                <span>{saving ? 'Adding...' : 'Add to Review Queue'}</span>
               </button>
             </div>
           </section>
