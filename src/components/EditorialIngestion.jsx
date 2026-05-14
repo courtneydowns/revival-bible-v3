@@ -1500,7 +1500,7 @@ export default function EditorialIngestion() {
                       <div className="editorial-source-cluster-heading">
                         <button className="editorial-source-toggle" onClick={() => toggleCluster(cluster.key)} type="button">
                           <strong>{cluster.title}</strong>
-                          <small>{cluster.meta} / Visible Review Queue items in this group: {cluster.items.length} / {sourceUnresolved} awaiting review / {sourceAccepted} ready to file</small>
+                          <small>{cluster.meta} / {cluster.items.length} visible / {sourceUnresolved} awaiting / {sourceAccepted} ready</small>
                         </button>
                         <button aria-label="Select source cluster" className="icon-button" onClick={() => toggleClusterSelection(cluster.items)} title="Select source cluster" type="button">
                           {allSelected ? <CheckSquare size={15} /> : <Square size={15} />}
@@ -1533,11 +1533,11 @@ export default function EditorialIngestion() {
                           >
                             <span className="editorial-review-card-main">
                               <span className="editorial-review-card-badges">
-                                <StateBadge state={getReviewStateKey(item)} label={getReviewStateLabel(item)} />
+                                <StateBadge state={getReviewStateKey(item)} label={getReviewCardStateLabel(item)} />
                                 {isLatestStaged ? <em className="latest-staged-label">Newly staged</em> : null}
                               </span>
                               <strong>{item.title}</strong>
-                              <small>{item.sourceLabel || 'Source material remains stored'} / Canon unchanged / {formatDate(item.timestamp)}</small>
+                              <small>{item.sourceLabel || 'Source material remains stored'} / Updated {formatDate(item.timestamp)}</small>
                               <span className="editorial-review-card-excerpt">{item.content || item.excerpt || item.meta}</span>
                             </span>
                           </button>
@@ -1916,6 +1916,11 @@ function getReviewStateLabel(item = {}) {
   if (item.status === 'deferred') return 'Deferred';
   if (item.status === 'unreviewed') return 'Awaiting Review';
   return item.kind === 'Narrative Fragment' ? 'Story Note' : 'Review Item';
+}
+
+function getReviewCardStateLabel(item = {}) {
+  if (item.status === 'unreviewed') return 'Queued';
+  return getReviewStateLabel(item);
 }
 
 function getNextEditorialStep(item = {}) {
