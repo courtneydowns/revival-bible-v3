@@ -1104,9 +1104,14 @@ export default function EditorialIngestion() {
                     <article className={`session-source-row ${String(lastAttachedSourceId) === String(source.id) ? 'just-attached' : ''}`} key={source.id}>
                       {(() => {
                         const sourceIdentity = getSourceIdentity(source);
+                        const sourceBadges = getStoredSourceBadges(source, extractionItems);
                         return (
                           <>
-                            <span className="source-type-badge">{formatSourceType(source.source_type, source.provenance_metadata?.custom_source_label)}</span>
+                            <div className="source-card-badge-row" aria-label="Stored source context">
+                              {sourceBadges.map((badge) => (
+                                <span className={`source-type-badge ${badge.tone}`} key={badge.key}>{badge.label}</span>
+                              ))}
+                            </div>
                             <div className="session-source-row-main">
                               <strong>{sourceIdentity.primary}</strong>
                               <small>{sourceIdentity.detail} / {formatDate(source.created_at)} / {source.provenance_metadata?.file_preview_state || 'staged'}</small>
@@ -2042,6 +2047,32 @@ function sortStoredSources(sources = [], sortOrder = 'newest') {
     }
     return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
   });
+}
+
+function getStoredSourceBadges(source = {}, extractionItems = []) {
+  const provenance = source.provenance_metadata || {};
+  const sourceId = String(source.id || '');
+  const hasReviewLink = extractionItems.some((item) => String(item.sourceRecordId || item.provenance?.source_record_id || '') === sourceId);
+  const typeLabel = formatSourceType(source.source_type || provenance.source_type, provenance.custom_source_label);
+  const previewState = String(provenance.file_preview_state || '').trim();
+  const batchLabel = source.import_session_id || provenance.import_session_id || source.session_title ? 'Batch Linked' : '';
+
+  return [
+    { key: 'type', label: typeLabel || 'Stored Source', tone: 'type' },
+    previewState ? { key: 'status', label: formatSourceBadgeLabel(previewState), tone: 'status' } : { key: 'status', label: 'Stored', tone: 'status' },
+    batchLabel ? { key: 'batch', label: batchLabel, tone: 'provenance' } : null,
+    hasReviewLink ? { key: 'review-linked', label: 'Review Linked', tone: 'review' } : null
+  ].filter(Boolean);
+}
+
+function formatSourceBadgeLabel(value) {
+  const normalized = String(value || '').trim();
+  if (!normalized) return '';
+  if (normalized === 'readable-preview') return 'Readable';
+  if (normalized === 'truncated-preview') return 'Preview Saved';
+  if (normalized === 'placeholder') return 'Placeholder';
+  if (normalized === 'preview-failed') return 'Preview Pending';
+  return formatReviewType(normalized);
 }
 
 function buildIndexedSourceBatches(sessions = [], sources = []) {

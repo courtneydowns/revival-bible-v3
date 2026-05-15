@@ -4133,8 +4133,16 @@ button.candidate-filter-pill {
   border-color: rgb(139 174 139 / 45%);
 }
 
-.source-type-badge {
+.source-card-badge-row {
+  display: flex;
   grid-area: badge;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+
+.source-type-badge {
   align-self: start;
   width: fit-content;
   max-width: 100%;
@@ -4148,6 +4156,30 @@ button.candidate-filter-pill {
   padding: 4px 7px;
   text-transform: uppercase;
   white-space: normal;
+}
+
+.source-type-badge.type {
+  border-color: rgb(189 167 122 / 36%);
+  background: rgb(189 167 122 / 9%);
+  color: #d2bf8e;
+}
+
+.source-type-badge.status {
+  border-color: rgb(139 174 139 / 34%);
+  background: rgb(139 174 139 / 8%);
+  color: #b6ceb2;
+}
+
+.source-type-badge.provenance {
+  border-color: rgb(128 165 181 / 34%);
+  background: rgb(128 165 181 / 8%);
+  color: #adc8d0;
+}
+
+.source-type-badge.review {
+  border-color: rgb(181 156 128 / 34%);
+  background: rgb(181 156 128 / 8%);
+  color: #d1b994;
 }
 
 .session-source-row-main {
