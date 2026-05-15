@@ -4697,6 +4697,32 @@ button.editorial-ingestion-item.selected {
   padding: 10px 11px 10px 12px;
 }
 
+.editorial-review-queue button.editorial-ingestion-item:hover {
+  border-color: rgb(107 167 215 / 42%);
+  background: #222321;
+}
+
+.editorial-review-queue button.editorial-ingestion-item.selected {
+  border-color: rgb(107 167 215 / 70%);
+  background: linear-gradient(90deg, rgb(107 167 215 / 13%), #24231f 48%);
+  box-shadow:
+    inset 4px 0 0 rgb(107 167 215 / 88%),
+    0 0 0 1px rgb(107 167 215 / 14%);
+}
+
+.editorial-review-queue button.editorial-ingestion-item.selected:hover {
+  border-color: rgb(107 167 215 / 82%);
+  background: linear-gradient(90deg, rgb(107 167 215 / 16%), #28261f 48%);
+}
+
+.editorial-review-queue button.editorial-ingestion-item.selected:focus-visible {
+  outline-color: rgb(107 167 215 / 72%);
+}
+
+.editorial-review-queue button.editorial-ingestion-item.selected strong {
+  color: #f3efe6;
+}
+
 .editorial-review-queue .editorial-review-card-main {
   gap: 7px;
 }
@@ -4906,6 +4932,11 @@ button.editorial-ingestion-item.selected {
   border-color: rgb(255 255 255 / 8%);
   background: #1b1a18;
   color: var(--text-muted);
+}
+
+.editorial-triage-row > .review-selection-control[aria-pressed='true'],
+.editorial-source-cluster-heading > .review-selection-control[aria-pressed='true'] {
+  color: #e2c77f;
 }
 
 .editorial-review-queue-heading {
