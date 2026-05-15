@@ -77,7 +77,7 @@ export default function EditorialIngestion() {
   const [selectedReviewNote, setSelectedReviewNote] = useState('');
   const [selectedExtractionIds, setSelectedExtractionIds] = useState([]);
   const [batchNote, setBatchNote] = useState('');
-  const [expandedSourceIds, setExpandedSourceIds] = useState(['unassigned']);
+  const [expandedSourceIds, setExpandedSourceIds] = useState([]);
   const [removeReviewTarget, setRemoveReviewTarget] = useState(null);
   const [removeSourceTarget, setRemoveSourceTarget] = useState(null);
   const [pendingRoutedReviewKey, setPendingRoutedReviewKey] = useState(null);
@@ -331,7 +331,7 @@ export default function EditorialIngestion() {
   useEffect(() => {
     setExpandedSourceIds((ids) => {
       const visibleKeys = sourceClusters.map((cluster) => cluster.key);
-      return [...new Set([...ids, ...visibleKeys])];
+      return ids.filter((id) => visibleKeys.includes(id));
     });
   }, [sourceClusters]);
 
@@ -432,11 +432,6 @@ export default function EditorialIngestion() {
         focusSourceMaterialStepTop();
       });
     });
-  };
-  const toggleCluster = (clusterKey) => {
-    setExpandedSourceIds((ids) => ids.includes(clusterKey)
-      ? ids.filter((id) => id !== clusterKey)
-      : [...ids, clusterKey]);
   };
   const toggleExtractionSelection = (itemId) => {
     setSelectedExtractionIds((ids) => ids.some((id) => String(id) === String(itemId))
@@ -1494,7 +1489,10 @@ export default function EditorialIngestion() {
               <input onChange={(event) => setBatchNote(event.target.value)} placeholder="Optional editorial note" value={batchNote} />
             </label>
             <div className="editorial-batch-actions">
-              <small>{selectedExtractionCount} selected</small>
+              <div className="editorial-selection-summary" role="status" aria-live="polite">
+                <small>{selectedExtractionCount} selected for batch triage</small>
+                <small>Bulk remove/delete controls are not available here yet.</small>
+              </div>
               <button className="secondary-button editorial-ingestion-header-button quiet" disabled={!selectedExtractionCount || saving} onClick={() => applyBatchTriage('deferred')} type="button">Defer</button>
               <button className="secondary-button editorial-ingestion-header-button quiet" disabled={!selectedExtractionCount || saving} onClick={() => applyBatchTriage('resolved')} type="button">Mark Reviewed</button>
               <button className="secondary-button editorial-ingestion-header-button quiet" disabled={!selectedExtractionCount || saving} onClick={() => applyBatchTriage('accepted-for-placement')} type="button">Ready to File</button>
@@ -1509,22 +1507,28 @@ export default function EditorialIngestion() {
               </div>
               <div className="editorial-ingestion-list">
                 {sourceClusters.map((cluster) => {
-                  const open = expandedSourceIds.includes(cluster.key);
                   const sourceUnresolved = cluster.items.filter((item) => !['resolved', 'deferred'].includes(item.status)).length;
                   const sourceAccepted = cluster.items.filter((item) => item.status === 'accepted-for-placement').length;
                   const allSelected = cluster.items.every((item) => selectedExtractionSet.has(String(item.id)));
                   return (
                     <section className="editorial-source-cluster" key={cluster.key}>
                       <div className="editorial-source-cluster-heading">
-                        <button className="editorial-source-toggle" onClick={() => toggleCluster(cluster.key)} type="button">
+                        <div className="editorial-source-context">
                           <strong>{cluster.title}</strong>
                           <small>{cluster.meta} / {cluster.items.length} visible / {sourceUnresolved} awaiting / {sourceAccepted} ready</small>
-                        </button>
-                        <button aria-label="Select source cluster" className="icon-button" onClick={() => toggleClusterSelection(cluster.items)} title="Select source cluster" type="button">
+                        </div>
+                        <button
+                          aria-label={`Select all visible review items from ${cluster.title} for batch triage`}
+                          aria-pressed={allSelected}
+                          className="icon-button review-selection-control"
+                          onClick={() => toggleClusterSelection(cluster.items)}
+                          title="Select visible items for batch triage"
+                          type="button"
+                        >
                           {allSelected ? <CheckSquare size={15} /> : <Square size={15} />}
                         </button>
                       </div>
-                      {open ? cluster.items.map((item) => {
+                      {cluster.items.map((item) => {
                         const isLatestStaged = lastStagedReview?.key === item.key;
                         return (
                         <div
@@ -1540,7 +1544,14 @@ export default function EditorialIngestion() {
                             }
                           }}
                         >
-                          <button aria-label="Select review item" className="icon-button" onClick={() => toggleExtractionSelection(item.id)} title="Select review item" type="button">
+                          <button
+                            aria-label={`Select ${item.title} for batch triage`}
+                            aria-pressed={selectedExtractionSet.has(String(item.id))}
+                            className="icon-button review-selection-control"
+                            onClick={() => toggleExtractionSelection(item.id)}
+                            title="Select for batch triage"
+                            type="button"
+                          >
                             {selectedExtractionSet.has(String(item.id)) ? <CheckSquare size={15} /> : <Square size={15} />}
                           </button>
                           <button
@@ -1562,7 +1573,7 @@ export default function EditorialIngestion() {
                           </button>
                         </div>
                         );
-                      }) : null}
+                      })}
                     </section>
                   );
                 })}
