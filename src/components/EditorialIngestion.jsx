@@ -73,6 +73,7 @@ export default function EditorialIngestion() {
   const [batchVisibleLimit, setBatchVisibleLimit] = useState(8);
   const [sourceSearchQuery, setSourceSearchQuery] = useState('');
   const [sourceSortOrder, setSourceSortOrder] = useState('newest');
+  const [sourceBatchFilter, setSourceBatchFilter] = useState('all');
   const [sourceMaterialView, setSourceMaterialView] = useState('browse');
   const [storedSourceVisibleLimit, setStoredSourceVisibleLimit] = useState(STORED_SOURCE_PAGE_SIZE);
   const [selectedReviewStatusDraft, setSelectedReviewStatusDraft] = useState('unreviewed');
@@ -110,14 +111,22 @@ export default function EditorialIngestion() {
     [sourceBatches, batchSearchQuery, sourceRecords]
   );
   const visibleBatches = filteredBatches.slice(0, batchVisibleLimit);
+  const storedSourceBatchOptions = useMemo(
+    () => getStoredSourceBatchOptions(sourceRecords, sourceBatches),
+    [sourceRecords, sourceBatches]
+  );
   const filteredStoredSources = useMemo(
-    () => sortStoredSources(filterStoredSources(sourceRecords, sourceSearchQuery), sourceSortOrder),
-    [sourceRecords, sourceSearchQuery, sourceSortOrder]
+    () => sortStoredSources(filterStoredSources(filterStoredSourcesByBatch(sourceRecords, sourceBatchFilter), sourceSearchQuery), sourceSortOrder),
+    [sourceRecords, sourceBatchFilter, sourceSearchQuery, sourceSortOrder]
   );
   const visibleStoredSources = filteredStoredSources.slice(0, storedSourceVisibleLimit);
   const canShowMoreStoredSources = filteredStoredSources.length > visibleStoredSources.length;
   const canShowFewerStoredSources = visibleStoredSources.length > STORED_SOURCE_PAGE_SIZE;
-  const storedSourceScopeLabel = sourceSearchQuery.trim() ? 'matching this search' : 'stored across source batches';
+  const storedSourceBatchScopeLabel = getStoredSourceBatchScopeLabel(sourceBatchFilter, storedSourceBatchOptions);
+  const storedSourceScopeLabel = [
+    sourceSearchQuery.trim() ? 'matching this search' : 'stored source material',
+    storedSourceBatchScopeLabel
+  ].filter(Boolean).join(' / ');
   const storedSourceSortLabel = getStoredSourceSortLabel(sourceSortOrder);
   const reviewFlagLookup = useMemo(
     () => buildReviewFlagLookup(ingestionReviewSummary),
@@ -362,7 +371,14 @@ export default function EditorialIngestion() {
 
   useEffect(() => {
     setStoredSourceVisibleLimit(STORED_SOURCE_PAGE_SIZE);
-  }, [sourceSearchQuery, sourceSortOrder, sourceDraft.importSessionId, activeSourceCount]);
+  }, [sourceSearchQuery, sourceSortOrder, sourceBatchFilter, sourceDraft.importSessionId, activeSourceCount]);
+
+  useEffect(() => {
+    if (sourceBatchFilter === 'all') return;
+    if (sourceBatchFilter === 'unbatched') return;
+    const hasFilter = storedSourceBatchOptions.some((option) => option.value === sourceBatchFilter);
+    if (!hasFilter) setSourceBatchFilter('all');
+  }, [sourceBatchFilter, storedSourceBatchOptions]);
 
   useEffect(() => {
     setBatchVisibleLimit(8);
@@ -1101,6 +1117,14 @@ export default function EditorialIngestion() {
                         <option value="title">Title A-Z</option>
                       </select>
                     </label>
+                    <label>
+                      <span>Browse batch</span>
+                      <select onChange={(event) => setSourceBatchFilter(event.target.value)} value={sourceBatchFilter}>
+                        {storedSourceBatchOptions.map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                    </label>
                     {sourceDraft.importSessionId ? <small>{selectedSourceDraftSources.length} active in selected batch</small> : null}
                   </div>
                   <p className="source-storage-anchor">Return here to find attached sources later. They persist independently of Review Queue items.</p>
@@ -1141,7 +1165,7 @@ export default function EditorialIngestion() {
                   )) : (
                     <div className="stored-source-empty-state" role="status">
                       <strong>No sources match this search.</strong>
-                      <p>Clear or change the search to browse active Stored Source Material again.</p>
+                      <p>Clear or change the search or batch filter to browse active Stored Source Material again.</p>
                     </div>
                   )}
                   {filteredStoredSources.length ? (
@@ -1149,6 +1173,7 @@ export default function EditorialIngestion() {
                       <small>
                         Showing {visibleStoredSources.length} of {filteredStoredSources.length} source{filteredStoredSources.length === 1 ? '' : 's'}
                         {sourceSearchQuery.trim() ? ' matching this search' : ''}
+                        {storedSourceBatchScopeLabel ? ` / ${storedSourceBatchScopeLabel}` : ''}
                       </small>
                       <div>
                         {canShowMoreStoredSources ? (
@@ -2048,6 +2073,75 @@ function filterStoredSources(sources = [], query = '') {
       source.raw_content
     ].some((value) => String(value || '').toLowerCase().includes(normalizedQuery));
   });
+}
+
+function filterStoredSourcesByBatch(sources = [], batchFilter = 'all') {
+  if (!batchFilter || batchFilter === 'all') return sources;
+  if (batchFilter === 'unbatched') {
+    return sources.filter((source) => !getStoredSourceBatchKey(source));
+  }
+  if (!batchFilter.startsWith('batch:')) return sources;
+  const selectedBatchKey = batchFilter.slice('batch:'.length);
+  return sources.filter((source) => getStoredSourceBatchKey(source) === selectedBatchKey);
+}
+
+function getStoredSourceBatchOptions(sources = [], batches = []) {
+  const batchLookup = new Map(batches.map((batch) => [String(batch.id), batch]));
+  const batchCounts = new Map();
+  let unbatchedCount = 0;
+
+  for (const source of sources) {
+    const batchKey = getStoredSourceBatchKey(source);
+    if (!batchKey) {
+      unbatchedCount += 1;
+      continue;
+    }
+    batchCounts.set(batchKey, (batchCounts.get(batchKey) || 0) + 1);
+  }
+
+  const batchOptions = [...batchCounts.entries()]
+    .map(([batchKey, count]) => {
+      const batchId = batchKey.startsWith('id:') ? batchKey.slice('id:'.length) : '';
+      const batch = batchId ? batchLookup.get(batchId) : null;
+      return {
+        value: `batch:${batchKey}`,
+        label: `${getStoredSourceBatchLabel(batch, batchKey)} (${count})`,
+        sortTitle: getStoredSourceBatchLabel(batch, batchKey),
+        createdAt: batch?.updated_at || batch?.created_at || ''
+      };
+    })
+    .sort((a, b) => {
+      const timestampDelta = new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+      return timestampDelta || a.sortTitle.localeCompare(b.sortTitle, undefined, { sensitivity: 'base' });
+    });
+
+  return [
+    { value: 'all', label: `All batches (${sources.length})` },
+    ...batchOptions,
+    { value: 'unbatched', label: `Unbatched (${unbatchedCount})` }
+  ];
+}
+
+function getStoredSourceBatchScopeLabel(batchFilter = 'all', options = []) {
+  if (!batchFilter || batchFilter === 'all') return '';
+  const option = options.find((item) => item.value === batchFilter);
+  return option ? option.label.replace(/\s+\(\d+\)$/, '') : '';
+}
+
+function getStoredSourceBatchKey(source = {}) {
+  const provenance = source.provenance_metadata || {};
+  const batchId = String(source.import_session_id || provenance.import_session_id || '').trim();
+  if (batchId) return `id:${batchId}`;
+  const sessionTitle = String(source.session_title || provenance.session_title || '').trim();
+  return sessionTitle ? `title:${sessionTitle}` : '';
+}
+
+function getStoredSourceBatchLabel(batch = {}, batchKey = '') {
+  const batchTitle = String(batch?.title || batch?.label || batch?.name || '').trim();
+  if (batchTitle) return batchTitle;
+  if (batchKey.startsWith('id:')) return `Batch #${batchKey.slice('id:'.length)}`;
+  if (batchKey.startsWith('title:')) return batchKey.slice('title:'.length);
+  return 'Source batch';
 }
 
 function getStoredSourceSortLabel(sortOrder = 'newest') {
