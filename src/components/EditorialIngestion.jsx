@@ -1450,7 +1450,7 @@ export default function EditorialIngestion() {
           )}
           <div className="editorial-triage-overview editorial-review-counters" aria-label="Editorial review overview for Visible Review Queue">
             {/* TODO: Future status/tag polish should revisit whether "Review Item" and "Awaiting Review" are redundant, and whether Awaiting Review should become New, Unreviewed, or Needs Review with distinct status coloring. */}
-            <ReviewFact label="Visible Queue" value={visibleReviewItemCount} />
+            <ReviewFact label="Visible Review Queue" value={visibleReviewItemCount} />
             <ReviewFact label="Awaiting" value={unresolvedCount} />
             <ReviewFact label="Continuity" value={contradictionCount} />
             <ReviewFact label="Duplicates" value={duplicateCount} />

@@ -4433,13 +4433,13 @@ button.candidate-filter-pill {
 
 .editorial-review-counters {
   grid-template-columns:
-    minmax(84px, 1fr)
-    minmax(68px, 0.8fr)
-    minmax(78px, 0.95fr)
-    minmax(78px, 0.95fr)
-    minmax(58px, 0.7fr)
-    minmax(82px, 0.9fr);
-  gap: 6px;
+    minmax(112px, 1.2fr)
+    minmax(72px, 0.78fr)
+    minmax(88px, 0.92fr)
+    minmax(84px, 0.88fr)
+    minmax(64px, 0.68fr)
+    minmax(88px, 0.82fr);
+  gap: 8px;
   margin: 0 0 14px;
   overflow-x: auto;
   scrollbar-width: none;
@@ -4451,16 +4451,25 @@ button.candidate-filter-pill {
 
 .editorial-review-counters > div {
   align-content: center;
-  gap: 3px;
-  min-height: 48px;
-  padding: 6px 7px;
+  gap: 4px;
+  min-height: 54px;
+  padding: 7px 8px;
 }
 
 .editorial-review-counters span {
   font-size: 9px;
-  line-height: 1.1;
+  line-height: 1.2;
   max-width: 100%;
-  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  text-wrap: balance;
+}
+
+.editorial-review-counters small {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 .editorial-review-counters strong {
@@ -6419,12 +6428,12 @@ button.candidate-tag {
 
   .editorial-review-counters {
     grid-template-columns:
-      minmax(84px, 1fr)
-      minmax(68px, 0.8fr)
-      minmax(78px, 0.95fr)
-      minmax(78px, 0.95fr)
-      minmax(58px, 0.7fr)
-      minmax(82px, 0.9fr);
+      minmax(112px, 1.2fr)
+      minmax(72px, 0.78fr)
+      minmax(88px, 0.92fr)
+      minmax(84px, 0.88fr)
+      minmax(64px, 0.68fr)
+      minmax(88px, 0.82fr);
   }
 
   .editorial-review-counters > div {
