@@ -398,25 +398,38 @@ export default function EditorialIngestion() {
     setSourceAttachmentMessage('');
     setSourceValidationMessage('');
   };
+  const focusSourceMaterialStepTop = () => {
+    const sourceSection = sourceMaterialSectionRef.current;
+    const intakePanel = ingestionIntakeRef.current;
+    if (!sourceSection) return;
+
+    sourceSection.scrollTop = 0;
+    if (intakePanel) {
+      const sourceRect = sourceSection.getBoundingClientRect();
+      const intakeRect = intakePanel.getBoundingClientRect();
+      intakePanel.scrollTo({
+        top: Math.max(0, intakePanel.scrollTop + sourceRect.top - intakeRect.top),
+        behavior: 'auto'
+      });
+    } else {
+      sourceSection.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'auto' });
+    }
+    try {
+      sourceSection.focus({ preventScroll: true });
+    } catch {
+      sourceSection.focus();
+    }
+    if (document.activeElement !== sourceSection) {
+      sourceSection.focus();
+    }
+  };
   const showSourceMaterialStep = (view = 'browse') => {
     setActiveIntakeStep('source-material');
     setSourceMaterialView(view);
+    window.setTimeout(focusSourceMaterialStepTop, 0);
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        const sourceSection = sourceMaterialSectionRef.current;
-        const intakePanel = ingestionIntakeRef.current;
-        if (!sourceSection) return;
-
-        sourceSection.scrollTop = 0;
-        if (intakePanel) {
-          intakePanel.scrollTo({
-            top: Math.max(0, sourceSection.offsetTop - intakePanel.offsetTop),
-            behavior: 'smooth'
-          });
-        } else {
-          sourceSection.scrollIntoView({ block: 'start', behavior: 'smooth' });
-        }
-        sourceSection.focus({ preventScroll: true });
+        focusSourceMaterialStepTop();
       });
     });
   };
