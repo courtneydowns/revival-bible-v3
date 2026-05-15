@@ -6,9 +6,9 @@ Last updated: 2026-05-15 CDT
 
 Keep Editorial Ingestion / Review Queue stable after the recent stabilization passes. The current task is docs/control sync only; no app behavior should change.
 
-**Current stable cluster — Editorial Ingestion / Review Queue stabilization**
+**Current stable cluster — Stored Source Material browsing stabilization**
 
-Phase 43 has stabilized the review surface enough that the next work should be deliberate backlog work, not tiny visual churn. Source material intake remains source-first, provenance remains preserved, and Review Queue is now flattened so source/batch context informs review without becoming a navigation gate.
+Phase 43 has stabilized the review surface enough that the next work should be deliberate backlog work, not tiny visual churn. The current Stored Source Material work has also stabilized the Source Material tab into a calmer source-library browsing surface while leaving Review Queue, Review Detail, Dashboard, counters, store, database, and canon/review state logic unchanged.
 
 ## Current stable state
 
@@ -39,6 +39,18 @@ Review Queue is currently stable with these decisions:
 - Review Queue checkboxes are selection/triage controls only.
 - No bulk delete/remove workflow has been implemented yet.
 
+Stored Source Material is currently stable with these decisions:
+
+- Stored Source Material behaves more like a calm source library than an admin dump.
+- Search/filter covers title/name, visible metadata, and preview/raw source text where available.
+- Sort remains available, and status copy reflects the active sort.
+- Source cards show derived-only type, status, and provenance badges.
+- Long lists initially show a limited number of sources and support Show More / Show Fewer when enough sources exist.
+- Batch/session browsing filters support All batches, specific batch/session filters, and an Unbatched fallback where available.
+- Existing source remove behavior and confirmation semantics remain unchanged.
+- Source Material tab scroll/focus behavior remains stable.
+- Review Queue, Review Detail, Dashboard, counters, store, database, and canon/review state logic remain unchanged.
+
 ## Completed UI decisions
 
 Keep these decisions unless a concrete usability issue appears:
@@ -56,8 +68,9 @@ Do not start these without an explicit future phase:
 
 - safe bulk Review Queue remove/delete
 - safe Review Queue item deletion
-- safe source material removal, batch archive, or batch removal
-- stored Source Material long-list browsing/scaling
+- source batch archive/remove
+- safe source deletion/removal controls that preserve canon safety
+- larger stored Source Material browsing that may need pagination, better grouping, or a dedicated source-library panel
 - Editorial Intake / Review Queue status and type colored tags
 - larger extraction/review automation work
 

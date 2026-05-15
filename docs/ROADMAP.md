@@ -4,7 +4,7 @@ Last updated: 2026-05-15 CDT
 
 ## Current roadmap position
 
-The project has completed the Phase 42 source/session/review safety work and recent Editorial Ingestion / Review Queue stabilization passes. The app is in a hold/stabilized state; future work should be explicitly scoped backlog work, not continued visual churn.
+The project has completed the Phase 42 source/session/review safety work, recent Editorial Ingestion / Review Queue stabilization passes, and the Stored Source Material browsing stabilization cluster. The app is in a hold/stabilized state; future work should be explicitly scoped backlog work, not continued visual churn.
 
 ## Recently stabilized / completed direction
 
@@ -47,6 +47,22 @@ Recent stabilization completed the key Review Queue UI decisions:
 
 No bulk delete/remove workflow has been implemented yet.
 
+Review Queue polish is paused/stable; avoid returning to it unless a concrete issue appears.
+
+### Stored Source Material browsing stabilization
+
+Recent source-library stabilization completed the key Stored Source Material browsing decisions:
+
+- Stored Source Material now behaves more like a calm source library.
+- Search/filter works across title/name, visible metadata, and preview/raw source text where available.
+- Sort control remains available, and status copy reflects active sort.
+- Source cards show calm derived-only type/status/provenance badges.
+- Long-list controls show a limited number of sources first and support Show More / Show Fewer when enough sources exist.
+- Batch/session browsing filters support All batches, specific batch/session filters, and an Unbatched fallback where available.
+- Existing source remove behavior and confirmation semantics remain unchanged.
+- Source Material tab scroll/focus behavior remains stable.
+- Review Queue, Review Detail, Dashboard, counters, store, database, and canon/review state logic remain unchanged.
+
 ## Current roadmap position
 
 Hold the stable Editorial Ingestion / Review Queue behavior. Do not start a new feature phase unless the next prompt explicitly scopes it.
@@ -62,13 +78,14 @@ This is still not extraction automation and not canon import.
 
 ### Source Material management
 
-- Safe source material removal, batch archive, or batch removal remains future work.
-- Stored Source Material long-list browsing/scaling remains future work.
+- Source batch archive/remove remains future work.
+- Larger source-library browsing may later need pagination, better grouping, or a dedicated source-library panel.
+- Safe source deletion/removal controls remain future work and must preserve canon safety.
 
 ### UI polish
 
 - Editorial Intake / Review Queue status and type colored tags remain future UI polish.
-- Avoid further tiny visual churn unless a concrete issue appears.
+- Avoid further Review Queue micro-polish unless a concrete issue appears.
 
 - Continue real document dump/import preparation.
 - Before using real story files, create a full database backup/snapshot.

@@ -88,9 +88,33 @@ Completed stable outcomes:
 Explicitly not implemented:
 - bulk Review Queue delete/remove
 - individual safe Review Queue item deletion
-- source material removal, batch archive, or batch removal
-- stored Source Material long-list browsing/scaling
+- source batch archive/remove
+- safe source deletion/removal controls that preserve canon safety
+- larger source-library browsing pagination, better grouping, or dedicated panel work
 - Editorial Intake / Review Queue status and type colored tags
+
+Review Queue polish is paused/stable; avoid returning to micro-polish unless a concrete issue appears.
+
+### Stored Source Material browsing cluster — Source-library stabilization
+
+Status: Stabilized / docs-control sync.
+
+Summary:
+Stored Source Material now behaves more like a calm source library. This cluster improved source browsing and inspection affordances without changing source remove behavior, confirmation semantics, Review Queue, Review Detail, Dashboard, counters, store, database, or canon/review state logic.
+
+Completed stable outcomes:
+- Search/filter works across title/name, visible metadata, and preview/raw source text where available.
+- Sort control remains available, and status copy reflects active sort.
+- Source cards show calm derived-only type/status/provenance badges.
+- Long-list controls show a limited number of sources first and support Show More / Show Fewer when enough sources exist.
+- Batch/session browsing filters support All batches, specific batch/session filters, and an Unbatched fallback where available.
+- Existing source remove behavior and confirmation semantics remain unchanged.
+- Source Material tab scroll/focus behavior remains stable.
+
+Explicitly not implemented:
+- source batch archive/remove
+- larger source-library browsing pagination, better grouping, or dedicated panel work
+- safe source deletion/removal controls beyond the existing behavior
 
 ## Future backlog
 
@@ -101,11 +125,12 @@ Explicitly not implemented:
 
 ### Source Material management
 
-- Safe source material removal, batch archive, or batch removal remains future work.
-- Stored Source Material long-list browsing/scaling remains future work.
+- Source batch archive/remove remains future work.
+- Larger source-library browsing may later need pagination, better grouping, or a dedicated source-library panel.
+- Safe source deletion/removal controls remain future work and must preserve canon safety.
 
 ### UI polish
 
 - Editorial Intake / Review Queue status and type colored tags remain future UI polish.
-- Avoid further tiny visual churn unless a concrete issue appears.
+- Avoid further Review Queue micro-polish unless a concrete issue appears.
 - Continue preserving calm editorial UX and canon safety.

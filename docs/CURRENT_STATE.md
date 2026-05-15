@@ -47,14 +47,31 @@ The Review Queue is flattened and item-first:
 - Bulk delete/remove has not been implemented.
 - Dashboard, routing, and Review Detail behavior remain stable.
 
+Review Queue polish is paused/stable. Avoid returning to micro-polish unless a concrete issue appears.
+
+## Stored Source Material current behavior
+
+Stored Source Material now behaves more like a calm source library:
+
+- Search/filter works across source title/name, visible metadata, and preview/raw source text where available.
+- Sort control remains available, and status copy reflects the active sort.
+- Source cards show calm derived-only type/status/provenance badges.
+- Long-list controls show a limited number of sources first and support Show More / Show Fewer when enough sources exist.
+- Batch/session browsing filters support All batches, specific batch/session filters, and an Unbatched fallback where available.
+- Existing source remove behavior and confirmation semantics remain unchanged.
+- Source Material tab scroll/focus behavior remains stable.
+
+This browsing work did not change Review Queue, Review Detail, Dashboard, counters, store, database, or canon/review state logic.
+
 ## Known future backlog
 
 These items are future work and should not be treated as completed behavior:
 
 - safe bulk Review Queue remove/delete
 - safe Review Queue item deletion
-- safe source material removal, batch archive, or batch removal
-- stored Source Material long-list browsing/scaling
+- source batch archive/remove
+- larger source-library browsing that may need pagination, better grouping, or a dedicated source-library panel
+- safe source deletion/removal controls that preserve canon safety
 - Editorial Intake / Review Queue status and type colored tags
 - larger extraction/review automation work
 
