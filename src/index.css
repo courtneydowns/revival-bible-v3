@@ -4974,6 +4974,13 @@ button.editorial-ingestion-item.selected {
   text-align: left;
 }
 
+.editorial-review-queue-helper {
+  margin: -5px 0 0;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
 .editorial-review-batch-summary {
   display: inline-flex;
   max-width: 100%;

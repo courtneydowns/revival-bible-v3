@@ -77,7 +77,6 @@ export default function EditorialIngestion() {
   const [selectedReviewNote, setSelectedReviewNote] = useState('');
   const [selectedExtractionIds, setSelectedExtractionIds] = useState([]);
   const [expandedSourceIds, setExpandedSourceIds] = useState([]);
-  const [removeReviewTarget, setRemoveReviewTarget] = useState(null);
   const [removeSourceTarget, setRemoveSourceTarget] = useState(null);
   const [pendingRoutedReviewKey, setPendingRoutedReviewKey] = useState(null);
   const sessionTitleRef = useRef(null);
@@ -94,7 +93,6 @@ export default function EditorialIngestion() {
   const createStagedSource = useRevivalStore((state) => state.createStagedSource);
   const createManualExtractionCandidate = useRevivalStore((state) => state.createManualExtractionCandidate);
   const updateExtractionReviewTriage = useRevivalStore((state) => state.updateExtractionReviewTriage);
-  const removeExtractionReviewItem = useRevivalStore((state) => state.removeExtractionReviewItem);
   const removeStoredSourceMaterial = useRevivalStore((state) => state.removeStoredSourceMaterial);
   const showToast = useRevivalStore((state) => state.showToast);
   const sessions = ingestionReviewSummary.sessions || [];
@@ -463,31 +461,6 @@ export default function EditorialIngestion() {
     setSelectedReviewStatusDraft(status);
     setSelectedReviewKey(selectedReviewItem.key);
     setMessage(`${formatReviewType(status)} saved for ${selectedReviewItem.title}. Canon remains unchanged.`);
-  };
-  const requestReviewRemoval = (item) => {
-    if (!item || item.kind !== 'Review Item') return;
-    setRemoveReviewTarget(item);
-  };
-  const cancelReviewRemoval = () => {
-    if (saving) return;
-    setRemoveReviewTarget(null);
-  };
-  const confirmReviewRemoval = async () => {
-    if (!removeReviewTarget || saving) return;
-    setSaving(true);
-    const response = await removeExtractionReviewItem({
-      id: removeReviewTarget.id,
-      note: 'Removed from Review Queue by editor. Source material and canon unchanged.'
-    });
-    setSaving(false);
-    if (!response?.ok) {
-      setMessage(response?.message || 'Review item could not be removed.');
-      return;
-    }
-    setSelectedExtractionIds((ids) => ids.filter((id) => String(id) !== String(removeReviewTarget.id)));
-    if (selectedReviewKey === removeReviewTarget.key) setSelectedReviewKey(null);
-    setRemoveReviewTarget(null);
-    setMessage(`Review item removed from the Review Queue. Source material remains stored: ${removeReviewTarget.sourceLabel || 'attached source'}. Canon unchanged.`);
   };
   const requestSourceRemoval = (source) => {
     if (!source?.id) return;
@@ -1492,6 +1465,9 @@ export default function EditorialIngestion() {
                   </div>
                 ) : null}
               </div>
+              <p className="editorial-review-queue-helper">
+                Select Review Queue items for triage and future batch workflow planning. Remove or delete controls are not available yet.
+              </p>
               <div className="editorial-ingestion-list">
                 {sourceClusters.map((cluster) => {
                   const sourceUnresolved = cluster.items.filter((item) => !['resolved', 'deferred'].includes(item.status)).length;
@@ -1667,36 +1643,6 @@ export default function EditorialIngestion() {
           </div>
         </section>
       </div>
-      {removeReviewTarget ? (
-        <div className="modal-backdrop">
-          <section aria-labelledby="review-remove-title" aria-modal="true" className="modal review-remove-modal" role="dialog">
-            <div className="review-remove-modal-header">
-              <div>
-                <div className="eyebrow">Remove from Review Queue</div>
-                <h2 id="review-remove-title">Remove this review item?</h2>
-              </div>
-              <button className="icon-button" disabled={saving} onClick={cancelReviewRemoval} title="Cancel removal" type="button">
-                <X size={16} />
-              </button>
-            </div>
-            <p>
-              This only removes <strong>{removeReviewTarget.title}</strong> from editorial review. Source material remains stored. Accepted canon unchanged.
-            </p>
-            <div className="review-layer-safety-note" aria-label="Review removal safety state">
-              <span>Source material remains stored</span>
-              <span>Canon unchanged</span>
-              <span>Editorial review only</span>
-            </div>
-            <div className="modal-actions">
-              <button className="secondary-button" disabled={saving} onClick={cancelReviewRemoval} type="button">Cancel</button>
-              <button className="secondary-button danger-button" disabled={saving} onClick={confirmReviewRemoval} type="button">
-                <Trash2 size={14} />
-                <span>{saving ? 'Removing...' : 'Remove from Review Queue'}</span>
-              </button>
-            </div>
-          </section>
-        </div>
-      ) : null}
       {confirmFlaggedCandidate ? (
         <div className="modal-backdrop">
           <section aria-labelledby="flagged-candidate-title" aria-modal="true" className="modal review-remove-modal flagged-candidate-modal" role="dialog">
