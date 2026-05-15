@@ -114,6 +114,7 @@ export default function EditorialIngestion() {
   );
   const visibleStoredSources = filteredStoredSources.slice(0, storedSourceVisibleLimit);
   const storedSourceScopeLabel = sourceSearchQuery.trim() ? 'matching this search' : 'stored across source batches';
+  const storedSourceSortLabel = getStoredSourceSortLabel(sourceSortOrder);
   const reviewFlagLookup = useMemo(
     () => buildReviewFlagLookup(ingestionReviewSummary),
     [ingestionReviewSummary]
@@ -1063,7 +1064,7 @@ export default function EditorialIngestion() {
                 <strong>Stored Source Material</strong>
                 <small>
                   {activeSourceCount
-                    ? `${filteredStoredSources.length} of ${activeSourceCount} active stored source${activeSourceCount === 1 ? '' : 's'} ${storedSourceScopeLabel} / newest first`
+                    ? `${filteredStoredSources.length} of ${activeSourceCount} active stored source${activeSourceCount === 1 ? '' : 's'} ${storedSourceScopeLabel} / ${storedSourceSortLabel}`
                     : '0 active stored sources'}
                 </small>
               </div>
@@ -2018,9 +2019,17 @@ function filterStoredSources(sources = [], query = '') {
       provenance.source_note,
       provenance.original_filename,
       provenance.custom_source_label,
-      provenance.file_preview_state
+      provenance.file_preview_state,
+      provenance.file_preview_note,
+      source.raw_content
     ].some((value) => String(value || '').toLowerCase().includes(normalizedQuery));
   });
+}
+
+function getStoredSourceSortLabel(sortOrder = 'newest') {
+  if (sortOrder === 'oldest') return 'oldest first';
+  if (sortOrder === 'title') return 'title A-Z';
+  return 'newest first';
 }
 
 function sortStoredSources(sources = [], sortOrder = 'newest') {
@@ -2137,6 +2146,8 @@ function sourceRecordMatchesQuery(source = {}, normalizedQuery = '') {
     provenance.original_filename,
     provenance.custom_source_label,
     provenance.file_preview_state,
+    provenance.file_preview_note,
+    source.raw_content,
     ...collectSearchableValues(provenance)
   ].some((value) => String(value || '').toLowerCase().includes(normalizedQuery));
 }
