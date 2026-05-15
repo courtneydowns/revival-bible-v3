@@ -4259,6 +4259,37 @@ button.candidate-filter-pill {
   margin-top: 2px;
 }
 
+.stored-source-list-controls {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.stored-source-list-controls > small {
+  min-width: 0;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+}
+
+.stored-source-list-controls > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.stored-source-show-more.quiet {
+  opacity: 0.82;
+}
+
 .source-remove-identity {
   display: block;
   margin-top: 4px;

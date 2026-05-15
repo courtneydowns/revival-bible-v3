@@ -3,6 +3,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRevivalStore } from '../store.js';
 import { formatCentralTime } from '../time.js';
 
+const STORED_SOURCE_PAGE_SIZE = 6;
+
 const initialSessionDraft = {
   title: '',
   sourceType: 'draft-notes',
@@ -72,7 +74,7 @@ export default function EditorialIngestion() {
   const [sourceSearchQuery, setSourceSearchQuery] = useState('');
   const [sourceSortOrder, setSourceSortOrder] = useState('newest');
   const [sourceMaterialView, setSourceMaterialView] = useState('browse');
-  const [storedSourceVisibleLimit, setStoredSourceVisibleLimit] = useState(12);
+  const [storedSourceVisibleLimit, setStoredSourceVisibleLimit] = useState(STORED_SOURCE_PAGE_SIZE);
   const [selectedReviewStatusDraft, setSelectedReviewStatusDraft] = useState('unreviewed');
   const [selectedReviewNote, setSelectedReviewNote] = useState('');
   const [selectedExtractionIds, setSelectedExtractionIds] = useState([]);
@@ -113,6 +115,8 @@ export default function EditorialIngestion() {
     [sourceRecords, sourceSearchQuery, sourceSortOrder]
   );
   const visibleStoredSources = filteredStoredSources.slice(0, storedSourceVisibleLimit);
+  const canShowMoreStoredSources = filteredStoredSources.length > visibleStoredSources.length;
+  const canShowFewerStoredSources = visibleStoredSources.length > STORED_SOURCE_PAGE_SIZE;
   const storedSourceScopeLabel = sourceSearchQuery.trim() ? 'matching this search' : 'stored across source batches';
   const storedSourceSortLabel = getStoredSourceSortLabel(sourceSortOrder);
   const reviewFlagLookup = useMemo(
@@ -357,7 +361,7 @@ export default function EditorialIngestion() {
   }, []);
 
   useEffect(() => {
-    setStoredSourceVisibleLimit(12);
+    setStoredSourceVisibleLimit(STORED_SOURCE_PAGE_SIZE);
   }, [sourceSearchQuery, sourceSortOrder, sourceDraft.importSessionId, activeSourceCount]);
 
   useEffect(() => {
@@ -1140,10 +1144,25 @@ export default function EditorialIngestion() {
                       <p>Clear or change the search to browse active Stored Source Material again.</p>
                     </div>
                   )}
-                  {filteredStoredSources.length > visibleStoredSources.length ? (
-                    <button className="secondary-button stored-source-show-more" onClick={() => setStoredSourceVisibleLimit((limit) => limit + 12)} type="button">
-                      Show More Sources
-                    </button>
+                  {filteredStoredSources.length ? (
+                    <div className="stored-source-list-controls" aria-label="Stored source list display controls">
+                      <small>
+                        Showing {visibleStoredSources.length} of {filteredStoredSources.length} source{filteredStoredSources.length === 1 ? '' : 's'}
+                        {sourceSearchQuery.trim() ? ' matching this search' : ''}
+                      </small>
+                      <div>
+                        {canShowMoreStoredSources ? (
+                          <button className="secondary-button stored-source-show-more" onClick={() => setStoredSourceVisibleLimit((limit) => limit + STORED_SOURCE_PAGE_SIZE)} type="button">
+                            Show More Sources
+                          </button>
+                        ) : null}
+                        {canShowFewerStoredSources ? (
+                          <button className="secondary-button stored-source-show-more quiet" onClick={() => setStoredSourceVisibleLimit(STORED_SOURCE_PAGE_SIZE)} type="button">
+                            Show Fewer Sources
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
                   ) : null}
                 </>
               ) : (
