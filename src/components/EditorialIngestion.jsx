@@ -76,7 +76,6 @@ export default function EditorialIngestion() {
   const [selectedReviewStatusDraft, setSelectedReviewStatusDraft] = useState('unreviewed');
   const [selectedReviewNote, setSelectedReviewNote] = useState('');
   const [selectedExtractionIds, setSelectedExtractionIds] = useState([]);
-  const [batchNote, setBatchNote] = useState('');
   const [expandedSourceIds, setExpandedSourceIds] = useState([]);
   const [removeReviewTarget, setRemoveReviewTarget] = useState(null);
   const [removeSourceTarget, setRemoveSourceTarget] = useState(null);
@@ -449,19 +448,7 @@ export default function EditorialIngestion() {
       ? selectedIds.filter((id) => !ids.some((itemId) => String(itemId) === String(id)))
       : [...new Set([...selectedIds, ...ids])]);
   };
-  const applyBatchTriage = async (status) => {
-    if (!selectedExtractionIds.length) return;
-    setSaving(true);
-    const response = await updateExtractionReviewTriage({ ids: selectedExtractionIds, status, note: batchNote });
-    setSaving(false);
-    if (!response?.ok) {
-      setMessage(response?.message || 'Editorial review could not be saved.');
-      return;
-    }
-    setSelectedExtractionIds([]);
-    setBatchNote('');
-    setMessage(`${formatReviewType(status)} saved for selected review items.`);
-  };
+  const clearExtractionSelection = () => setSelectedExtractionIds([]);
   const applySelectedReviewTriage = async (status = selectedReviewStatusDraft) => {
     if (!selectedReviewItem || selectedReviewItem.kind !== 'Review Item') return;
     setSaving(true);
@@ -1469,7 +1456,7 @@ export default function EditorialIngestion() {
             <ReviewFact label="Ready" value={acceptedCount} />
             <ReviewFact label="Canon" value="Unchanged" />
           </div>
-          <div className="editorial-review-controls" aria-label="Review filters and batch actions">
+          <div className="editorial-review-controls" aria-label="Review filters">
             <label>
               <span>Review state</span>
               <select onChange={(event) => setReviewStateFilter(event.target.value)} value={reviewStateFilter}>
@@ -1488,26 +1475,22 @@ export default function EditorialIngestion() {
                 <option value="accepted-for-placement">Ready to file</option>
               </select>
             </label>
-            <label className="editorial-batch-note">
-              <span>Batch note</span>
-              <input onChange={(event) => setBatchNote(event.target.value)} placeholder="Optional editorial note" value={batchNote} />
-            </label>
-            <div className="editorial-batch-actions">
-              <div className="editorial-selection-summary" role="status" aria-live="polite">
-                <small>{selectedExtractionCount} selected for batch triage</small>
-                <small>Bulk remove/delete controls are not available here yet.</small>
-              </div>
-              <button className="secondary-button editorial-ingestion-header-button quiet" disabled={!selectedExtractionCount || saving} onClick={() => applyBatchTriage('deferred')} type="button">Defer</button>
-              <button className="secondary-button editorial-ingestion-header-button quiet" disabled={!selectedExtractionCount || saving} onClick={() => applyBatchTriage('resolved')} type="button">Mark Reviewed</button>
-              <button className="secondary-button editorial-ingestion-header-button quiet" disabled={!selectedExtractionCount || saving} onClick={() => applyBatchTriage('accepted-for-placement')} type="button">Ready to File</button>
-            </div>
           </div>
 
           <div className="editorial-review-split">
             <nav className="editorial-review-queue" aria-label="Review queue">
               <div className="editorial-review-queue-heading">
-                <strong>Review Queue</strong>
-                <small>Editorial review only / Canon unchanged</small>
+                <div>
+                  <strong>Review Queue</strong>
+                  <small>Editorial review only / Canon unchanged</small>
+                </div>
+                {selectedExtractionCount ? (
+                  <div className="editorial-review-batch-summary" role="status" aria-live="polite">
+                    <span>{selectedExtractionCount} selected</span>
+                    <button className="secondary-button editorial-ingestion-header-button quiet" onClick={clearExtractionSelection} type="button">Clear selection</button>
+                    <button className="secondary-button editorial-ingestion-header-button quiet" disabled type="button">Batch actions coming later</button>
+                  </div>
+                ) : null}
               </div>
               <div className="editorial-ingestion-list">
                 {sourceClusters.map((cluster) => {
