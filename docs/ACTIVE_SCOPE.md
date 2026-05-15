@@ -1,18 +1,18 @@
 # Revival Bible v3 — ACTIVE_SCOPE
 
-Last updated: 2026-05-12 CDT
+Last updated: 2026-05-15 CDT
 
 ## Current focus
 
-Move from Phase 42C/fix loops into a clean stabilization cluster:
+Keep Editorial Ingestion / Review Queue stable after the recent stabilization passes. The current task is docs/control sync only; no app behavior should change.
 
-**Phase 43 — Editorial Ingestion Workflow Stabilization**
+**Current stable cluster — Editorial Ingestion / Review Queue stabilization**
 
-Phase 43 exists because Phase 42 stabilized the source/session/review safety architecture, but repeated micro-fixes exposed broader UX comprehension, layout, and review-list readability problems that should no longer be handled as endless `42C-fixX` patches.
+Phase 43 has stabilized the review surface enough that the next work should be deliberate backlog work, not tiny visual churn. Source material intake remains source-first, provenance remains preserved, and Review Queue is now flattened so source/batch context informs review without becoming a navigation gate.
 
-## Current status before Phase 43
+## Current stable state
 
-Phase 42 core and follow-up fixes established:
+Phase 42 and Phase 43 follow-up stabilization established:
 
 - staged source attachment workflow
 - native file picker path
@@ -21,108 +21,45 @@ Phase 42 core and follow-up fixes established:
 - attachment success confirmation
 - required-field indicators and validation paths
 - non-canon staged review item creation
-- Review Workspace / Review List counter clarification attempts
+- Review Workspace / Review Queue counter clarification
 - footer/status calmness cleanup
 - canon safety preserved during staged intake and review
+- Editorial Ingestion Source Material tab scrolls/focuses back to the Source Material section top
+- Source Material readability/layout remains improved
+- Dashboard, routing, and Review Detail behavior remain stable
+- counters stay on one row, including `Visible Review Queue`
 
-Phase 42C-fix5 added the important workflow correction:
+Review Queue is currently stable with these decisions:
 
-- choosing a source file can auto-create/select a calm intake session when needed
-- users no longer have to manually create an import session before attaching a document
-- sessions remain internally useful for provenance, grouping, recovery, rollback, and audit history, but should not feel mandatory/admin-first
+- Review Queue is flattened; source/batch groups are context headers, not navigation gates.
+- Review Queue items are visible directly without opening source batches.
+- Source/batch context remains provenance, not primary navigation.
+- Review Queue cards remain collapsed/summary-style by default.
+- Selected Review Queue card styling is clear and distinct from checkbox/batch triage selection.
+- Review Queue checkboxes are selection/triage controls only.
+- No bulk delete/remove workflow has been implemented yet.
 
-## Why Phase 43 is needed
+## Completed UI decisions
 
-The architecture is now safe enough to stop patching counter/session details one at a time. The remaining problems are workflow-stabilization and UX-readability issues:
+Keep these decisions unless a concrete usability issue appears:
 
-- Review List cards are cramped and visually confusing.
-- Tags/chips can overlap or wrap badly.
-- Review Workspace / Review List can feel like an abstract metrics dashboard instead of an editorial review surface.
-- The user can lose track of where staged items appeared and what happens next.
-- Scroll/clipping behavior is fragile.
-- Nested review cards, checkboxes, badges, and list hierarchy need a calmer structure.
-- Some wording still feels internal/tooling-oriented.
-- The current Editorial Ingestion left intake column can still behave like a long stacked form.
+- Review Queue should be inspectable at the item level immediately.
+- Source/batch grouping should support provenance and scanning, not block review.
+- Summary-style cards are the default queue density.
+- Checkbox selection is for triage only and must not imply navigation or deletion.
+- Active/selected review-card state must stay visually separate from checkbox selection.
+- Calm editorial UX and canon safety take priority over dense admin controls.
 
-## Phase 43 cluster plan
+## Future backlog
 
-Break the work into focused stabilization subphases instead of more Phase 42C fixes.
+Do not start these without an explicit future phase:
 
-### Phase 43A — Review List readability + card hierarchy
-
-Goal: Make staged review items readable, scannable, and clearly connected to the review workflow.
-
-Focus:
-- Review List cards
-- card hierarchy
-- title/source/type/status layout
-- checkbox alignment
-- row-level “Newly staged” marker
-- clear selected/active item state
-- readable truncation rules
-- calm density reduction
-
-Known issue to include:
-- Screenshot showed cramped nested review cards and confusing card boundaries in the Review Workspace.
-
-### Phase 43B — Tag/chip wrapping and overflow behavior
-
-Goal: Fix tags/chips/badges so they never overlap or crowd text.
-
-Focus:
-- chip wrapping
-- chip spacing
-- responsive behavior
-- overflow handling
-- avoiding badge/text collision
-- no chips covering staged/latest item panels or review-list rows
-
-Known issue to include:
-- Tags/chips in Review Workspace cards overlapped and made the list look broken.
-
-### Phase 43C — Review List scroll/clipping/responsive stability
-
-Goal: Make the Review List reliably scrollable and inspectable across normal Electron window sizes.
-
-Focus:
-- scroll containers
-- clipped panels
-- fixed-height conflicts
-- sticky/overflow behavior
-- right-column/list usability
-- moderate window resize behavior
-
-### Phase 43D — Intake workflow simplification / source-first flow
-
-Goal: Make the left intake area feel like source-first intake, not session-admin-first tooling.
-
-Focus:
-- source attachment as primary action
-- auto session remains invisible/supportive unless needed
-- session details editable but not blocking
-- avoid one long stacked form
-- consider contained sections, collapsible details, or light step flow
-
-Do not remove the underlying session architecture.
-
-### Phase 43E — Editorial action clarity
-
-Goal: Make next actions understandable after staging.
-
-Focus:
-- Accept / Defer / placement wording
-- selected item action state
-- what happens next
-- canon-safety reassurance
-- empty/success/error states
-
-## Current recommended next phase
-
-Start with:
-
-**Phase 43A — Review List readability + card hierarchy**
-
-Reason: The most visible current problem is that the Review List itself is cramped, hard to read, and visually untrustworthy. Stabilizing the list/card hierarchy first will make later chip, scroll, and action clarity work easier to validate.
+- safe bulk Review Queue remove/delete
+- safe Review Queue item deletion
+- safe source material removal, batch archive, or batch removal
+- stored Source Material long-list browsing/scaling
+- Editorial Intake / Review Queue status and type colored tags
+- larger extraction/review automation work
 
 ## Strict constraints for Phase 43
 
@@ -135,6 +72,8 @@ Reason: The most visible current problem is that the Review List itself is cramp
 - Do not do broad opportunistic refactors.
 - Keep each subphase surgical and testable.
 - Prefer one or two files per subphase when possible.
+- Avoid further tiny visual churn unless a concrete issue appears.
+- Preserve calm editorial UX and canon safety.
 
 ## Codex workflow rules
 

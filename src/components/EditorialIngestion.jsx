@@ -236,6 +236,10 @@ export default function EditorialIngestion() {
     return counts;
   }, {}), [visibleReviewItems]);
   const selectedReviewItem = stagedItems.find((item) => item.key === selectedReviewKey) || null;
+  const selectedReviewSourceContext = useMemo(
+    () => getSelectedReviewSourceContext(selectedReviewItem, sourceRecords, sourceBatches, sessions),
+    [selectedReviewItem, sourceRecords, sourceBatches, sessions]
+  );
   const selectedExtractionSet = useMemo(() => new Set(selectedExtractionIds.map(String)), [selectedExtractionIds]);
   const selectedExtractionCount = selectedExtractionIds.length;
   const visibleReviewItemCount = visibleReviewItems.length;
@@ -1602,9 +1606,14 @@ export default function EditorialIngestion() {
                     </div>
                     <StateBadge state={getReviewStateKey(selectedReviewItem)} label={getReviewDetailStateLabel(selectedReviewItem)} />
                   </div>
+                  {selectedReviewSourceContext ? (
+                    <div className="selected-review-source-context" aria-label="Selected review item source context">
+                      <span>Selected item source</span>
+                      <strong>{selectedReviewSourceContext.sourceLabel}</strong>
+                      <small>{selectedReviewSourceContext.batchLabel} / {selectedReviewSourceContext.sourceTypeLabel} / {selectedReviewSourceContext.sourceRecordLabel}</small>
+                    </div>
+                  ) : null}
                   <div className="editorial-review-meta-grid">
-                    <ReviewFact label="Source" value={selectedReviewItem.sourceLabel || selectedReviewItem.provenance?.source_label || 'Source preserved'} />
-                    <ReviewFact label="Type" value={formatSourceType(selectedReviewItem.sourceType, selectedReviewItem.sourceTypeLabel || selectedReviewItem.provenance?.custom_source_label)} />
                     <ReviewFact label="Review state" value={formatReviewType(selectedReviewItem.status)} />
                     <ReviewFact label="Confidence" value={formatConfidence(selectedReviewItem.confidence)} />
                     <ReviewFact label="Updated" value={formatDate(selectedReviewItem.timestamp)} />
@@ -2277,6 +2286,40 @@ function formatSourceOption(source) {
     `Source #${source.id}`,
     formatSourceType(source.source_type, source.provenance_metadata?.custom_source_label)
   ].filter(Boolean).join(' / ');
+}
+
+function getSelectedReviewSourceContext(item, sources = [], batches = [], sessions = []) {
+  if (!item || item.kind !== 'Review Item') return null;
+  const provenance = item.provenance || {};
+  const sourceId = String(item.sourceRecordId || provenance.source_record_id || '');
+  const source = sources.find((candidate) => String(candidate.id) === sourceId);
+  const batchId = String(source?.import_session_id || source?.provenance_metadata?.import_session_id || provenance.import_session_id || '');
+  const batch = batches.find((candidate) => String(candidate.id) === batchId)
+    || sessions.find((candidate) => String(candidate.id) === batchId);
+  const sourceLabel = source?.source_label
+    || item.sourceLabel
+    || provenance.source_label
+    || provenance.removed_source_label
+    || 'Source preserved';
+  const batchLabel = batch?.title
+    || source?.session_title
+    || provenance.session_title
+    || (batchId ? `Source batch #${batchId}` : 'Source batch preserved');
+  const sourceType = source?.source_type
+    || item.sourceType
+    || provenance.source_type
+    || provenance.removed_source_type;
+  const sourceTypeLabel = formatSourceType(
+    sourceType,
+    source?.provenance_metadata?.custom_source_label || item.sourceTypeLabel || provenance.custom_source_label
+  );
+
+  return {
+    sourceLabel,
+    batchLabel,
+    sourceTypeLabel,
+    sourceRecordLabel: sourceId ? `Source record #${sourceId}` : 'Source record preserved'
+  };
 }
 
 function buildAutoSessionTitle(filename) {

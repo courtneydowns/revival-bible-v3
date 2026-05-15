@@ -1,6 +1,6 @@
 # Revival Bible v3 — PHASE_LEDGER
 
-Last updated: 2026-05-12 CDT
+Last updated: 2026-05-15 CDT
 
 ## Recent phase status
 
@@ -62,62 +62,50 @@ Follow-up fixes addressed:
 Important final workflow decision:
 Sessions are still important internally but should not block source attachment. The UI should be source-first and auto-create/select an intake session when needed.
 
-## Current transition
+## Recent stabilization
 
 ### Phase 43 — Editorial Ingestion Workflow Stabilization
 
-Status: Planned / next cluster.
+Status: Stabilized / hold.
 
 Reason:
 Phase 42C fix loops exposed that remaining issues are no longer isolated counter/session bugs. They are UX stabilization issues across Review List readability, chip wrapping, scroll/clipping, source-first intake flow, and editorial action clarity.
 
-Phase 43 should replace further `42C-fixX` loops unless a true regression from the last 42C patch must be repaired before committing.
+Phase 43 replaced further `42C-fixX` loops and stabilized the Editorial Ingestion / Review Queue surface without changing canon safety boundaries.
 
-## Planned Phase 43 subphases
+Completed stable outcomes:
+- Editorial Ingestion Source Material tab scrolls/focuses back to the Source Material section top.
+- Review Queue is flattened; source/batch groups are context headers, not navigation gates.
+- Review Queue items are visible directly without opening source batches.
+- Source/batch context remains provenance, not primary navigation.
+- Review Queue cards remain collapsed/summary-style by default.
+- Selected Review Queue card styling is clear and distinct from checkbox/batch triage selection.
+- Review Queue checkboxes are selection/triage controls only.
+- Counters stay on one row, including `Visible Review Queue`.
+- Source Material readability/layout remains improved.
+- Dashboard, routing, and Review Detail behavior remain stable.
 
-### Phase 43A — Review List readability + card hierarchy
+Explicitly not implemented:
+- bulk Review Queue delete/remove
+- individual safe Review Queue item deletion
+- source material removal, batch archive, or batch removal
+- stored Source Material long-list browsing/scaling
+- Editorial Intake / Review Queue status and type colored tags
 
-Status: Recommended next.
+## Future backlog
 
-Goal:
-Make staged review items readable, scannable, and clearly connected to the review workflow.
+### Review Queue safety actions
 
-Acceptance focus:
-- readable card hierarchy
-- clear source/title/type/status arrangement
-- checkbox alignment
-- selected row state
-- row-level newly staged marker
-- less cramped density
-- understandable review-list structure
+- Safe bulk Review Queue remove/delete remains future work.
+- Safe Review Queue item deletion remains future work.
 
-### Phase 43B — Tag/chip wrapping and overflow behavior
+### Source Material management
 
-Status: Planned.
+- Safe source material removal, batch archive, or batch removal remains future work.
+- Stored Source Material long-list browsing/scaling remains future work.
 
-Goal:
-Fix tag/chip/badge overlap and wrapping in Review Workspace/List.
+### UI polish
 
-Known issue:
-Screenshot showed `EXTRACTED CANDIDATE` and `UNREVIEWED` style chips overlapping and crowding review cards.
-
-### Phase 43C — Review List scroll/clipping/responsive stability
-
-Status: Planned.
-
-Goal:
-Ensure the Review List scrolls and remains inspectable across normal Electron window sizes.
-
-### Phase 43D — Intake workflow simplification / source-first flow
-
-Status: Planned.
-
-Goal:
-Keep sessions automatic/supportive while making source intake the obvious workflow.
-
-### Phase 43E — Editorial action clarity
-
-Status: Planned.
-
-Goal:
-Clarify what to do after staging: review, accept, defer, mark for placement, while reinforcing that canon remains unchanged until explicit promotion.
+- Editorial Intake / Review Queue status and type colored tags remain future UI polish.
+- Avoid further tiny visual churn unless a concrete issue appears.
+- Continue preserving calm editorial UX and canon safety.

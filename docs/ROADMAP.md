@@ -1,10 +1,10 @@
 # Revival Bible v3 — ROADMAP
 
-Last updated: 2026-05-12 CDT
+Last updated: 2026-05-15 CDT
 
 ## Current roadmap position
 
-The project has completed the Phase 42 source/session/review safety work far enough to move out of repeated `Phase 42C-fixX` loops and into a dedicated stabilization cluster.
+The project has completed the Phase 42 source/session/review safety work and recent Editorial Ingestion / Review Queue stabilization passes. The app is in a hold/stabilized state; future work should be explicitly scoped backlog work, not continued visual churn.
 
 ## Recently stabilized / completed direction
 
@@ -30,76 +30,45 @@ Important workflow decision:
 
 **Import sessions remain part of the internal architecture but should not be presented as a required admin-first step.** Source attachment should be source-first; if no session exists, the app may auto-create/select a safe intake session.
 
-## Next major cluster
+### Editorial Ingestion / Review Queue stabilization
 
-# Phase 43 — Editorial Ingestion Workflow Stabilization
+Recent stabilization completed the key Review Queue UI decisions:
 
-Purpose:
+- Editorial Ingestion Source Material tab scrolls/focuses back to the Source Material section top.
+- Review Queue is flattened; source/batch groups are context headers, not navigation gates.
+- Review Queue items are visible directly without opening source batches.
+- Source/batch context remains provenance, not primary navigation.
+- Review Queue cards remain collapsed/summary-style by default.
+- Selected Review Queue card styling is clear and distinct from checkbox/batch triage selection.
+- Review Queue checkboxes are selection/triage controls only.
+- Counters stay on one row, including `Visible Review Queue`.
+- Source Material readability/layout remains improved.
+- Dashboard, routing, and Review Detail behavior remain stable.
 
-Phase 43 is a UX stabilization cluster for Editorial Ingestion after the safe intake/review architecture is in place. It should stop the repeated micro-fix cycle and address the remaining review workflow comprehension, list readability, overflow, scroll, and action clarity problems in focused subphases.
+No bulk delete/remove workflow has been implemented yet.
 
-This is not extraction automation and not canon import.
+## Current roadmap position
 
-## Phase 43 proposed subphases
+Hold the stable Editorial Ingestion / Review Queue behavior. Do not start a new feature phase unless the next prompt explicitly scopes it.
 
-### Phase 43A — Review List readability + card hierarchy
+This is still not extraction automation and not canon import.
 
-Make staged review items readable, scannable, and clearly connected to the review workflow.
+## Future backlog
 
-Targets:
-- review card hierarchy
-- row/card spacing
-- checkbox alignment
-- title/source/type/status readability
-- row-level newly staged marker
-- selected item state
-- truncation rules
-- density reduction
+### Review Queue safety actions
 
-### Phase 43B — Tag/chip wrapping and overflow behavior
+- Safe bulk Review Queue remove/delete remains future work.
+- Safe Review Queue item deletion remains future work.
 
-Fix badge/chip layout in Review Workspace/List.
+### Source Material management
 
-Targets:
-- no overlapping tags
-- chips wrap cleanly
-- chips do not cover titles/statuses
-- chips work in normal Electron window sizes
-- latest-staged and review-row badges remain readable
+- Safe source material removal, batch archive, or batch removal remains future work.
+- Stored Source Material long-list browsing/scaling remains future work.
 
-### Phase 43C — Review List scroll/clipping/responsive stability
+### UI polish
 
-Make the Review List inspectable across normal app sizes.
-
-Targets:
-- scroll containers
-- clipping issues
-- fixed-height layout conflicts
-- responsive right-column behavior
-- list remains reachable after staging
-
-### Phase 43D — Intake workflow simplification / source-first flow
-
-Make source attachment the obvious first action and session metadata supportive rather than blocking.
-
-Targets:
-- source-first UI copy
-- session details editable/collapsible
-- auto-created sessions clearly explained
-- avoid one long stacked intake form
-
-### Phase 43E — Editorial action clarity
-
-Make it clear what to do after staging.
-
-Targets:
-- Accept / Defer / Placement wording
-- action enable/disable clarity
-- next-step copy
-- empty/success/error states
-- canon-safety reassurance
-
-## Later roadmap items after Phase 43
+- Editorial Intake / Review Queue status and type colored tags remain future UI polish.
+- Avoid further tiny visual churn unless a concrete issue appears.
 
 - Continue real document dump/import preparation.
 - Before using real story files, create a full database backup/snapshot.

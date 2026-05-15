@@ -1,6 +1,6 @@
 # Revival Bible v3 — CURRENT_STATE
 
-Last updated: 2026-05-12 CDT
+Last updated: 2026-05-15 CDT
 
 ## Stable architecture state
 
@@ -18,7 +18,7 @@ Important stable principles:
 
 ## Editorial Ingestion current behavior
 
-Recent Phase 42 work established:
+Recent Phase 42 and Phase 43 stabilization work established:
 
 - staged source attachment
 - native file picker flow
@@ -28,33 +28,39 @@ Recent Phase 42 work established:
 - manual review candidate staging
 - required field markers and validation paths
 - non-canon review candidates
-- Review Workspace/List counters connected to review-list state
+- Review Workspace/Review Queue counters connected to visible queue state
 - Review List scroll and staged item visibility improvements
+- Editorial Ingestion Source Material tab scrolls/focuses back to the Source Material section top
+- Source Material readability/layout improvements
+- counters stay on one row, including `Visible Review Queue`
 
-## Known active UX concerns
+## Review Queue current behavior
 
-The remaining problems are primarily UI/workflow stabilization, not core architecture:
+The Review Queue is flattened and item-first:
 
-- Review List cards are too cramped and can be hard to understand.
-- Tag/chip/badge wrapping can break or overlap.
-- Some card hierarchy/truncation makes item identity unclear.
-- Review List scroll/clipping may need a broader responsive pass.
-- The Review Workspace can still feel like a metrics/admin dashboard instead of an editorial review surface.
-- Next-step guidance after staging should remain clearer and calmer.
-- The left intake side should continue moving toward source-first workflow rather than session-admin-first workflow.
+- Source/batch groups appear as context headers, not navigation gates.
+- Review Queue items are visible directly without opening source batches.
+- Source/batch context remains provenance, not primary navigation.
+- Cards are collapsed/summary-style by default.
+- The selected Review Queue card has clear styling distinct from checkbox/batch triage selection.
+- Checkboxes are selection/triage controls only.
+- Bulk delete/remove has not been implemented.
+- Dashboard, routing, and Review Detail behavior remain stable.
+
+## Known future backlog
+
+These items are future work and should not be treated as completed behavior:
+
+- safe bulk Review Queue remove/delete
+- safe Review Queue item deletion
+- safe source material removal, batch archive, or batch removal
+- stored Source Material long-list browsing/scaling
+- Editorial Intake / Review Queue status and type colored tags
+- larger extraction/review automation work
 
 ## Current project direction
 
-Move into:
-
-**Phase 43 — Editorial Ingestion Workflow Stabilization**
-
-Recommended first subphase:
-
-**Phase 43A — Review List readability + card hierarchy**
-
-Reason:
-The Review List is the central destination for staged material. It must be readable and trustworthy before tag/chip polish, scroll polish, or action clarity can be fully validated.
+Hold the stabilized Editorial Ingestion / Review Queue state. Future phases should be explicit, small, and tied to a concrete issue or backlog item. Avoid further tiny visual churn while preserving calm editorial UX and canon safety.
 
 ## Guardrails for next work
 
