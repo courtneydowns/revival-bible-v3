@@ -664,7 +664,7 @@ export default function EditorialIngestion() {
                       </div>
                     ) : null}
                     <div className="source-batch-row-footer">
-                      <small>{Number(session.source_count || 0)} active source{Number(session.source_count || 0) === 1 ? '' : 's'} / Batch archive/remove remains future work; per-source Remove stays available.</small>
+                      <small>{Number(session.source_count || 0)} active source{Number(session.source_count || 0) === 1 ? '' : 's'} / Stored sources can be removed from the source card.</small>
                       {context === 'source-material' ? (
                         <button className="secondary-button editorial-ingestion-header-button quiet" onClick={() => chooseSourceBatchForNewSource(session.id)} type="button">
                           <span>Add Source Here</span>
@@ -1171,7 +1171,7 @@ export default function EditorialIngestion() {
                         ))}
                       </select>
                     </label>
-                    <small>Per-source Remove stays on each source. Batch-level archive/remove is future work.</small>
+                    <small>Remove is available on each stored source.</small>
                   </div>
                   <p className="source-storage-anchor">Return here to find attached sources later. They persist independently of Review Queue items.</p>
                   {visibleStoredSources.length ? (
@@ -1567,12 +1567,11 @@ export default function EditorialIngestion() {
                   <div className="editorial-review-batch-summary" role="status" aria-live="polite">
                     <span>{selectedExtractionCount} selected</span>
                     <button className="secondary-button editorial-ingestion-header-button quiet" onClick={clearExtractionSelection} type="button">Clear selection</button>
-                    <button className="secondary-button editorial-ingestion-header-button quiet" disabled type="button">Batch actions coming later</button>
                   </div>
                 ) : null}
               </div>
               <p className="editorial-review-queue-helper">
-                Select Review Queue items for triage and future batch workflow planning. Remove or delete controls are not available yet.
+                Select Review Queue items to keep a working set while reviewing details.
               </p>
               <div className="editorial-ingestion-list">
                 {sourceClusters.map((cluster) => {
