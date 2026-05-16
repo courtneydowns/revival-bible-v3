@@ -827,13 +827,15 @@ h1 {
 
 .dashboard-focus-queues {
   display: grid;
+  align-content: start;
   flex: 1 1 auto;
   gap: 7px;
+  grid-auto-rows: max-content;
   margin-top: 11px;
   min-height: 180px;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding-right: 4px;
+  padding: 1px 4px 4px 0;
 }
 
 .dashboard-queue {
@@ -844,7 +846,7 @@ h1 {
 }
 
 .dashboard-queue .dashboard-panel-list {
-  max-height: 146px;
+  max-height: 52px;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-right: 3px;
@@ -855,8 +857,10 @@ h1 {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-height: 20px;
   color: var(--text-muted);
   font-size: 12px;
+  line-height: 1.3;
 }
 
 .dashboard-queue-title span {
@@ -870,6 +874,7 @@ h1 {
   overflow: hidden;
   color: var(--text);
   font-size: 12px;
+  line-height: 1.3;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -3815,7 +3820,7 @@ button.candidate-filter-pill {
 
 .session-source-list {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   margin-top: 14px;
   min-width: 0;
 }
@@ -3999,10 +4004,10 @@ button.candidate-filter-pill {
     "badge"
     "main"
     "footer";
-  gap: 10px;
+  gap: 7px;
   align-items: start;
   border-top: 1px solid var(--line);
-  padding: 13px 0 0;
+  padding: 9px 0 0;
   min-width: 0;
 }
 
@@ -4146,7 +4151,7 @@ button.candidate-filter-pill {
   min-width: 0;
   flex-wrap: wrap;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
 }
 
 .source-type-badge {
@@ -4157,10 +4162,10 @@ button.candidate-filter-pill {
   border-radius: 999px;
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 10px;
-  line-height: 1.35;
+  font-size: 9.5px;
+  line-height: 1.2;
   overflow-wrap: break-word;
-  padding: 4px 7px;
+  padding: 2px 6px;
   text-transform: uppercase;
   white-space: normal;
 }
@@ -4193,15 +4198,15 @@ button.candidate-filter-pill {
   display: grid;
   grid-area: main;
   min-width: 0;
-  gap: 6px;
+  gap: 3px;
 }
 
 .session-source-row-main strong {
   display: block;
   min-width: 0;
   color: var(--text);
-  font-size: 14px;
-  line-height: 1.45;
+  font-size: 13px;
+  line-height: 1.32;
   overflow-wrap: break-word;
   white-space: normal;
 }
@@ -4212,8 +4217,8 @@ button.candidate-filter-pill {
   min-width: 0;
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 11px;
-  line-height: 1.5;
+  font-size: 10.5px;
+  line-height: 1.32;
   overflow-wrap: break-word;
   text-transform: none;
   white-space: normal;
@@ -4224,10 +4229,10 @@ button.candidate-filter-pill {
   grid-area: footer;
   grid-template-columns: minmax(0, 1fr) max-content;
   align-items: start;
-  gap: 8px 12px;
+  gap: 6px 10px;
   min-width: 0;
   border-top: 1px solid rgb(255 255 255 / 6%);
-  padding-top: 9px;
+  padding-top: 6px;
 }
 
 .session-source-row-footer small {
@@ -4235,8 +4240,8 @@ button.candidate-filter-pill {
   min-width: 0;
   color: var(--text-dim);
   font-family: var(--font-mono);
-  font-size: 11px;
-  line-height: 1.45;
+  font-size: 10.5px;
+  line-height: 1.3;
   overflow-wrap: break-word;
   text-transform: none;
   white-space: normal;
@@ -4246,9 +4251,9 @@ button.candidate-filter-pill {
   justify-self: end;
   width: auto;
   min-width: 108px;
-  min-height: 32px;
+  min-height: 28px;
   gap: 5px;
-  padding: 0 10px;
+  padding: 0 9px;
   white-space: nowrap;
 }
 
@@ -4763,8 +4768,8 @@ button.editorial-ingestion-item.selected {
 
 .editorial-review-queue .editorial-ingestion-item {
   min-width: 0;
-  gap: 6px;
-  padding: 10px 11px 10px 12px;
+  gap: 5px;
+  padding: 7px 9px 8px 10px;
 }
 
 .editorial-review-queue button.editorial-ingestion-item:hover {
@@ -4794,19 +4799,20 @@ button.editorial-ingestion-item.selected {
 }
 
 .editorial-review-queue .editorial-review-card-main {
-  gap: 7px;
+  gap: 4px;
 }
 
 .editorial-review-queue .editorial-review-card-badges {
-  gap: 5px 6px;
+  gap: 3px 5px;
   margin-top: 0;
 }
 
 .editorial-review-queue .editorial-review-card-badges .editorial-state-badge,
 .editorial-review-queue .editorial-review-card-badges .latest-staged-label {
-  min-height: 19px;
-  padding: 2px 6px;
-  line-height: 1.15;
+  min-height: 17px;
+  padding: 1px 5px;
+  font-size: 9.5px;
+  line-height: 1.08;
 }
 
 .editorial-review-queue .editorial-review-card-badges .editorial-state-badge.unreviewed {
@@ -4850,15 +4856,21 @@ button.editorial-ingestion-item.selected {
 }
 
 .editorial-review-queue .editorial-review-card-main > small {
-  display: none;
-  line-height: 1.38;
+  display: -webkit-box;
+  color: var(--text-muted);
+  font-size: 10.75px;
+  line-height: 1.22;
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
 }
 
 .editorial-review-queue .editorial-review-card-main > strong {
-  line-height: 1.36;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.22;
+  -webkit-line-clamp: 2;
 }
 
 .editorial-review-queue .editorial-review-card-excerpt {
