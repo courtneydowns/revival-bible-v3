@@ -100,7 +100,6 @@ export default function EditorialIngestion() {
   const showToast = useRevivalStore((state) => state.showToast);
   const sessions = ingestionReviewSummary.sessions || [];
   const sourceRecords = (ingestionReviewSummary.sourceRecords || []).filter(isActiveSourceMaterial);
-  const selectedSourceDraftSources = sourceRecords.filter((source) => String(source.import_session_id || '') === String(sourceDraft.importSessionId || ''));
   const activeSourceCount = sourceRecords.length;
   const sourceBatches = useMemo(
     () => buildIndexedSourceBatches(sessions, sourceRecords),
@@ -618,7 +617,7 @@ export default function EditorialIngestion() {
                       </div>
                     ) : null}
                     <div className="source-batch-row-footer">
-                      <small>{Number(session.source_count || 0)} active source{Number(session.source_count || 0) === 1 ? '' : 's'} / Archive and remove controls remain future review work.</small>
+                      <small>{Number(session.source_count || 0)} active source{Number(session.source_count || 0) === 1 ? '' : 's'} / Batch archive/remove remains future work; per-source Remove stays available.</small>
                       {context === 'source-material' ? (
                         <button className="secondary-button editorial-ingestion-header-button quiet" onClick={() => chooseSourceBatchForNewSource(session.id)} type="button">
                           <span>Add Source Here</span>
@@ -1125,7 +1124,7 @@ export default function EditorialIngestion() {
                         ))}
                       </select>
                     </label>
-                    {sourceDraft.importSessionId ? <small>{selectedSourceDraftSources.length} active in selected batch</small> : null}
+                    <small>Per-source Remove stays on each source. Batch-level archive/remove is future work.</small>
                   </div>
                   <p className="source-storage-anchor">Return here to find attached sources later. They persist independently of Review Queue items.</p>
                   {visibleStoredSources.length ? visibleStoredSources.map((source) => (
@@ -1145,7 +1144,7 @@ export default function EditorialIngestion() {
                               <small>{sourceIdentity.detail} / {formatDate(source.created_at)} / {source.provenance_metadata?.file_preview_state || 'staged'}</small>
                             </div>
                             <div className="session-source-row-footer">
-                              <small>{sourceIdentity.recordLabel}</small>
+                              <small>{sourceIdentity.recordLabel} / {getStoredSourceBatchLine(source, sourceBatches)}</small>
                               <button
                                 aria-label={`Remove stored source material ${sourceIdentity.primary} ${sourceIdentity.recordLabel}`}
                                 className="quiet-danger-button stored-source-remove-button"
@@ -2144,6 +2143,17 @@ function getStoredSourceBatchLabel(batch = {}, batchKey = '') {
   return 'Source batch';
 }
 
+function getStoredSourceBatchLine(source = {}, batches = []) {
+  const batchKey = getStoredSourceBatchKey(source);
+  if (!batchKey) return 'No batch/session link';
+  if (batchKey.startsWith('id:')) {
+    const batchId = batchKey.slice('id:'.length);
+    const batch = batches.find((item) => String(item.id) === batchId);
+    return `Batch/session: ${getStoredSourceBatchLabel(batch, batchKey)}`;
+  }
+  return `Batch/session: ${getStoredSourceBatchLabel(null, batchKey)}`;
+}
+
 function getStoredSourceSortLabel(sortOrder = 'newest') {
   if (sortOrder === 'oldest') return 'oldest first';
   if (sortOrder === 'title') return 'title A-Z';
@@ -2190,6 +2200,17 @@ function formatSourceBadgeLabel(value) {
 
 function buildIndexedSourceBatches(sessions = [], sources = []) {
   const batchMap = new Map(sessions.map((session) => [String(session.id), { ...session }]));
+  const activeSourceCounts = new Map();
+
+  for (const source of sources) {
+    const batchId = String(source.import_session_id || source.provenance_metadata?.import_session_id || '');
+    if (!batchId) continue;
+    activeSourceCounts.set(batchId, (activeSourceCounts.get(batchId) || 0) + 1);
+  }
+
+  for (const [batchId, session] of batchMap.entries()) {
+    session.source_count = activeSourceCounts.get(batchId) || 0;
+  }
 
   for (const source of sources) {
     const batchId = String(source.import_session_id || source.provenance_metadata?.import_session_id || '');
@@ -2201,7 +2222,7 @@ function buildIndexedSourceBatches(sessions = [], sources = []) {
       source_type: provenance.session_source_type || source.source_type,
       status: provenance.session_status || provenance.status || 'stored',
       notes: provenance.session_note || provenance.source_note || '',
-      source_count: sources.filter((item) => String(item.import_session_id || item.provenance_metadata?.import_session_id || '') === batchId).length,
+      source_count: activeSourceCounts.get(batchId) || 0,
       created_at: source.created_at,
       provenance_metadata: {
         ...provenance,
