@@ -3999,15 +3999,15 @@ button.candidate-filter-pill {
 
 .stored-source-browse-stack {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
   border-top: 1px solid var(--line);
-  padding-top: 10px;
+  padding-top: 8px;
 }
 
 .stored-source-browse-entry {
   display: grid;
-  gap: 6px;
+  gap: 5px;
   min-width: 0;
 }
 
@@ -4044,13 +4044,13 @@ button.candidate-filter-pill {
     "badge"
     "main"
     "footer";
-  gap: 7px;
+  gap: 5px;
   align-items: start;
   border: 1px solid rgb(255 255 255 / 6%);
   border-left-color: rgb(216 180 95 / 28%);
   border-radius: var(--radius);
   background: rgb(255 255 255 / 2%);
-  padding: 8px 9px;
+  padding: 7px 9px;
   min-width: 0;
 }
 
@@ -4274,10 +4274,10 @@ button.candidate-filter-pill {
   grid-area: footer;
   grid-template-columns: minmax(0, 1fr) max-content;
   align-items: start;
-  gap: 6px 10px;
+  gap: 5px 10px;
   min-width: 0;
   border-top: 1px solid rgb(255 255 255 / 7%);
-  padding-top: 6px;
+  padding-top: 5px;
 }
 
 .session-source-row-footer small {
