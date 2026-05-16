@@ -3405,7 +3405,7 @@ button.candidate-filter-pill {
 
 .editorial-ingestion-layout {
   display: grid;
-  grid-template-columns: minmax(270px, 0.52fr) minmax(0, 1.48fr);
+  grid-template-columns: minmax(390px, 0.58fr) minmax(0, 1.42fr);
   gap: 18px;
   min-height: 0;
   overflow: hidden;
@@ -3423,18 +3423,18 @@ button.candidate-filter-pill {
 
 .editorial-intake-workflow {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: #151514;
-  padding: 6px;
+  padding: 5px;
 }
 
 .editorial-intake-workflow button {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 6px;
+  gap: 5px;
   align-items: center;
   min-width: 0;
   border: 1px solid transparent;
@@ -3442,9 +3442,9 @@ button.candidate-filter-pill {
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 10.5px;
   font-weight: 650;
-  padding: 7px 8px;
+  padding: 6px 6px;
   text-align: left;
 }
 
@@ -3457,8 +3457,8 @@ button.candidate-filter-pill {
 
 .editorial-intake-workflow small {
   display: inline-grid;
-  width: 19px;
-  height: 19px;
+  width: 18px;
+  height: 18px;
   place-items: center;
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -3470,7 +3470,7 @@ button.candidate-filter-pill {
 .editorial-intake-workflow span {
   min-width: 0;
   line-height: 1.2;
-  white-space: normal;
+  white-space: nowrap;
 }
 
 .editorial-intake-guidance {
