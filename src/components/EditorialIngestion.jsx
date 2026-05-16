@@ -1,5 +1,5 @@
 import { ArrowLeft, CheckSquare, FilePlus2, FileText, Flag, GitCompareArrows, Layers3, Paperclip, Plus, ShieldCheck, Square, Trash2, X } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useRevivalStore } from '../store.js';
 import { formatCentralTime } from '../time.js';
 
@@ -50,6 +50,21 @@ const initialSourceDraft = {
 
 const SOURCE_PREVIEW_LIMIT = 6000;
 
+function getScrollableAncestors(node) {
+  const ancestors = [];
+  let current = node?.parentElement || null;
+
+  while (current && current !== document.body) {
+    const overflowY = window.getComputedStyle(current).overflowY;
+    if (/(auto|scroll|overlay)/.test(overflowY) && current.scrollHeight > current.clientHeight) {
+      ancestors.push(current);
+    }
+    current = current.parentElement;
+  }
+
+  return ancestors;
+}
+
 export default function EditorialIngestion() {
   const [sessionDraft, setSessionDraft] = useState(initialSessionDraft);
   const [sourceDraft, setSourceDraft] = useState(initialSourceDraft);
@@ -87,8 +102,10 @@ export default function EditorialIngestion() {
   const sourceFileInputRef = useRef(null);
   const ingestionIntakeRef = useRef(null);
   const sourceMaterialSectionRef = useRef(null);
+  const reviewWorkspaceRef = useRef(null);
   const reviewItemRefs = useRef(new Map());
   const reviewDetailRef = useRef(null);
+  const reviewDetailTitleRef = useRef(null);
   const ingestionReviewSummary = useRevivalStore((state) => state.ingestionReviewSummary);
   const activeIngestionReviewKey = useRevivalStore((state) => state.activeIngestionReviewKey);
   const clearActiveIngestionReviewKey = useRevivalStore((state) => state.clearActiveIngestionReviewKey);
@@ -298,12 +315,42 @@ export default function EditorialIngestion() {
     });
   };
 
+  const resetReviewDetailScroll = () => {
+    const detail = reviewDetailRef.current;
+    const title = reviewDetailTitleRef.current;
+    if (!detail) return;
+
+    const scrollTargets = [
+      detail,
+      ...getScrollableAncestors(detail),
+      reviewWorkspaceRef.current
+    ].filter(Boolean);
+
+    for (const target of [...new Set(scrollTargets)]) {
+      target.scrollTop = 0;
+      target.scrollLeft = 0;
+      target.scrollTo?.({ top: 0, left: 0, behavior: 'auto' });
+    }
+
+    title?.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'auto' });
+    detail.scrollTop = 0;
+  };
+
 
   useEffect(() => {
     if (selectedReviewKey && !stagedItems.some((item) => item.key === selectedReviewKey)) {
       setSelectedReviewKey(stagedItems[0]?.key || null);
     }
   }, [selectedReviewKey, stagedItems]);
+
+  useLayoutEffect(() => {
+    if (!selectedReviewItem) return;
+    resetReviewDetailScroll();
+    window.requestAnimationFrame(() => {
+      resetReviewDetailScroll();
+      window.requestAnimationFrame(resetReviewDetailScroll);
+    });
+  }, [selectedReviewItem?.key]);
 
   useEffect(() => {
     if (selectedReviewItem?.kind !== 'Review Item') return;
@@ -1438,7 +1485,7 @@ export default function EditorialIngestion() {
           </section>
         </div>
 
-        <section className="editorial-ingestion-panel editorial-review-workspace" aria-labelledby="staged-review-heading">
+        <section className="editorial-ingestion-panel editorial-review-workspace" aria-labelledby="staged-review-heading" ref={reviewWorkspaceRef}>
           <div className="editorial-ingestion-heading">
             <ShieldCheck size={17} />
             <div>
@@ -1581,6 +1628,7 @@ export default function EditorialIngestion() {
                                 {isLatestStaged ? <em className="latest-staged-label">Newly staged</em> : null}
                               </span>
                               <strong>{item.title}</strong>
+                              <small>{item.meta}</small>
                             </span>
                           </button>
                         </div>
@@ -1607,7 +1655,7 @@ export default function EditorialIngestion() {
                       </button>
                     </div>
                   </div>
-                  <div className="editorial-review-detail-header">
+                  <div className="editorial-review-detail-header" ref={reviewDetailTitleRef}>
                     <div>
                       <small>{selectedReviewItem.kind}</small>
                       <h3>{selectedReviewItem.title}</h3>
