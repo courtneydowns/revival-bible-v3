@@ -3997,6 +3997,46 @@ button.candidate-filter-pill {
   text-transform: uppercase;
 }
 
+.stored-source-browse-stack {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.stored-source-browse-entry {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.stored-source-batch-divider {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.stored-source-batch-divider::after {
+  content: "";
+  flex: 1 1 auto;
+  min-width: 20px;
+  border-top: 1px solid rgb(255 255 255 / 7%);
+}
+
+.stored-source-batch-divider span {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
 .session-source-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -4006,8 +4046,11 @@ button.candidate-filter-pill {
     "footer";
   gap: 7px;
   align-items: start;
-  border-top: 1px solid var(--line);
-  padding: 9px 0 0;
+  border: 1px solid rgb(255 255 255 / 6%);
+  border-left-color: rgb(216 180 95 / 28%);
+  border-radius: var(--radius);
+  background: rgb(255 255 255 / 2%);
+  padding: 8px 9px;
   min-width: 0;
 }
 
@@ -4143,6 +4186,8 @@ button.candidate-filter-pill {
 
 .session-source-row.just-attached {
   border-color: rgb(139 174 139 / 45%);
+  border-left-color: rgb(139 174 139 / 70%);
+  background: rgb(139 174 139 / 5%);
 }
 
 .source-card-badge-row {
@@ -4231,7 +4276,7 @@ button.candidate-filter-pill {
   align-items: start;
   gap: 6px 10px;
   min-width: 0;
-  border-top: 1px solid rgb(255 255 255 / 6%);
+  border-top: 1px solid rgb(255 255 255 / 7%);
   padding-top: 6px;
 }
 

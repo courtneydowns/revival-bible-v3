@@ -1174,41 +1174,51 @@ export default function EditorialIngestion() {
                     <small>Per-source Remove stays on each source. Batch-level archive/remove is future work.</small>
                   </div>
                   <p className="source-storage-anchor">Return here to find attached sources later. They persist independently of Review Queue items.</p>
-                  {visibleStoredSources.length ? visibleStoredSources.map((source) => (
-                    <article className={`session-source-row ${String(lastAttachedSourceId) === String(source.id) ? 'just-attached' : ''}`} key={source.id}>
-                      {(() => {
+                  {visibleStoredSources.length ? (
+                    <div className="stored-source-browse-stack">
+                      {visibleStoredSources.map((source, index) => {
+                        const previousSource = visibleStoredSources[index - 1];
+                        const batchChanged = !previousSource || getStoredSourceBatchKey(previousSource) !== getStoredSourceBatchKey(source);
                         const sourceIdentity = getSourceIdentity(source);
                         const sourceBadges = getStoredSourceBadges(source, extractionItems);
+
                         return (
-                          <>
-                            <div className="source-card-badge-row" aria-label="Stored source context">
-                              {sourceBadges.map((badge) => (
-                                <span className={`source-type-badge ${badge.tone}`} key={badge.key}>{badge.label}</span>
-                              ))}
-                            </div>
-                            <div className="session-source-row-main">
-                              <strong>{sourceIdentity.primary}</strong>
-                              <small>{sourceIdentity.detail} / {formatDate(source.created_at)} / {source.provenance_metadata?.file_preview_state || 'staged'}</small>
-                            </div>
-                            <div className="session-source-row-footer">
-                              <small>{sourceIdentity.recordLabel} / {getStoredSourceBatchLine(source, sourceBatches)}</small>
-                              <button
-                                aria-label={`Remove stored source material ${sourceIdentity.primary} ${sourceIdentity.recordLabel}`}
-                                className="quiet-danger-button stored-source-remove-button"
-                                disabled={saving}
-                                onClick={() => requestSourceRemoval(source)}
-                                title="Remove stored source material"
-                                type="button"
-                              >
-                                <Trash2 size={14} />
-                                <span>Remove</span>
-                              </button>
-                            </div>
-                          </>
+                          <div className="stored-source-browse-entry" key={source.id}>
+                            {batchChanged ? (
+                              <div className="stored-source-batch-divider" aria-label="Stored source batch grouping">
+                                <span>{getStoredSourceBatchDividerLabel(source, sourceBatches)}</span>
+                              </div>
+                            ) : null}
+                            <article className={`session-source-row ${String(lastAttachedSourceId) === String(source.id) ? 'just-attached' : ''}`}>
+                              <div className="source-card-badge-row" aria-label="Stored source context">
+                                {sourceBadges.map((badge) => (
+                                  <span className={`source-type-badge ${badge.tone}`} key={badge.key}>{badge.label}</span>
+                                ))}
+                              </div>
+                              <div className="session-source-row-main">
+                                <strong>{sourceIdentity.primary}</strong>
+                                <small>{sourceIdentity.detail} / {formatDate(source.created_at)} / {source.provenance_metadata?.file_preview_state || 'staged'}</small>
+                              </div>
+                              <div className="session-source-row-footer">
+                                <small>{sourceIdentity.recordLabel} / {getStoredSourceBatchLine(source, sourceBatches)}</small>
+                                <button
+                                  aria-label={`Remove stored source material ${sourceIdentity.primary} ${sourceIdentity.recordLabel}`}
+                                  className="quiet-danger-button stored-source-remove-button"
+                                  disabled={saving}
+                                  onClick={() => requestSourceRemoval(source)}
+                                  title="Remove stored source material"
+                                  type="button"
+                                >
+                                  <Trash2 size={14} />
+                                  <span>Remove</span>
+                                </button>
+                              </div>
+                            </article>
+                          </div>
                         );
-                      })()}
-                    </article>
-                  )) : (
+                      })}
+                    </div>
+                  ) : (
                     <div className="stored-source-empty-state" role="status">
                       <strong>No sources match this search.</strong>
                       <p>Clear or change the search or batch filter to browse active Stored Source Material again.</p>
@@ -2200,6 +2210,17 @@ function getStoredSourceBatchLine(source = {}, batches = []) {
     return `Batch/session: ${getStoredSourceBatchLabel(batch, batchKey)}`;
   }
   return `Batch/session: ${getStoredSourceBatchLabel(null, batchKey)}`;
+}
+
+function getStoredSourceBatchDividerLabel(source = {}, batches = []) {
+  const batchKey = getStoredSourceBatchKey(source);
+  if (!batchKey) return 'Unbatched sources';
+  if (batchKey.startsWith('id:')) {
+    const batchId = batchKey.slice('id:'.length);
+    const batch = batches.find((item) => String(item.id) === batchId);
+    return getStoredSourceBatchLabel(batch, batchKey);
+  }
+  return getStoredSourceBatchLabel(null, batchKey);
 }
 
 function getStoredSourceSortLabel(sortOrder = 'newest') {
