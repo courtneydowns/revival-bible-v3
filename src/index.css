@@ -3904,14 +3904,20 @@ button.candidate-filter-pill {
   max-width: 100%;
   min-width: 0;
   line-height: 1.45;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   text-align: left;
+}
+
+.stored-source-heading strong {
+  min-width: 0;
+  line-height: 1.35;
+  overflow-wrap: break-word;
 }
 
 .stored-source-tools {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
-  gap: 7px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 185px), 1fr));
+  gap: 8px;
   align-items: start;
   min-width: 0;
 }
@@ -3933,7 +3939,8 @@ button.candidate-filter-pill {
 
 .stored-source-tools small {
   min-width: 0;
-  overflow-wrap: anywhere;
+  grid-column: 1 / -1;
+  overflow-wrap: break-word;
 }
 
 .stored-source-tools input,
@@ -4152,7 +4159,7 @@ button.candidate-filter-pill {
   font-family: var(--font-mono);
   font-size: 10px;
   line-height: 1.35;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   padding: 4px 7px;
   text-transform: uppercase;
   white-space: normal;
@@ -4195,7 +4202,7 @@ button.candidate-filter-pill {
   color: var(--text);
   font-size: 14px;
   line-height: 1.45;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   white-space: normal;
 }
 
@@ -4207,7 +4214,7 @@ button.candidate-filter-pill {
   font-family: var(--font-mono);
   font-size: 11px;
   line-height: 1.5;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   text-transform: none;
   white-space: normal;
 }
@@ -4230,7 +4237,7 @@ button.candidate-filter-pill {
   font-family: var(--font-mono);
   font-size: 11px;
   line-height: 1.45;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   text-transform: none;
   white-space: normal;
 }
@@ -4276,7 +4283,7 @@ button.candidate-filter-pill {
   font-family: var(--font-mono);
   font-size: 11px;
   line-height: 1.4;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   text-transform: uppercase;
 }
 
@@ -6621,6 +6628,14 @@ button.candidate-tag {
 
   .editorial-ingestion-header-actions {
     justify-content: flex-start;
+  }
+
+  .session-source-row-footer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .stored-source-remove-button {
+    justify-self: start;
   }
 }
 
