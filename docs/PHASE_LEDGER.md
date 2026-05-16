@@ -1,6 +1,6 @@
 # Revival Bible v3 — PHASE_LEDGER
 
-Last updated: 2026-05-15 CDT
+Last updated: 2026-05-16 CDT
 
 ## Recent phase status
 
@@ -116,11 +116,21 @@ Explicitly not implemented:
 - larger source-library browsing pagination, better grouping, or dedicated panel work
 - safe source deletion/removal controls beyond the existing behavior
 
+### Review Queue bulk-action placeholder removal
+
+Status: Passed / docs-control sync.
+
+Summary:
+Removed visible placeholder/fake Review Queue bulk-action UI while preserving current Review Queue selection behavior, Review Detail behavior, Source Material Remove behavior, Dashboard routing, and canon/review safety.
+
+Explicitly not implemented:
+- bulk Review Queue delete/remove
+
 ## Future backlog
 
 ### Review Queue safety actions
 
-- Safe bulk Review Queue remove/delete remains future work.
+- Safe bulk Review Queue remove/delete remains future work; it must be review-layer only, confirmation-gated, canon-safe, and must not affect accepted canon.
 - Safe Review Queue item deletion remains future work.
 
 ### Source Material management

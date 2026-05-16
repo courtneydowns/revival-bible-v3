@@ -1,6 +1,6 @@
 # Revival Bible v3 — CURRENT_STATE
 
-Last updated: 2026-05-15 CDT
+Last updated: 2026-05-16 CDT
 
 ## Stable architecture state
 
@@ -44,6 +44,7 @@ The Review Queue is flattened and item-first:
 - Cards are collapsed/summary-style by default.
 - The selected Review Queue card has clear styling distinct from checkbox/batch triage selection.
 - Checkboxes are selection/triage controls only.
+- Placeholder/fake bulk action controls have been removed from the visible UI.
 - Bulk delete/remove has not been implemented.
 - Dashboard, routing, and Review Detail behavior remain stable.
 
@@ -74,6 +75,8 @@ These items are future work and should not be treated as completed behavior:
 - safe source deletion/removal controls that preserve canon safety
 - Editorial Intake / Review Queue status and type colored tags
 - larger extraction/review automation work
+
+Future Review Queue bulk delete/remove must be review-layer only, confirmation-gated, canon-safe, and must not affect accepted canon.
 
 ## Current project direction
 

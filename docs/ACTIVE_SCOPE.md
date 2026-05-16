@@ -1,6 +1,6 @@
 # Revival Bible v3 — ACTIVE_SCOPE
 
-Last updated: 2026-05-15 CDT
+Last updated: 2026-05-16 CDT
 
 ## Current focus
 
@@ -9,6 +9,8 @@ Keep Editorial Ingestion / Review Queue stable after the recent stabilization pa
 **Current stable cluster — Stored Source Material browsing stabilization**
 
 Phase 43 has stabilized the review surface enough that the next work should be deliberate backlog work, not tiny visual churn. The current Stored Source Material work has also stabilized the Source Material tab into a calmer source-library browsing surface while leaving Review Queue, Review Detail, Dashboard, counters, store, database, and canon/review state logic unchanged.
+
+Recent follow-up removed visible placeholder/fake Review Queue bulk-action UI. Current Review Queue selection remains a working-set/review aid only.
 
 ## Current stable state
 
@@ -37,6 +39,7 @@ Review Queue is currently stable with these decisions:
 - Review Queue cards remain collapsed/summary-style by default.
 - Selected Review Queue card styling is clear and distinct from checkbox/batch triage selection.
 - Review Queue checkboxes are selection/triage controls only.
+- Review Queue must not show placeholder/fake bulk delete/remove controls.
 - No bulk delete/remove workflow has been implemented yet.
 
 Stored Source Material is currently stable with these decisions:
@@ -73,6 +76,8 @@ Do not start these without an explicit future phase:
 - larger stored Source Material browsing that may need pagination, better grouping, or a dedicated source-library panel
 - Editorial Intake / Review Queue status and type colored tags
 - larger extraction/review automation work
+
+Future Review Queue bulk delete/remove must be review-layer only, confirmation-gated, canon-safe, and must not affect accepted canon.
 
 ## Strict constraints for Phase 43
 

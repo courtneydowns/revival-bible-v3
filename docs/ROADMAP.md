@@ -1,6 +1,6 @@
 # Revival Bible v3 — ROADMAP
 
-Last updated: 2026-05-15 CDT
+Last updated: 2026-05-16 CDT
 
 ## Current roadmap position
 
@@ -41,6 +41,7 @@ Recent stabilization completed the key Review Queue UI decisions:
 - Review Queue cards remain collapsed/summary-style by default.
 - Selected Review Queue card styling is clear and distinct from checkbox/batch triage selection.
 - Review Queue checkboxes are selection/triage controls only.
+- Visible placeholder/fake Review Queue bulk-action controls have been removed.
 - Counters stay on one row, including `Visible Review Queue`.
 - Source Material readability/layout remains improved.
 - Dashboard, routing, and Review Detail behavior remain stable.
@@ -73,7 +74,7 @@ This is still not extraction automation and not canon import.
 
 ### Review Queue safety actions
 
-- Safe bulk Review Queue remove/delete remains future work.
+- Safe bulk Review Queue remove/delete remains future work; it must be review-layer only, confirmation-gated, canon-safe, and must not affect accepted canon.
 - Safe Review Queue item deletion remains future work.
 
 ### Source Material management
