@@ -1,5 +1,5 @@
 import { ArrowRight, BookOpen, FileSearch, FileText, History, MapPin, MessageSquareText, Sparkles, TriangleAlert } from 'lucide-react';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRevivalStore } from '../store.js';
 import { formatCentralTime } from '../time.js';
 import StatusBadge from './StatusBadge.jsx';
@@ -28,6 +28,7 @@ export default function Dashboard() {
   const openIngestionReview = useRevivalStore((state) => state.openIngestionReview);
   const selectedReviewKey = useRevivalStore((state) => state.activeDashboardReviewKey);
   const setSelectedReviewKey = useRevivalStore((state) => state.setActiveDashboardReviewKey);
+  const [readyToPlaceReviewKey, setReadyToPlaceReviewKey] = useState(null);
   const editorialCandidates = useMemo(() => candidates.filter((candidate) => !isInternalPhaseRecord(candidate, candidate.title)), [candidates]);
   const editorialDecisions = useMemo(() => decisions.filter((decision) => !isInternalPhaseRecord(decision, decision.title)), [decisions]);
   const editorialQuestions = useMemo(() => questions.filter((question) => !isInternalPhaseRecord(question, question.question)), [questions]);
@@ -67,20 +68,50 @@ export default function Dashboard() {
     () => buildWeakConfidenceItems(ingestionReviewSummary).slice(0, 4),
     [ingestionReviewSummary]
   );
-  const routedReviewItems = useMemo(
-    () => [...ingestionReviewItems, ...weakConfidenceItems, ...continuityRisks.map((risk) => risk.reviewItem).filter(Boolean)],
-    [continuityRisks, ingestionReviewItems, weakConfidenceItems]
+  const awaitingPlacementDetails = useMemo(
+    () => awaitingPlacement.map((candidate) => toCandidateReviewItem(candidate, () => selectCandidate(candidate.id))),
+    [awaitingPlacement, selectCandidate]
   );
-  const activeReviewDetail = useMemo(
+  const unresolvedQuestionDetails = useMemo(
+    () => unresolvedQuestions.map((question) => toQuestionReviewItem(question, () => selectQuestion(question.id))),
+    [selectQuestion, unresolvedQuestions]
+  );
+  const recentDecisionDetails = useMemo(
+    () => recentDecisions.map((decision) => toDecisionReviewItem(decision, () => selectDecision(decision.id))),
+    [recentDecisions, selectDecision]
+  );
+  const routedReviewItems = useMemo(
+    () => [
+      ...ingestionReviewItems,
+      ...weakConfidenceItems,
+      ...continuityRisks.map((risk) => risk.reviewItem).filter(Boolean),
+      ...awaitingPlacementDetails,
+      ...unresolvedQuestionDetails,
+      ...recentDecisionDetails
+    ],
+    [awaitingPlacementDetails, continuityRisks, ingestionReviewItems, recentDecisionDetails, unresolvedQuestionDetails, weakConfidenceItems]
+  );
+  const activeReadyToPlaceDetail = useMemo(
+    () => {
+      if (selectedReviewKey || !readyToPlaceReviewKey) return null;
+      return awaitingPlacementDetails.find((item) => item.key === readyToPlaceReviewKey) || null;
+    },
+    [awaitingPlacementDetails, readyToPlaceReviewKey, selectedReviewKey]
+  );
+  const routedReviewDetail = useMemo(
     () => {
       if (!selectedReviewKey) return null;
       return routedReviewItems.find((item) => item.key === selectedReviewKey) || null;
     },
     [routedReviewItems, selectedReviewKey]
   );
-  const openSelectedReviewDetail = activeReviewDetail?.routeKey
-    ? () => openIngestionReview(activeReviewDetail.routeKey)
-    : null;
+  const activeReviewDetail = activeReadyToPlaceDetail || routedReviewDetail;
+  const openSelectedReviewDetail = useMemo(() => {
+    if (!activeReviewDetail) return null;
+    if (activeReviewDetail.openAction) return activeReviewDetail.openAction;
+    if (activeReviewDetail.routeKey) return () => openIngestionReview(activeReviewDetail.routeKey);
+    return null;
+  }, [activeReviewDetail, openIngestionReview]);
   const recentActivity = useMemo(
     () => [
       ...editorialCandidates.map((candidate) => toActivity('Candidate', candidate, candidate.title, candidate.status, () => selectCandidate(candidate.id))),
@@ -112,6 +143,12 @@ export default function Dashboard() {
       setSelectedReviewKey(null);
     }
   }, [routedReviewItems, selectedReviewKey, setSelectedReviewKey]);
+
+  useEffect(() => {
+    if (readyToPlaceReviewKey && !awaitingPlacementDetails.some((item) => item.key === readyToPlaceReviewKey)) {
+      setReadyToPlaceReviewKey(null);
+    }
+  }, [awaitingPlacementDetails, readyToPlaceReviewKey]);
 
   return (
     <section className="view dashboard-home">
@@ -187,7 +224,7 @@ export default function Dashboard() {
                 title: risk.title,
                 meta: risk.meta,
                 status: risk.status,
-                onOpen: risk.reviewItem ? () => setSelectedReviewKey(risk.reviewItem.key) : risk.onOpen || (() => setActiveView(risk.fallbackView))
+                onOpen: risk.reviewItem ? () => setSelectedReviewKey(risk.reviewItem.key) : null
               }))}
               title="Continuity Review"
             />
@@ -254,36 +291,39 @@ export default function Dashboard() {
             <DashboardQueue
               emptyText="No pending filing work is currently loaded."
               icon={<MapPin size={15} />}
-              items={awaitingPlacement.map((candidate) => ({
-                key: `candidate-${candidate.id}`,
-                title: candidate.title,
-                meta: `${normalizeCandidateStatus(candidate.status)} / Updated ${formatDate(candidate.updated_at || candidate.created_at)}`,
-                status: getCandidateSource(candidate),
-                onOpen: () => selectCandidate(candidate.id)
+              items={awaitingPlacementDetails.map((item) => ({
+                key: item.key,
+                title: item.title,
+                meta: item.meta,
+                status: item.status,
+                onOpen: () => {
+                  setReadyToPlaceReviewKey(item.key);
+                  setSelectedReviewKey(null);
+                }
               }))}
               title="Ready to Place"
             />
             <DashboardQueue
               emptyText="No unresolved questions are currently loaded."
               icon={<MessageSquareText size={15} />}
-              items={unresolvedQuestions.map((question) => ({
-                key: `question-${question.id}`,
-                title: question.question,
-                meta: `${question.status || 'Open'} / Updated ${formatDate(question.updated_at)}`,
-                status: question.urgency,
-                onOpen: () => selectQuestion(question.id)
+              items={unresolvedQuestionDetails.map((item) => ({
+                key: item.key,
+                title: item.title,
+                meta: item.meta,
+                status: item.status,
+                onOpen: () => setSelectedReviewKey(item.key)
               }))}
               title="Open Questions"
             />
             <DashboardQueue
               emptyText="No recent decisions are currently loaded."
               icon={<BookOpen size={15} />}
-              items={recentDecisions.map((decision) => ({
-                key: `decision-${decision.id}`,
-                title: decision.title,
-                meta: `${decision.status || 'Proposed'} / Updated ${formatDate(decision.updated_at)}`,
-                status: decision.final_decision || decision.answer ? 'Decision text present' : 'Final decision pending',
-                onOpen: () => selectDecision(decision.id)
+              items={recentDecisionDetails.map((item) => ({
+                key: item.key,
+                title: item.title,
+                meta: item.meta,
+                status: item.status,
+                onOpen: () => setSelectedReviewKey(item.key)
               }))}
               title="Recent Decisions"
             />
@@ -464,7 +504,12 @@ function buildContinuityRisks({ candidates, questions, decisions, timelineEvents
       title: candidate.title,
       meta: `Candidate tag review / Updated ${formatDate(candidate.updated_at || candidate.created_at)}`,
       status: getCandidateTags(candidate).find((tag) => continuityRiskTags.some((risk) => tag.includes(risk))) || 'Continuity',
-      onOpen: () => useRevivalStore.getState().selectCandidate(candidate.id)
+      reviewItem: toCandidateReviewItem(candidate, () => useRevivalStore.getState().selectCandidate(candidate.id), {
+        key: `risk-candidate-${candidate.id}`,
+        sectionLabel: 'Continuity Review',
+        kindLabel: 'Candidate Tag Review',
+        status: getCandidateTags(candidate).find((tag) => continuityRiskTags.some((risk) => tag.includes(risk))) || 'Continuity'
+      })
     }));
 
   const blockedQuestions = questions
@@ -475,7 +520,11 @@ function buildContinuityRisks({ candidates, questions, decisions, timelineEvents
       title: question.question,
       meta: `Dependency review / Updated ${formatDate(question.updated_at)}`,
       status: question.status || 'Open',
-      onOpen: () => useRevivalStore.getState().selectQuestion(question.id)
+      reviewItem: toQuestionReviewItem(question, () => useRevivalStore.getState().selectQuestion(question.id), {
+        key: `risk-question-${question.id}`,
+        sectionLabel: 'Continuity Review',
+        kindLabel: 'Question Dependency Review'
+      })
     }));
 
   const blockedDecisions = decisions
@@ -486,7 +535,11 @@ function buildContinuityRisks({ candidates, questions, decisions, timelineEvents
       title: decision.title,
       meta: `Decision dependency / Updated ${formatDate(decision.updated_at)}`,
       status: decision.status || 'Proposed',
-      onOpen: () => useRevivalStore.getState().selectDecision(decision.id)
+      reviewItem: toDecisionReviewItem(decision, () => useRevivalStore.getState().selectDecision(decision.id), {
+        key: `risk-decision-${decision.id}`,
+        sectionLabel: 'Continuity Review',
+        kindLabel: 'Decision Dependency Review'
+      })
     }));
 
   const timelineGaps = timelineEvents
@@ -497,7 +550,7 @@ function buildContinuityRisks({ candidates, questions, decisions, timelineEvents
       title: event.title || event.event || 'Timeline item',
       meta: `Timeline review / Updated ${formatDate(event.updated_at || event.created_at)}`,
       status: event.status || 'Timeline',
-      onOpen: () => useRevivalStore.getState().selectTimelineEvent(event.id)
+      reviewItem: toTimelineReviewItem(event, () => useRevivalStore.getState().selectTimelineEvent(event.id))
     }));
 
   const routedReviews = (ingestionReviewSummary?.continuityReviews || [])
@@ -632,6 +685,94 @@ function toContinuityReviewItem(item) {
       { label: 'Claim A', value: item.claim_a || 'No first claim recorded.' },
       { label: 'Claim B', value: item.claim_b || 'No second claim recorded.' },
       { label: 'Risk', value: item.risk_level || 'Review' }
+    ]
+  };
+}
+
+function toCandidateReviewItem(candidate, openAction, overrides = {}) {
+  const status = normalizeCandidateStatus(candidate.status);
+  return {
+    key: `candidate-${candidate.id}`,
+    sectionLabel: 'Ready to Place',
+    kindLabel: 'Candidate',
+    rawTitle: candidate.title,
+    title: candidate.title,
+    meta: `${status} / Updated ${formatDate(candidate.updated_at || candidate.created_at)}`,
+    status: overrides.status || getCandidateSource(candidate),
+    timestamp: candidate.updated_at || candidate.created_at,
+    provenanceSummary: 'Candidate workspace / canon unchanged until explicitly promoted',
+    openAction,
+    detailRows: [
+      { label: 'Status', value: status },
+      { label: 'Source', value: getCandidateSource(candidate) },
+      { label: 'Story note', value: candidate.content || candidate.description || candidate.summary || 'No candidate note recorded.' },
+      { label: 'Updated', value: formatDate(candidate.updated_at || candidate.created_at) }
+    ],
+    ...overrides
+  };
+}
+
+function toQuestionReviewItem(question, openAction, overrides = {}) {
+  return {
+    key: `question-${question.id}`,
+    sectionLabel: 'Open Questions',
+    kindLabel: 'Question',
+    rawTitle: question.question,
+    title: question.question,
+    meta: `${question.status || 'Open'} / Updated ${formatDate(question.updated_at)}`,
+    status: question.urgency || question.status || 'Open',
+    timestamp: question.updated_at || question.created_at,
+    provenanceSummary: 'Question log / canon unchanged until explicitly resolved',
+    openAction,
+    detailRows: [
+      { label: 'Status', value: question.status || 'Open' },
+      { label: 'Urgency', value: question.urgency || 'Not set' },
+      { label: 'Current answer', value: question.answer || question.working_answer || 'No answer recorded yet.' },
+      { label: 'Blocks', value: question.blocks || question.blocked_by || 'No dependency recorded.' }
+    ],
+    ...overrides
+  };
+}
+
+function toDecisionReviewItem(decision, openAction, overrides = {}) {
+  return {
+    key: `decision-${decision.id}`,
+    sectionLabel: 'Recent Decisions',
+    kindLabel: 'Decision',
+    rawTitle: decision.title,
+    title: decision.title,
+    meta: `${decision.status || 'Proposed'} / Updated ${formatDate(decision.updated_at)}`,
+    status: decision.final_decision || decision.answer ? 'Decision text present' : 'Final decision pending',
+    timestamp: decision.updated_at || decision.created_at,
+    provenanceSummary: 'Decision tracker / canon unchanged until explicitly applied',
+    openAction,
+    detailRows: [
+      { label: 'Status', value: decision.status || 'Proposed' },
+      { label: 'Decision', value: decision.final_decision || decision.answer || 'Final decision pending.' },
+      { label: 'Rationale', value: decision.rationale || decision.notes || 'No rationale recorded.' },
+      { label: 'Blocks', value: decision.blocks || decision.blocked_by || 'No dependency recorded.' }
+    ],
+    ...overrides
+  };
+}
+
+function toTimelineReviewItem(event, openAction) {
+  return {
+    key: `risk-timeline-${event.id}`,
+    sectionLabel: 'Continuity Review',
+    kindLabel: 'Timeline Review',
+    rawTitle: event.title || event.event || 'Timeline item',
+    title: event.title || event.event || 'Timeline item',
+    meta: `Timeline review / Updated ${formatDate(event.updated_at || event.created_at)}`,
+    status: event.status || 'Timeline',
+    timestamp: event.updated_at || event.created_at,
+    provenanceSummary: 'Timeline workspace / canon unchanged until explicitly edited',
+    openAction,
+    detailRows: [
+      { label: 'Status', value: event.status || 'Timeline' },
+      { label: 'When', value: event.chronology_bucket || event.date_label || event.date || 'No timeline placement recorded.' },
+      { label: 'Event', value: event.event || event.summary || event.description || 'No event description recorded.' },
+      { label: 'Updated', value: formatDate(event.updated_at || event.created_at) }
     ]
   };
 }
